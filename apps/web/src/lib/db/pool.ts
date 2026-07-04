@@ -5,7 +5,9 @@ import { readDbConfig, type DbConfig } from "./config";
 
 const { Pool } = pg;
 
-let pool: pg.Pool | null = null;
+// Cache the promise (not the resolved pool) so concurrent cold-start
+// requests share a single Pool/Connector instead of each creating one.
+let poolPromise: Promise<pg.Pool> | null = null;
 
 async function createPool(config: DbConfig): Promise<pg.Pool> {
   const connector = new Connector();
@@ -23,17 +25,23 @@ async function createPool(config: DbConfig): Promise<pg.Pool> {
   });
 }
 
-async function getPool(): Promise<pg.Pool> {
+function getPool(): Promise<pg.Pool> {
   const config = readDbConfig();
   if (!config) {
-    throw new Error("Database environment variables are not set");
+    return Promise.reject(
+      new Error("Database environment variables are not set"),
+    );
   }
 
-  if (!pool) {
-    pool = await createPool(config);
+  if (!poolPromise) {
+    poolPromise = createPool(config).catch((error) => {
+      // Allow a retry on the next request instead of caching the failure.
+      poolPromise = null;
+      throw error;
+    });
   }
 
-  return pool;
+  return poolPromise;
 }
 
 export type DbHealthResult =
