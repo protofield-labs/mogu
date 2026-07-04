@@ -70,7 +70,12 @@ async function main() {
         },
       }),
     );
-  } catch {
+  } catch (error) {
+    // Only a policy rejection counts; connection errors etc. must not pass.
+    const message = error instanceof Error ? error.message : String(error);
+    if (!/row-level security|42501/i.test(message)) {
+      throw new Error(`INSERT failed for an unexpected reason: ${message}`);
+    }
     insertBlocked = true;
   }
   if (!insertBlocked) {
@@ -82,6 +87,24 @@ async function main() {
       where: { firebaseUid: UID_A },
       data: { displayName: "RLS Test A Updated" },
     }),
+  );
+
+  // DELETE must also go through USING: deleting another user's row is a no-op.
+  const crossDelete = await withRls(UID_A, (tx) =>
+    tx.user.deleteMany({ where: { firebaseUid: UID_B } }),
+  );
+  if (crossDelete.count !== 0) {
+    throw new Error(
+      `Expected DELETE of foreign row to affect 0 rows, got ${crossDelete.count}`,
+    );
+  }
+
+  // Cleanup doubles as verification that users can delete their own row.
+  await withRls(UID_A, (tx) =>
+    tx.user.delete({ where: { firebaseUid: UID_A } }),
+  );
+  await withRls(UID_B, (tx) =>
+    tx.user.delete({ where: { firebaseUid: UID_B } }),
   );
 
   console.log("PASS: users RLS self_only policy verified");

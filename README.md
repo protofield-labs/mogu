@@ -152,13 +152,17 @@ gcloud builds submit apps/web \
   --project=mogu-501309 \
   --config=apps/web/cloudbuild.migrate.yaml
 
+# Private IP can change if the instance is recreated; always look it up.
+DB_HOST="$(gcloud sql instances describe dev-pg --project=mogu-501309 \
+  --format='value(ipAddresses[0].ipAddress)')"
+
 gcloud run jobs deploy dev-db-migrate \
   --project=mogu-501309 --region=asia-northeast1 \
   --image=asia-northeast1-docker.pkg.dev/mogu-501309/web/migrate:latest \
   --service-account=dev-web-run@mogu-501309.iam.gserviceaccount.com \
   --network=dev-vpc --subnet=dev-subnet --vpc-egress=private-ranges-only \
   --set-secrets=DB_PASSWORD=dev-db-password:latest \
-  --set-env-vars=DB_HOST=10.51.0.3,DB_USER=app_user,DB_NAME=app \
+  --set-env-vars=DB_HOST=${DB_HOST},DB_USER=app_user,DB_NAME=app \
   --tasks=1 --max-retries=0 --task-timeout=10m
 
 gcloud run jobs execute dev-db-migrate \
