@@ -22,12 +22,10 @@ resource "google_project_iam_member" "web_cloudsql_client" {
   member  = "serviceAccount:${google_service_account.web.email}"
 }
 
-# Firebase Admin SDK (ADC): verifyIdToken on Cloud Run (#14).
-resource "google_project_iam_member" "web_firebaseauth_admin" {
-  project = var.project_id
-  role    = "roles/firebaseauth.admin"
-  member  = "serviceAccount:${google_service_account.web.email}"
-}
+# Firebase Admin SDK on Cloud Run uses ADC for credentials only.
+# verifyIdToken() validates against public JWKS and needs no IAM role, so the
+# web SA gets none here. Add roles/firebaseauth.viewer (checkRevoked) or
+# roles/firebaseauth.admin (user management) only when those APIs are used.
 
 # GitHub Actions: push images and deploy new revisions to Cloud Run.
 resource "google_project_iam_member" "github_actions_artifact_registry_writer" {
