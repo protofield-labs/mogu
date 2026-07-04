@@ -118,14 +118,70 @@ docker push ${IMAGE}
 
 ### 4. Connecting to Cloud SQL locally (optional)
 
-Cloud SQL uses a private IP only. To reach it from your machine, use the
-Cloud SQL Auth Proxy:
+Cloud SQL uses a private IP only. The Auth Proxy with `--private-ip` requires
+your machine to have network connectivity to the VPC (VPN or a host inside
+the VPC). Without that, use a Cloud Run Job with Direct VPC egress (see §5).
 
 ```bash
-cloud-sql-proxy --private-ip mogu-501309:asia-northeast1:<instance-name>
+cloud-sql-proxy --private-ip mogu-501309:asia-northeast1:dev-pg --port 5432
 ```
 
-### 5. Monitoring alerts (Slack)
+### 5. Database migrations (Prisma)
+
+Schema and migrations live in `apps/web/prisma/`. The `users` table uses
+`firebase_uid` as the primary key with PostgreSQL RLS (`FORCE ROW LEVEL
+SECURITY`, `self_only` policy). Migrations run as `app_user`, the same
+role the application uses, so RLS applies during verification.
+
+**Apply migrations to dev** (Auth Proxy on port 5432, with VPC connectivity):
+
+```bash
+export DB_PASSWORD="$(gcloud secrets versions access latest \
+  --secret=dev-db-password --project=mogu-501309)"
+export DATABASE_URL="postgresql://app_user:${DB_PASSWORD}@127.0.0.1:5432/app"
+
+cd apps/web
+pnpm db:migrate
+```
+
+**Or run from Cloud Run Job** (works without local VPC access):
+
+```bash
+# Build the migrate image once
+gcloud builds submit apps/web \
+  --project=mogu-501309 \
+  --config=apps/web/cloudbuild.migrate.yaml
+
+gcloud run jobs deploy dev-db-migrate \
+  --project=mogu-501309 --region=asia-northeast1 \
+  --image=asia-northeast1-docker.pkg.dev/mogu-501309/web/migrate:latest \
+  --service-account=dev-web-run@mogu-501309.iam.gserviceaccount.com \
+  --network=dev-vpc --subnet=dev-subnet --vpc-egress=private-ranges-only \
+  --set-secrets=DB_PASSWORD=dev-db-password:latest \
+  --set-env-vars=DB_HOST=10.51.0.3,DB_USER=app_user,DB_NAME=app \
+  --tasks=1 --max-retries=0 --task-timeout=10m
+
+gcloud run jobs execute dev-db-migrate \
+  --project=mogu-501309 --region=asia-northeast1 --wait
+```
+
+Copy `apps/web/.env.example` to `apps/web/.env` for local `pnpm dev` if needed.
+
+**Verify RLS** (uses `app_user`, not the Cloud SQL admin):
+
+```bash
+export DATABASE_URL="postgresql://app_user:${DB_PASSWORD}@127.0.0.1:5432/app"
+chmod +x scripts/verify-users-rls.sh
+./scripts/verify-users-rls.sh
+```
+
+Application code sets the RLS session variable via `withRls()` in
+`apps/web/src/lib/db/rls.ts` (`set_config('app.current_user_id', uid, true)`).
+
+Cloud Run will use a private-IP `DATABASE_URL` once wired in #14; until then
+`/api/health/db` continues to use the Cloud SQL connector pool.
+
+### 6. Monitoring alerts (Slack)
 
 Cloud Monitoring alert policies (Cloud Run 5xx / latency / request spike,
 Cloud SQL CPU / disk) notify Slack via a Monitoring notification channel.

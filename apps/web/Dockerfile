@@ -5,6 +5,7 @@ FROM node:24.18.0-slim AS deps
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@11.9.0 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY prisma ./prisma
 RUN pnpm install --frozen-lockfile
 
 # --- build: compile the Next.js app (standalone output) ---
@@ -13,7 +14,9 @@ WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@11.9.0 --activate
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+COPY prisma ./prisma
 ENV NEXT_TELEMETRY_DISABLED=1
+RUN pnpm exec prisma generate
 RUN pnpm build
 
 # --- runner: minimal runtime image ---

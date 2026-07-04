@@ -1,0 +1,17 @@
+# One-off Cloud Run Job image for Prisma migrations (private IP Cloud SQL).
+FROM node:24.18.0-slim
+WORKDIR /app
+RUN apt-get update -y \
+  && apt-get install -y --no-install-recommends openssl \
+  && rm -rf /var/lib/apt/lists/*
+RUN corepack enable && corepack prepare pnpm@11.9.0 --activate
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY prisma ./prisma
+RUN pnpm install --frozen-lockfile
+COPY scripts ./scripts
+COPY tsconfig.json ./
+RUN groupadd --system --gid 1001 nodejs \
+  && useradd --system --uid 1001 --gid nodejs migrate \
+  && chown -R migrate:nodejs /app
+USER migrate
+CMD ["sh", "-c", "DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:5432/${DB_NAME}?sslmode=require exec pnpm db:migrate"]
