@@ -15,3 +15,9 @@ billing_account_id = "000000-000000-000000"
 
 # Phase 2: flip to true to wire Cloud Run to Cloud SQL.
 # enable_db_connection = false
+
+# Slack alerts (Monitoring + Billing budget). One-time Console OAuth setup:
+#   GCP Console → Monitoring → Alerting → Edit notification channels → Slack
+# Then: gcloud monitoring channels list --project=PROJECT_ID --filter='type="slack"'
+# slack_notification_channel_id = "projects/PROJECT_ID/notificationChannels/CHANNEL_ID"
+# slack_channel_name = "#gcp-alerts"

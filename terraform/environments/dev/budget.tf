@@ -1,5 +1,5 @@
-# Monthly budget alert scoped to this project. Emails go to the billing
-# account admins/users by default when a threshold is crossed.
+# Monthly budget alert scoped to this project. Default billing-account
+# emails still fire. Slack requires Pub/Sub + forwarder (see issue #10).
 data "google_project" "current" {
   project_id = var.project_id
 }
@@ -38,6 +38,10 @@ resource "google_billing_budget" "monthly" {
     threshold_percent = 1.0
     spend_basis       = "FORECASTED_SPEND"
   }
+
+  # Budget API accepts email Monitoring channels only (not Slack/SMS/PagerDuty).
+  # Slack budget alerts require Pub/Sub + a forwarder (see GCP docs). Email
+  # defaults (Billing Account Admins/Users) remain enabled.
 
   depends_on = [google_project_service.services]
 }
