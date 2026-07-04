@@ -128,7 +128,8 @@ cloud-sql-proxy --private-ip mogu-501309:asia-northeast1:<instance-name>
 ### 5. Monitoring alerts (Slack)
 
 Cloud Monitoring alert policies (Cloud Run 5xx / latency / request spike,
-Cloud SQL CPU / disk) and Billing budget alerts can share one Slack channel.
+Cloud SQL CPU / disk) notify Slack. Billing budget alerts stay on email
+(Budget API does not accept Slack notification channels).
 
 One-time setup:
 

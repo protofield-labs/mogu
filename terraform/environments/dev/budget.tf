@@ -1,5 +1,5 @@
 # Monthly budget alert scoped to this project. Default billing-account
-# emails still fire; add Slack via slack_notification_channel_id (monitoring.tf).
+# emails still fire. Slack requires Pub/Sub + forwarder (see issue #10).
 data "google_project" "current" {
   project_id = var.project_id
 }
@@ -39,15 +39,9 @@ resource "google_billing_budget" "monthly" {
     spend_basis       = "FORECASTED_SPEND"
   }
 
-  # Slack notifications (same channel as Cloud Monitoring alerts in monitoring.tf).
-  dynamic "all_updates_rule" {
-    for_each = length(local.slack_notification_channel_ids) > 0 ? [1] : []
-
-    content {
-      monitoring_notification_channels = local.slack_notification_channel_ids
-      disable_default_iam_recipients   = false
-    }
-  }
+  # Budget API accepts email Monitoring channels only (not Slack/SMS/PagerDuty).
+  # Slack budget alerts require Pub/Sub + a forwarder (see GCP docs). Email
+  # defaults (Billing Account Admins/Users) remain enabled.
 
   depends_on = [google_project_service.services]
 }

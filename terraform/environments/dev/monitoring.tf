@@ -128,7 +128,7 @@ resource "google_monitoring_alert_policy" "cloud_run_request_spike" {
       ])
       duration        = "300s"
       comparison      = "COMPARISON_GT"
-      threshold_value = 2
+      threshold_value = 10
       aggregations {
         alignment_period   = "60s"
         per_series_aligner = "ALIGN_RATE"
