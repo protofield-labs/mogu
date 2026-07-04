@@ -105,21 +105,27 @@ async function saveState(budgetId, periodStart, state) {
 }
 
 /**
- * Notify only when a threshold newly exceeds the highest one already sent
- * for this budget period (stops duplicate Slack posts on periodic Pub/Sub).
+ * Decide whether a threshold newly exceeds the highest one already sent for
+ * this budget period (stops duplicate Slack posts on periodic Pub/Sub).
+ *
+ * State is committed by the caller AFTER the Slack post succeeds, so a failed
+ * post is retried instead of being recorded as notified (prefer a rare
+ * duplicate over a lost cost alert).
  *
  * @param {Record<string, unknown>} payload
  * @param {Record<string, string>} attributes
- * @returns {Promise<boolean>}
+ * @returns {Promise<{ notify: boolean, commit: () => Promise<void> }>}
  */
-async function shouldNotify(payload, attributes) {
+async function evaluateNotification(payload, attributes) {
   const { budgetId, periodStart, actual, forecast } = extractThresholds(
     payload,
     attributes,
   );
 
+  const skip = { notify: false, commit: async () => {} };
+
   if (actual == null && forecast == null) {
-    return false;
+    return skip;
   }
 
   const state = await loadState(budgetId, periodStart);
@@ -139,13 +145,15 @@ async function shouldNotify(payload, attributes) {
     console.log(
       `Threshold already notified for budget=${budgetId} period=${periodStart}; skipping`,
     );
-    return false;
+    return skip;
   }
 
-  await saveState(budgetId, periodStart, state);
-  return true;
+  return {
+    notify: true,
+    commit: () => saveState(budgetId, periodStart, state),
+  };
 }
 
 module.exports = {
-  shouldNotify,
+  evaluateNotification,
 };

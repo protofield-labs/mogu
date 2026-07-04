@@ -1,5 +1,5 @@
 const functions = require('@google-cloud/functions-framework');
-const { shouldNotify } = require('./dedupe');
+const { evaluateNotification } = require('./dedupe');
 
 /**
  * @param {number | string | undefined} value
@@ -236,12 +236,21 @@ functions.cloudEvent('notifySlack', async (cloudEvent) => {
     return;
   }
 
-  if (!isTest && !(await shouldNotify(payload, attributes))) {
-    return;
+  let commitDedupeState = async () => {};
+  if (!isTest) {
+    const decision = await evaluateNotification(payload, attributes);
+    if (!decision.notify) {
+      return;
+    }
+
+    commitDedupeState = decision.commit;
   }
 
   const blocks = buildBlocks(payload, attributes, isTest);
   await postToSlack(blocks);
+  // Record state only after the post succeeded: a Slack failure leaves the
+  // message unacked and Pub/Sub retries it instead of dropping the alert.
+  await commitDedupeState();
   console.log(
     isTest
       ? 'Posted test budget alert to Slack'

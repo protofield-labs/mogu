@@ -93,12 +93,19 @@ resource "google_secret_manager_secret_iam_member" "budget_slack_notifier_bot_to
   member    = "serviceAccount:${google_service_account.budget_slack_notifier[0].email}"
 }
 
+# Scoped to the dedupe prefix so the function SA cannot touch other objects
+# (e.g. its own source zip) in the shared app bucket.
 resource "google_storage_bucket_iam_member" "budget_slack_notifier_dedupe" {
   count = local.budget_slack_enabled ? 1 : 0
 
   bucket = module.storage.bucket_name
   role   = "roles/storage.objectUser"
   member = "serviceAccount:${google_service_account.budget_slack_notifier[0].email}"
+
+  condition {
+    title      = "dedupe-prefix-only"
+    expression = "resource.name.startsWith(\"projects/_/buckets/${module.storage.bucket_name}/objects/budget-slack-dedupe/\")"
+  }
 }
 
 resource "google_storage_bucket_object" "budget_slack_notifier" {
