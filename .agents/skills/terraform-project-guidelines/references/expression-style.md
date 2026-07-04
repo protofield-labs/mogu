@@ -13,34 +13,30 @@
 Allowed:
 
 ```hcl
-resource "aws_cloudwatch_metric_alarm" "main" {
+resource "google_monitoring_alert_policy" "main" {
   count = var.enable_alarm ? 1 : 0
 
-  alarm_name = var.alarm_name
+  display_name = var.alarm_name
 }
 ```
 
 Avoid:
 
 ```hcl
-resource "aws_instance" "main" {
+resource "google_compute_instance" "main" {
   count = length(var.instance_names)
 
-  tags = {
-    Name = var.instance_names[count.index]
-  }
+  name = var.instance_names[count.index]
 }
 ```
 
 Use `for_each` instead:
 
 ```hcl
-resource "aws_instance" "main" {
-  for_each = var.instance_names
+resource "google_compute_instance" "main" {
+  for_each = toset(var.instance_names)
 
-  tags = {
-    Name = each.key
-  }
+  name = each.key
 }
 ```
 
@@ -50,36 +46,36 @@ resource "aws_instance" "main" {
 - Keep conditional expressions short and readable.
 - Avoid nested conditional expressions.
 - Move long or repeated conditions into `locals`.
-- Prefer explicit booleans such as `var.enable_access_logs` over indirect checks when the condition controls resource creation.
+- Prefer explicit booleans such as `var.enable_db_connection` over indirect checks when the condition controls resource creation.
 
 Allowed:
 
 ```hcl
-count = var.enable_access_logs ? 1 : 0
+count = var.enable_db_connection ? 1 : 0
 ```
 
 Allowed:
 
 ```hcl
 locals {
-  log_bucket_name = var.enable_access_logs ? var.access_logs_bucket_name : null
+  db_secret_id = var.enable_db_connection ? google_secret_manager_secret.db.id : null
 }
 ```
 
 Avoid:
 
 ```hcl
-instance_type = var.environment == "prod" ? "m7g.large" : var.environment == "staging" ? "m7g.medium" : "t4g.small"
+machine_type = var.environment == "prod" ? "db-custom-4-16384" : var.environment == "staging" ? "db-custom-2-8192" : "db-f1-micro"
 ```
 
 Prefer:
 
 ```hcl
 locals {
-  instance_type_by_environment = {
-    dev     = "t4g.small"
-    staging = "m7g.medium"
-    prod    = "m7g.large"
+  tier_by_environment = {
+    dev     = "db-f1-micro"
+    staging = "db-custom-2-8192"
+    prod    = "db-custom-4-16384"
   }
 }
 ```

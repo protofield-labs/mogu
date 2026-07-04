@@ -1,3 +1,4 @@
+# Terraform
 .terraform/
 *.tfstate
 *.tfstate.*
@@ -10,3 +11,15 @@ override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
+terraform.tfvars
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+.pnpm-store/
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store

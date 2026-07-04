@@ -2,30 +2,33 @@
 
 ## Backend
 
-- Use the S3 backend for all root modules.
-- Do not use DynamoDB for state locking.
-- Use S3 native locking with `use_lockfile = true` (Terraform 1.10+).
-- Enable server-side encryption with `encrypt = true`.
+- Use the GCS backend for all root modules.
+- Rely on GCS native object locking. Do not create an external lock
+  resource. GCS provides strong read-after-write consistency and native
+  state locking, so no separate lock table is needed. This mirrors the
+  "S3 native locking" intent of not running a dedicated lock table.
+- GCS buckets are encrypted at rest by default (Google-managed keys).
 
 ## State Bucket Requirements
 
-- Use one S3 bucket per AWS account to store all state for that account.
-- Enable bucket versioning.
-- Enable server-side encryption (SSE-KMS or SSE-S3).
-- Enable Block Public Access on the bucket.
-- Manage the state bucket outside the root modules that consume it.
+- Use one GCS bucket per project to store all state for that project.
+- Enable object versioning.
+- Enable Uniform bucket-level access.
+- Manage the state bucket outside the root modules that consume it
+  (bootstrap it manually or in a separate bootstrap configuration).
 
-## State Key Layout
+## State Prefix Layout
 
-Use one state key per State boundary and mirror the directory layout:
+Use one state prefix per State boundary and mirror the directory layout:
 
 ```text
-dev/global/edge/terraform.tfstate
-dev/ap-northeast-1/network/terraform.tfstate
-dev/ap-northeast-1/app/terraform.tfstate
-dev/ap-northeast-1/data/terraform.tfstate
-dev/ap-northeast-1/data-sync/terraform.tfstate
+dev
+staging
+prod
 ```
+
+For finer boundaries, extend the prefix (for example
+`dev/asia-northeast1/app`).
 
 ## Example
 
@@ -33,18 +36,16 @@ Each root module declares its own backend in `backend.tf`:
 
 ```hcl
 terraform {
-  backend "s3" {
-    bucket       = "example-tfstate-123456789012"
-    key          = "dev/ap-northeast-1/app/terraform.tfstate"
-    region       = "ap-northeast-1"
-    encrypt      = true
-    use_lockfile = true
+  backend "gcs" {
+    bucket = "tfstate-mogu"
+    prefix = "dev"
   }
 }
 ```
 
 ## Rules
 
-- Do not use DynamoDB lock tables.
-- Do not share one state key across multiple root modules.
-- Keep the backend block minimal and pass environment-specific values via partial backend config when needed.
+- Do not use an external lock table or lock resource.
+- Do not share one state prefix across multiple root modules.
+- Keep the backend block minimal and pass environment-specific values via
+  partial backend config when needed.
