@@ -1,5 +1,5 @@
-# Monthly budget alert scoped to this project. Emails go to the billing
-# account admins/users by default when a threshold is crossed.
+# Monthly budget alert scoped to this project. Default billing-account
+# emails still fire; add Slack via slack_notification_channel_id (monitoring.tf).
 data "google_project" "current" {
   project_id = var.project_id
 }
@@ -37,6 +37,16 @@ resource "google_billing_budget" "monthly" {
   threshold_rules {
     threshold_percent = 1.0
     spend_basis       = "FORECASTED_SPEND"
+  }
+
+  # Slack notifications (same channel as Cloud Monitoring alerts in monitoring.tf).
+  dynamic "all_updates_rule" {
+    for_each = length(local.slack_notification_channel_ids) > 0 ? [1] : []
+
+    content {
+      monitoring_notification_channels = local.slack_notification_channel_ids
+      disable_default_iam_recipients   = false
+    }
   }
 
   depends_on = [google_project_service.services]

@@ -104,3 +104,24 @@ variable "enable_db_connection" {
   type        = bool
   default     = false
 }
+
+# --- Monitoring / Slack notifications ---
+
+variable "slack_channel_name" {
+  description = "Slack channel name for Monitoring notifications (e.g. #gcp-alerts). Used when creating the channel via Terraform."
+  type        = string
+  default     = "#gcp-alerts"
+}
+
+variable "slack_notification_channel_id" {
+  description = "Existing Monitoring Slack notification channel ID (preferred). Create via Console OAuth, then: gcloud monitoring channels list --filter='type=\"slack\"'"
+  type        = string
+  default     = ""
+}
+
+variable "slack_auth_token" {
+  description = "Slack OAuth token to create a Monitoring notification channel via Terraform. Prefer slack_notification_channel_id instead."
+  type        = string
+  sensitive   = true
+  default     = ""
+}

@@ -125,6 +125,28 @@ Cloud SQL Auth Proxy:
 cloud-sql-proxy --private-ip mogu-501309:asia-northeast1:<instance-name>
 ```
 
+### 5. Monitoring alerts (Slack)
+
+Cloud Monitoring alert policies (Cloud Run 5xx / latency / request spike,
+Cloud SQL CPU / disk) and Billing budget alerts can share one Slack channel.
+
+One-time setup:
+
+1. GCP Console → **Monitoring → Alerting → Edit notification channels → Slack**
+2. Authorize your workspace and pick a channel (e.g. `#gcp-alerts`)
+3. Copy the channel ID:
+
+```bash
+gcloud monitoring channels list \
+  --project=mogu-501309 \
+  --filter='type="slack"' \
+  --format='value(name)'
+```
+
+4. Set `slack_notification_channel_id` in `terraform.tfvars` and apply.
+
+Alerts stay within Cloud Monitoring free tier (no Datadog / custom metrics).
+
 ## Cost Notes
 
 - Cloud SQL: `db-f1-micro`-class tier, `ZONAL` (no HA) to keep dev cheap.
