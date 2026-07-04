@@ -222,9 +222,18 @@ Application code sets the RLS session variable via `withRls()` in
 ### 6. Authentication (Firebase)
 
 Firebase Authentication (Email/Password + Google) with Bearer tokens on Route
-Handlers. Admin SDK uses ADC on Cloud Run (no service account keys). UI pages
-(`/login`, `/signup`) are tracked in #17; this section covers infrastructure
-and local verification.
+Handlers. Admin SDK uses ADC on Cloud Run (no service account keys).
+
+**UI routes** (`/login`, `/signup`, protected `/`):
+
+- `/login` — Google (`signInWithPopup`) + Email/Password; links to `/signup`
+- `/signup` — Email/Password with display name; provisions `users` on success
+- `/` — protected by client `AuthGate`; shows profile from `GET /api/v1/users/me`
+- Header includes **Log out**; unauthenticated access to `/` redirects to `/login`
+
+After sign-in, the client calls `POST /api/v1/users/provision` (idempotent) before
+redirecting home. Display name: form input on signup, `user.displayName` for
+Google, or email local-part fallback.
 
 **Provision Firebase (Terraform)**:
 
@@ -271,6 +280,15 @@ cd apps/web && pnpm dev
 Set `FIREBASE_AUTH_EMULATOR_HOST` (server) and
 `NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST` (client) to `127.0.0.1:9099`.
 
+**Emulator end-to-end check** (#17):
+
+1. Copy `apps/web/.env.example` → `apps/web/.env` (emulator + `DATABASE_URL`)
+2. Start Auth Emulator and `pnpm dev` (see above)
+3. Open http://localhost:3000 → redirects to `/login`
+4. Sign up (Email or Google) → home shows display name from `/api/v1/users/me`
+5. Log out → sign in again → same uid, no duplicate `users` row
+6. Direct visit to `/` while logged out → `/login`
+
 **Protected API routes** (`Authorization: Bearer <Firebase ID token>`):
 
 | Method | Path | Description |
@@ -281,9 +299,10 @@ Set `FIREBASE_AUTH_EMULATOR_HOST` (server) and
 Public: `/api/health/*` only. Client helpers: `authFetch()`, `useAuth()` in
 `apps/web/src/lib/auth/` and `apps/web/src/contexts/auth-context.tsx`.
 
-**Deploy build-time Firebase config**: `NEXT_PUBLIC_FIREBASE_*` must be passed
-as Docker build args (see `apps/web/Dockerfile`). Set GitHub repository secrets
-from `terraform output firebase_web_config` before the first auth-enabled deploy.
+**Deploy build-time Firebase config**: `NEXT_PUBLIC_FIREBASE_*` are Docker
+build args in `apps/web/Dockerfile` and `.github/workflows/deploy-web.yml`
+(GitHub Secrets). Re-deploy after changing secrets (`workflow_dispatch` or push
+to `apps/web/**`).
 
 ### 7. Monitoring alerts (Slack)
 
