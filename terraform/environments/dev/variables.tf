@@ -78,6 +78,19 @@ variable "sql_deletion_protection" {
   default     = false
 }
 
+# --- Billing budget ---
+
+variable "billing_account_id" {
+  description = "Billing account ID (e.g. 000000-000000-000000) that the budget alert is attached to."
+  type        = string
+}
+
+variable "monthly_budget_jpy" {
+  description = "Monthly budget amount in JPY. Email alerts fire at 50/80/100% of actual spend and 100% of forecasted spend."
+  type        = number
+  default     = 3000
+}
+
 # --- Phase 2 feature flag ---
 
 variable "enable_db_connection" {
