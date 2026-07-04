@@ -1,0 +1,34 @@
+name: Terraform check
+
+on:
+  pull_request:
+    paths:
+      - "terraform/**"
+      - "scripts/check.sh"
+      - ".tflint.hcl"
+      - ".tool-versions"
+      - ".github/workflows/terraform-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.7
+
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: v0.63.1
+
+      - uses: aquasecurity/setup-trivy@v0.33.1
+        with:
+          version: v0.72.0
+
+      - name: Run harness checks
+        run: ./scripts/check.sh terraform/environments/dev
