@@ -19,11 +19,14 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Skip while submitting: onIdTokenChanged sets user before provisioning
+  // finishes, and redirecting then lets /api/v1/users/me race the upsert.
+  // The submit handler redirects after provisionUser resolves.
   useEffect(() => {
-    if (!loading && user) {
+    if (!loading && user && !submitting) {
       router.replace("/");
     }
-  }, [user, loading, router]);
+  }, [user, loading, submitting, router]);
 
   async function handleSignUp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
