@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - "terraform/**"
-      - "scripts/check.sh"
+      - "scripts/**"
       - ".tflint.hcl"
       - ".tool-versions"
       - ".github/workflows/terraform-check.yml"
@@ -35,3 +35,68 @@ jobs:
 
       - name: Run harness checks
         run: ./scripts/check.sh terraform/environments/dev
+
+  terraform-plan:
+    needs: terraform-check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    env:
+      TF_IN_AUTOMATION: true
+      TF_VAR_project_id: mogu-501309
+      TF_VAR_region: asia-northeast1
+      TF_VAR_owner: m-maehara
+      TF_VAR_enable_db_connection: "true"
+      TF_VAR_github_repository: protofield-labs/mogu
+      TF_VAR_app_image: asia-northeast1-docker.pkg.dev/mogu-501309/web/web:latest
+      TF_VAR_monthly_budget_jpy: "3000"
+      TF_VAR_slack_notification_channel_id: projects/mogu-501309/notificationChannels/13621059433386898433
+      TF_VAR_billing_account_id: ${{ secrets.TF_VAR_billing_account_id }}
+      TF_VAR_slack_budget_webhook_url: ${{ secrets.TF_VAR_slack_budget_webhook_url }}
+      TF_VAR_slack_auth_token: ${{ secrets.TF_VAR_slack_auth_token }}
+      TF_VAR_slack_budget_bot_token: ${{ secrets.TF_VAR_slack_budget_bot_token }}
+      WORKLOAD_IDENTITY_PROVIDER: projects/391728250072/locations/global/workloadIdentityPools/dev-github/providers/github
+      PLAN_SERVICE_ACCOUNT: dev-github-actions-plan@mogu-501309.iam.gserviceaccount.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.7
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.PLAN_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - id: plan
+        name: Terraform plan
+        run: |
+          chmod +x scripts/ci/terraform-plan.sh
+          ./scripts/ci/terraform-plan.sh terraform/environments/dev
+
+      - name: Write job summary
+        if: always() && steps.plan.outputs.plan_summary_file != ''
+        run: |
+          {
+            echo "## Terraform plan summary"
+            echo '```json'
+            cat "${{ steps.plan.outputs.plan_summary_file }}"
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Comment plan on PR
+        if: success() && steps.plan.outputs.plan_summary_file != ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PLAN_SUMMARY_FILE: ${{ steps.plan.outputs.plan_summary_file }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node scripts/ci/post-terraform-plan-comment.mjs

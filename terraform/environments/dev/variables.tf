@@ -99,6 +99,12 @@ variable "github_repository" {
   default     = "protofield-labs/mogu"
 }
 
+variable "terraform_state_bucket" {
+  description = "GCS bucket holding Terraform state for this root module (bootstrap bucket)."
+  type        = string
+  default     = "tfstate-mogu"
+}
+
 variable "enable_db_connection" {
   description = "Phase 2: wire Cloud Run to Cloud SQL via Direct VPC egress and inject DB secrets. Keep false for Phase 1."
   type        = bool

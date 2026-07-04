@@ -40,3 +40,16 @@ resource "google_service_account_iam_member" "github_actions_act_as_web" {
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${google_service_account.github_actions.email}"
 }
+
+# GitHub Actions plan job: read project + state bucket (no apply permissions).
+resource "google_project_iam_member" "github_actions_plan_viewer" {
+  project = var.project_id
+  role    = "roles/viewer"
+  member  = "serviceAccount:${google_service_account.github_actions_plan.email}"
+}
+
+resource "google_storage_bucket_iam_member" "github_actions_plan_state" {
+  bucket = var.terraform_state_bucket
+  role   = "roles/storage.objectUser"
+  member = "serviceAccount:${google_service_account.github_actions_plan.email}"
+}

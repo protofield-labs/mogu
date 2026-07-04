@@ -84,6 +84,39 @@ Use the harness scripts for plan and checks:
 
 `terraform apply` requires human approval (see `terraform/AGENTS.md`).
 
+**PR plan CI** (`.github/workflows/terraform-check.yml`):
+
+Pull requests that touch `terraform/**` run `check.sh` and a read-only
+`terraform plan` against the GCS backend. Delete/replace actions fail the
+job (`PLAN_STRICT=true`). A sanitized summary is posted as a PR comment.
+
+One-time setup after applying the plan service account in Terraform:
+
+```bash
+terraform output github_actions_plan_service_account
+terraform output github_actions_workload_identity_provider
+```
+
+Configure these **GitHub repository secrets** (Settings → Secrets → Actions):
+
+| Secret | Purpose |
+|--------|---------|
+| `TF_VAR_billing_account_id` | Billing account for budget alerts |
+| `TF_VAR_slack_budget_webhook_url` | Budget → Slack webhook (optional if empty in tfvars) |
+| `TF_VAR_slack_auth_token` | Monitoring Slack OAuth (optional; prefer channel ID) |
+| `TF_VAR_slack_budget_bot_token` | Budget Slack bot token (optional; webhook alternative) |
+
+Non-secret dev defaults (`project_id`, `region`, `enable_db_connection`, etc.)
+are set in the workflow env. Update workflow env if dev defaults change.
+
+Apply Terraform locally once to create `dev-github-actions-plan@...` and state
+bucket IAM before the plan job can succeed:
+
+```bash
+./scripts/plan.sh terraform/environments/dev
+# review, then apply with human approval
+```
+
 ### 3. Next.js deploy (GitHub Actions)
 
 Pushes to `main` that touch `apps/web/` trigger
