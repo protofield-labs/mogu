@@ -2,6 +2,9 @@ project_id = "mogu-501309"
 region     = "asia-northeast1"
 owner      = "m-maehara"
 
+# Firebase Terraform bootstrap: your GCP user for SA impersonation (see README §6).
+# terraform_firebase_impersonators = ["user:you@example.com"]
+
 # Phase 1: leave app_image at the default placeholder for the first apply,
 # then set it to your pushed image and re-apply.
 # app_image = "asia-northeast1-docker.pkg.dev/mogu-501309/web/web:latest"

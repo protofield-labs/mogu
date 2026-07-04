@@ -228,20 +228,35 @@ and local verification.
 
 **Provision Firebase (Terraform)**:
 
+Firebase APIs require a dedicated Terraform service account (SA impersonation)
+and ADC quota project. First-time setup also requires accepting the Firebase
+Terms of Service in the browser (one-time).
+
 ```bash
-cd terraform/environments/dev
-terraform apply   # creates Firebase project, Web App, Email/Password IdP
+# From repo root (sets quota project, applies Terraform, optional gh secret sync)
+./scripts/bootstrap-firebase.sh
 ```
+
+If `google_firebase_project` returns 403, open
+https://console.firebase.google.com/project/mogu-501309/overview ,
+accept the Firebase ToS, then re-run the script.
+
+Set `terraform_firebase_impersonators` in `terraform.tfvars` to your GCP user
+(`user:you@example.com`). Run `gcloud auth application-default login` with the
+same account before apply.
 
 After apply, copy Web SDK config into `apps/web/.env` (from `.env.example`):
 
 ```bash
 terraform -chdir=terraform/environments/dev output -json firebase_web_config
+# Or sync deploy secrets:
+./scripts/sync-firebase-github-secrets.sh
 ```
 
-Enable **Google** sign-in once in [Firebase Console → Authentication → Sign-in
-method](https://console.firebase.google.com/) (same GCP project). Email/Password
-is enabled by Terraform.
+Enable **Google** sign-in in [Firebase Console → Authentication → Sign-in
+method](https://console.firebase.google.com/) (same GCP project), or set
+`google_oauth_client_id` / `google_oauth_client_secret` in `terraform.tfvars`.
+Email/Password is enabled by Terraform.
 
 **Local dev with Auth Emulator** (no GCP Auth traffic):
 

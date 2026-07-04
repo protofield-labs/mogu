@@ -20,6 +20,26 @@ variable "owner" {
   type        = string
 }
 
+variable "terraform_firebase_impersonators" {
+  description = "IAM members allowed to impersonate the Terraform Firebase SA (e.g. user:you@example.com)."
+  type        = set(string)
+  default     = []
+}
+
+variable "google_oauth_client_id" {
+  description = "OAuth 2.0 Web client ID for Google sign-in (optional; leave empty to enable in Console)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "google_oauth_client_secret" {
+  description = "OAuth 2.0 client secret for Google sign-in (optional; leave empty to enable in Console)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "subnet_cidr" {
   description = "Primary subnet CIDR range."
   type        = string

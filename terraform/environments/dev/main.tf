@@ -1,4 +1,7 @@
 locals {
+  # Must match google_service_account.terraform_firebase account_id + project_id.
+  terraform_firebase_sa_email = "${var.environment}-terraform-firebase@${var.project_id}.iam.gserviceaccount.com"
+
   # Common labels applied to every labelable resource.
   labels = {
     environment = var.environment
