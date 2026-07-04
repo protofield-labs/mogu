@@ -16,6 +16,7 @@ resource "google_project_service" "services" {
     "secretmanager.googleapis.com",
     "compute.googleapis.com",
     "artifactregistry.googleapis.com",
+    "storage.googleapis.com",
   ])
 
   project = var.project_id
