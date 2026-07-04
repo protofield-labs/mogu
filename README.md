@@ -84,9 +84,26 @@ Use the harness scripts for plan and checks:
 
 `terraform apply` requires human approval (see `terraform/AGENTS.md`).
 
-### 3. Next.js container build and push
+### 3. Next.js deploy (GitHub Actions)
 
-Cloud Run pulls the image from Artifact Registry. Build and push:
+Pushes to `main` that touch `apps/web/` trigger
+`.github/workflows/deploy-web.yml`:
+
+1. Authenticate to GCP via Workload Identity Federation (no SA keys).
+2. Build the container on `ubuntu-latest` (native amd64).
+3. Push to Artifact Registry tagged with the commit SHA (and `latest`).
+4. Update the Cloud Run service with `gcloud run services update`.
+
+One-time setup: apply the Terraform in `terraform/environments/dev/` so the
+WIF pool, CI service account, and Artifact Registry cleanup policy exist.
+Then confirm the workflow env vars match `terraform output`:
+
+```bash
+terraform output github_actions_workload_identity_provider
+terraform output github_actions_service_account
+```
+
+Manual build/push (fallback only):
 
 ```bash
 REGION=asia-northeast1
@@ -98,8 +115,6 @@ gcloud auth configure-docker ${REGION}-docker.pkg.dev
 docker build -t ${IMAGE} apps/web
 docker push ${IMAGE}
 ```
-
-Then set `app_image` to the pushed image in `terraform.tfvars` and re-apply.
 
 ### 4. Connecting to Cloud SQL locally (optional)
 

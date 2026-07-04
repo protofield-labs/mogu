@@ -93,6 +93,12 @@ variable "monthly_budget_jpy" {
 
 # --- Phase 2 feature flag ---
 
+variable "github_repository" {
+  description = "GitHub repository allowed to authenticate via Workload Identity Federation (owner/name)."
+  type        = string
+  default     = "protofield-labs/mogu"
+}
+
 variable "enable_db_connection" {
   description = "Phase 2: wire Cloud Run to Cloud SQL via Direct VPC egress and inject DB secrets. Keep false for Phase 1."
   type        = bool

@@ -10,5 +10,8 @@ owner      = "m-maehara"
 billing_account_id = "000000-000000-000000"
 # monthly_budget_jpy = 3000
 
+# GitHub Actions WIF (default: protofield-labs/mogu).
+# github_repository = "owner/repo"
+
 # Phase 2: flip to true to wire Cloud Run to Cloud SQL.
 # enable_db_connection = false
