@@ -22,6 +22,10 @@ resource "google_billing_budget" "monthly" {
   }
 
   threshold_rules {
+    threshold_percent = 0.2
+  }
+
+  threshold_rules {
     threshold_percent = 0.5
   }
 
@@ -39,9 +43,16 @@ resource "google_billing_budget" "monthly" {
     spend_basis       = "FORECASTED_SPEND"
   }
 
-  # Budget API accepts email Monitoring channels only (not Slack/SMS/PagerDuty).
-  # Slack budget alerts require Pub/Sub + a forwarder (see GCP docs). Email
-  # defaults (Billing Account Admins/Users) remain enabled.
+  # Programmatic notifications → Pub/Sub → Cloud Function → Slack (#10).
+  dynamic "all_updates_rule" {
+    for_each = local.budget_slack_enabled ? [1] : []
+
+    content {
+      pubsub_topic                   = google_pubsub_topic.budget_alerts[0].id
+      disable_default_iam_recipients = false
+      schema_version                 = "1.0"
+    }
+  }
 
   depends_on = [google_project_service.services]
 }

@@ -21,6 +21,10 @@ resource "google_project_service" "services" {
     "iamcredentials.googleapis.com",
     "sts.googleapis.com",
     "monitoring.googleapis.com",
+    "pubsub.googleapis.com",
+    "cloudfunctions.googleapis.com",
+    "cloudbuild.googleapis.com",
+    "eventarc.googleapis.com",
   ])
 
   project = var.project_id

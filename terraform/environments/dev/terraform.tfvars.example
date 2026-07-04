@@ -21,3 +21,7 @@ billing_account_id = "000000-000000-000000"
 # Then: gcloud monitoring channels list --project=PROJECT_ID --filter='type="slack"'
 # slack_notification_channel_id = "projects/PROJECT_ID/notificationChannels/CHANNEL_ID"
 # slack_channel_name = "#gcp-alerts"
+#
+# Budget → Slack (Pub/Sub + Cloud Function): create an Incoming Webhook for
+# #mogu-lab in your Slack app, then set:
+# slack_budget_webhook_url = "https://hooks.slack.com/services/..."
