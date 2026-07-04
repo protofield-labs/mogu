@@ -33,6 +33,11 @@ output "github_actions_workload_identity_provider" {
   value       = google_iam_workload_identity_pool_provider.github.name
 }
 
+output "github_actions_plan_service_account" {
+  description = "Service account email used by GitHub Actions Terraform plan workflow."
+  value       = google_service_account.github_actions_plan.email
+}
+
 output "budget_slack_pubsub_topic" {
   description = "Pub/Sub topic for billing budget programmatic notifications."
   value       = try(google_pubsub_topic.budget_alerts[0].name, null)

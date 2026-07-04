@@ -55,6 +55,10 @@ jq '
 
 cat "${summary_file}"
 
+if [[ -n "${PLAN_SUMMARY_FILE:-}" ]]; then
+  cp "${summary_file}" "${PLAN_SUMMARY_FILE}"
+fi
+
 delete_count="$(jq -r '.summary.delete' "${summary_file}")"
 replace_count="$(jq -r '.summary.replace' "${summary_file}")"
 
