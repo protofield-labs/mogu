@@ -11,6 +11,7 @@ data "archive_file" "budget_slack_notifier" {
   type        = "zip"
   source_dir  = "${path.module}/../../functions/budget-slack-notifier"
   output_path = "${path.module}/.build/budget-slack-notifier.zip"
+  excludes    = ["node_modules"]
 }
 
 resource "google_pubsub_topic" "budget_alerts" {
@@ -92,6 +93,14 @@ resource "google_secret_manager_secret_iam_member" "budget_slack_notifier_bot_to
   member    = "serviceAccount:${google_service_account.budget_slack_notifier[0].email}"
 }
 
+resource "google_storage_bucket_iam_member" "budget_slack_notifier_dedupe" {
+  count = local.budget_slack_enabled ? 1 : 0
+
+  bucket = module.storage.bucket_name
+  role   = "roles/storage.objectUser"
+  member = "serviceAccount:${google_service_account.budget_slack_notifier[0].email}"
+}
+
 resource "google_storage_bucket_object" "budget_slack_notifier" {
   count = local.budget_slack_enabled ? 1 : 0
 
@@ -126,8 +135,11 @@ resource "google_cloudfunctions2_function" "budget_slack_notifier" {
 
     environment_variables = {
       SLACK_CHANNEL = var.slack_budget_channel
+      DEDUPE_BUCKET = module.storage.bucket_name
+      DEDUPE_PREFIX = "budget-slack-dedupe"
     }
 
+    # Slack credentials are injected from Secret Manager (never plain tfvars at runtime).
     dynamic "secret_environment_variables" {
       for_each = var.slack_budget_webhook_url != "" ? [1] : []
 
@@ -161,5 +173,7 @@ resource "google_cloudfunctions2_function" "budget_slack_notifier" {
   depends_on = [
     google_project_service.services,
     google_secret_manager_secret_iam_member.budget_slack_notifier_webhook,
+    google_secret_manager_secret_iam_member.budget_slack_notifier_bot_token,
+    google_storage_bucket_iam_member.budget_slack_notifier_dedupe,
   ]
 }

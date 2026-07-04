@@ -1,4 +1,5 @@
 const functions = require('@google-cloud/functions-framework');
+const { shouldNotify } = require('./dedupe');
 
 /**
  * @param {number | string | undefined} value
@@ -213,7 +214,17 @@ functions.cloudEvent('notifySlack', async (cloudEvent) => {
   }
 
   const attributes = message.attributes || {};
-  const payload = JSON.parse(Buffer.from(message.data, 'base64').toString('utf8'));
+  let payload;
+
+  try {
+    payload = JSON.parse(
+      Buffer.from(message.data, 'base64').toString('utf8'),
+    );
+  } catch (error) {
+    console.error('Invalid budget alert JSON; skipping:', error);
+    return;
+  }
+
   const isTest = attributes.testNotification === 'true';
 
   if (
@@ -222,6 +233,10 @@ functions.cloudEvent('notifySlack', async (cloudEvent) => {
     payload.forecastThresholdExceeded == null
   ) {
     console.log('No budget threshold exceeded; skipping Slack notification');
+    return;
+  }
+
+  if (!isTest && !(await shouldNotify(payload, attributes))) {
     return;
   }
 

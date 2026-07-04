@@ -2,7 +2,6 @@
 # Publish a test budget alert to Pub/Sub (triggers the Slack notifier function).
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PROJECT_ID="${PROJECT_ID:-mogu-501309}"
 TOPIC="${TOPIC:-dev-billing-budget-alerts}"
 

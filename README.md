@@ -159,6 +159,8 @@ chmod +x scripts/test-budget-slack.sh
 ```
 
 Budget thresholds: actual spend at 20/50/80/100% and forecast at 100%.
+Duplicate alerts for the same threshold in a billing period are suppressed
+(GCS-backed dedupe state; Slack credentials stay in Secret Manager).
 
 Alerts stay within Cloud Monitoring free tier (no Datadog / custom metrics).
 
