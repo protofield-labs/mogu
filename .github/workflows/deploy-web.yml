@@ -32,6 +32,9 @@ jobs:
         with:
           workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ env.SERVICE_ACCOUNT }}
+          # Required so the SA-impersonated OAuth token is exposed as
+          # steps.auth.outputs.access_token for the Docker registry login.
+          token_format: access_token
 
       - uses: google-github-actions/setup-gcloud@v2
 
@@ -39,7 +42,7 @@ jobs:
         with:
           registry: ${{ env.REGION }}-docker.pkg.dev
           username: oauth2accesstoken
-          password: ${{ steps.auth.outputs.auth_token }}
+          password: ${{ steps.auth.outputs.access_token }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
