@@ -3,7 +3,7 @@
  * Post or update a PR comment with the sanitized Terraform plan summary (#21).
  * Reads JSON from PLAN_SUMMARY_FILE (same shape as scripts/plan.sh output).
  */
-const fs = require("node:fs");
+import fs from "node:fs";
 
 const summaryPath = process.env.PLAN_SUMMARY_FILE;
 const token = process.env.GITHUB_TOKEN;
