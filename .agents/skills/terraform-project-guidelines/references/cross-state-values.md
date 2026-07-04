@@ -2,44 +2,34 @@
 
 ## Rule
 
-Do not use Parameter Store for values within the same State.
+Do not use Secret Manager or data sources for values within the same State.
 
 Use module outputs and resource attributes within the same State.
 
-Use SSM Parameter Store, Secrets Manager, DNS, or provider data sources only across State boundaries.
+Use Secret Manager, Google provider data sources, or DNS only across State boundaries.
 
 ## Network to App / Data
 
-Network State publishes:
-
-- `/project/dev/network/vpc-id`
-- `/project/dev/network/public-subnet-ids`
-- `/project/dev/network/private-subnet-ids`
-
-App and Data States read these values with `aws_ssm_parameter`.
+When the network is split into its own State, it publishes values that
+App and Data States read with Google provider data sources (for example
+`google_compute_network` and `google_compute_subnetwork`) or by resolving
+well-known resource names.
 
 ## Data to App
 
-Data State publishes:
+When Data is split into its own State, it publishes:
 
-- `/project/dev/data/aurora-security-group-id`
-- `/project/dev/data/database-secret-arn`
+- `instance_connection_name`
+- `database_secret_id`
 
-App State reads these values with `aws_ssm_parameter`.
+App State reads the secret with `google_secret_manager_secret_version` and
+resolves the instance by its connection name.
 
-## Subnet Rule
+## Secret Injection
 
-Only publish:
-
-- `public_subnet_ids`
-- `private_subnet_ids`
-
-Do not publish:
-
-- `private_app_subnet_ids`
-- `private_ingress_subnet_ids`
-- `private_lambda_subnet_ids`
-- `database_subnet_ids`, unless DB-dedicated subnets actually exist
+- Store database credentials in Secret Manager.
+- Inject them into Cloud Run with `value_source.secret_key_ref`.
+- Never expose secret values as plain environment variables or outputs.
 
 ## terraform_remote_state
 

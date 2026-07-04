@@ -2,44 +2,44 @@
 
 State is separated by lifecycle, change frequency, blast radius, and review boundary.
 
-Each State boundary maps to one S3 backend state key. See `backend.md` for backend and state storage rules.
+Each State boundary maps to one GCS backend state prefix. See `backend.md` for backend and state storage rules.
 
-## Standard States
+## MVP State
 
-- `global/edge`
-- `ap-northeast-1/network`
-- `ap-northeast-1/app`
-- `ap-northeast-1/data`
-- `ap-northeast-1/data-sync`
+For the current MVP, a single State boundary is used:
 
-## global/edge
+- `dev` (`terraform/environments/dev`)
 
-Manages CloudFront, CloudFront WAF, ACM for CloudFront, and edge policies.
+This State manages the network, database, application, storage, and
+secrets for the dev environment together. Splitting into finer States is
+premature at this scale.
 
-## network
+## Future States
 
-Manages VPC, public subnets, private subnets, route tables, NAT Gateway, and VPC endpoints.
+When scale requires it, split into separate States such as:
 
-Publishes:
+- `network`
 
-- `vpc_id`
-- `public_subnet_ids`
-- `private_subnet_ids`
+  Manages VPC, subnets, Private Service Access
+  (`google_compute_global_address` + `google_service_networking_connection`),
+  and firewall rules.
 
-## app
+  Publishes:
 
-Manages ALB, ECS Fargate, Listener Rules, Security Group Rules, Auto Scaling, and CloudWatch Logs.
+  - `network_id`
+  - `subnet_ids`
 
-## data
+- `app`
 
-Manages Aurora, DB Subnet Group, Aurora Security Group, Secrets Manager Secret, backups, and deletion protection.
+  Manages Cloud Run v2 services, service accounts, and IAM invoker bindings.
 
-Publishes:
+- `data`
 
-- `aurora_security_group_id`
-- `database_secret_arn`
-- `database_endpoint`, if needed
+  Manages Cloud SQL for PostgreSQL, Private IP configuration, Secret
+  Manager secrets, backups, and deletion protection.
 
-## data-sync
+  Publishes:
 
-Manages DMS, CDC S3, EventBridge, SQS FIFO, Lambda, DynamoDB Ledger, DLQ, and alarms.
+  - `instance_connection_name`
+  - `database_secret_id`
+  - `private_ip_address`, if needed

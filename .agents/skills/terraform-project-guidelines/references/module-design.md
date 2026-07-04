@@ -11,34 +11,30 @@
 
 Component resources:
 
-- ALB
-- ECS Service
-- Aurora
-- CloudFront
-- WAF
+- Cloud Run v2 Service
+- Cloud SQL for PostgreSQL Instance
+- Cloud Storage Bucket
+- Secret Manager Secret
 
 Edge resources:
 
-- Security Group Rule
-- ALB Listener Rule
+- Firewall Rule
+- IAM binding (for example Cloud Run invoker, Secret accessor)
+- Direct VPC egress wiring between Cloud Run and the VPC
 - Component-to-component connection
 
 In this document, Edge means a graph connection between components.
-It does not mean CloudFront Edge Location.
 
-## Security Groups
+## Networking and Firewall
 
-- Child modules create Security Group resources.
-- Child modules output Security Group IDs.
-- Root modules create Security Group Rules in `connectivity.tf`.
-- Do not use inline `ingress` or `egress`.
-- Do not use `aws_security_group_rule`.
-- Use `aws_vpc_security_group_ingress_rule`.
-- Use `aws_vpc_security_group_egress_rule`.
+- Child modules create the network component resources they own.
+- Child modules output IDs (for example subnet ID, service account email).
+- Root modules create Firewall Rules in `connectivity.tf`.
+- Keep firewall rules explicit and scoped; avoid overly broad ranges.
 
-## Routing
+## Service Wiring
 
-- ALB Listener Rules must be defined in root module `routing.tf`.
-- ECS Service modules must output Target Group ARN.
-- ALB modules must output Listener ARN.
-- Root modules connect Listener ARN and Target Group ARN.
+- Cloud Run modules must output the service name and service account email.
+- Cloud SQL modules must output the instance connection name and private IP.
+- Root modules wire Cloud Run to Cloud SQL (Direct VPC egress) and inject
+  connection details in `connectivity.tf`.
