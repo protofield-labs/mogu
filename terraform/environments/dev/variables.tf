@@ -86,7 +86,7 @@ variable "billing_account_id" {
 }
 
 variable "monthly_budget_jpy" {
-  description = "Monthly budget amount in JPY. Email alerts fire at 50/80/100% of actual spend and 100% of forecasted spend."
+  description = "Monthly budget amount in JPY. Email alerts fire at 20/50/80/100% of actual spend and 100% of forecasted spend."
   type        = number
   default     = 3000
 }
@@ -124,4 +124,24 @@ variable "slack_auth_token" {
   type        = string
   sensitive   = true
   default     = ""
+}
+
+variable "slack_budget_webhook_url" {
+  description = "Slack Incoming Webhook URL for budget alerts (#mogu-lab). Enables Pub/Sub + Cloud Function forwarding."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "slack_budget_bot_token" {
+  description = "Slack Bot User OAuth token for budget alerts (chat.postMessage). Alternative to slack_budget_webhook_url."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "slack_budget_channel" {
+  description = "Slack channel for budget alerts when using slack_budget_bot_token."
+  type        = string
+  default     = "#mogu-lab"
 }

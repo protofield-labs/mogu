@@ -128,13 +128,14 @@ cloud-sql-proxy --private-ip mogu-501309:asia-northeast1:<instance-name>
 ### 5. Monitoring alerts (Slack)
 
 Cloud Monitoring alert policies (Cloud Run 5xx / latency / request spike,
-Cloud SQL CPU / disk) notify Slack. Billing budget alerts stay on email
-(Budget API does not accept Slack notification channels).
+Cloud SQL CPU / disk) notify Slack via a Monitoring notification channel.
+Billing budget alerts use email by default; optional Slack forwarding uses
+Pub/Sub + Cloud Function (see below).
 
-One-time setup:
+One-time setup (Monitoring):
 
 1. GCP Console → **Monitoring → Alerting → Edit notification channels → Slack**
-2. Authorize your workspace and pick a channel (e.g. `#gcp-alerts`)
+2. Authorize your workspace and pick a channel (e.g. `#mogu-lab`)
 3. Copy the channel ID:
 
 ```bash
@@ -145,6 +146,23 @@ gcloud monitoring channels list \
 ```
 
 4. Set `slack_notification_channel_id` in `terraform.tfvars` and apply.
+
+Budget → Slack (optional, issue #10):
+
+1. Create a Slack **Incoming Webhook** for `#mogu-lab` (Slack app settings).
+2. Set `slack_budget_webhook_url` in `terraform.tfvars` and apply.
+3. Send a test notification:
+
+```bash
+chmod +x scripts/test-budget-slack.sh
+./scripts/test-budget-slack.sh
+```
+
+Budget thresholds: actual spend at 20/50/80/100% and forecast at 100%.
+Duplicate alerts for the same threshold in a billing period are suppressed
+(GCS-backed dedupe state; Slack credentials stay in Secret Manager).
+If both `slack_budget_webhook_url` and `slack_budget_bot_token` are set,
+the webhook takes precedence.
 
 Alerts stay within Cloud Monitoring free tier (no Datadog / custom metrics).
 

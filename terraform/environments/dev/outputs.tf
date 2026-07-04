@@ -32,3 +32,8 @@ output "github_actions_workload_identity_provider" {
   description = "Full resource name for google-github-actions/auth workload_identity_provider."
   value       = google_iam_workload_identity_pool_provider.github.name
 }
+
+output "budget_slack_pubsub_topic" {
+  description = "Pub/Sub topic for billing budget programmatic notifications."
+  value       = try(google_pubsub_topic.budget_alerts[0].name, null)
+}
