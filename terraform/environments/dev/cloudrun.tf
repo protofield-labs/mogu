@@ -15,11 +15,12 @@ locals {
     INSTANCE_CONNECTION_NAME = module.cloud_sql.instance_connection_name
     DB_NAME                  = var.db_name
     DB_USER                  = var.db_user
-  } : {}
-
+    DATABASE_HOST            = module.cloud_sql.private_ip_address
+    GOOGLE_CLOUD_PROJECT     = var.project_id
+    } : {
+    GOOGLE_CLOUD_PROJECT = var.project_id
+  }
   app_env = merge(local.base_env, local.db_env)
-
-  # Phase 2: DB password is sourced from Secret Manager only when enabled.
   db_secret_env = var.enable_db_connection ? {
     DB_PASSWORD = {
       secret  = google_secret_manager_secret.db_password.secret_id

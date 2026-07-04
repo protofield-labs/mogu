@@ -22,6 +22,13 @@ resource "google_project_iam_member" "web_cloudsql_client" {
   member  = "serviceAccount:${google_service_account.web.email}"
 }
 
+# Firebase Admin SDK (ADC): verifyIdToken on Cloud Run (#14).
+resource "google_project_iam_member" "web_firebaseauth_admin" {
+  project = var.project_id
+  role    = "roles/firebaseauth.admin"
+  member  = "serviceAccount:${google_service_account.web.email}"
+}
+
 # GitHub Actions: push images and deploy new revisions to Cloud Run.
 resource "google_project_iam_member" "github_actions_artifact_registry_writer" {
   project = var.project_id

@@ -42,3 +42,18 @@ output "budget_slack_pubsub_topic" {
   description = "Pub/Sub topic for billing budget programmatic notifications."
   value       = try(google_pubsub_topic.budget_alerts[0].name, null)
 }
+
+output "firebase_web_app_id" {
+  description = "Firebase Web App ID (NEXT_PUBLIC_FIREBASE_APP_ID)."
+  value       = google_firebase_web_app.web.app_id
+}
+
+output "firebase_web_config" {
+  description = "Firebase Web SDK config for NEXT_PUBLIC_* build-time env vars."
+  value = {
+    api_key     = data.google_firebase_web_app_config.web.api_key
+    auth_domain = data.google_firebase_web_app_config.web.auth_domain
+    project_id  = data.google_firebase_web_app_config.web.project
+    app_id      = google_firebase_web_app.web.app_id
+  }
+}
