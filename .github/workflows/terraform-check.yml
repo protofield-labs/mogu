@@ -1,0 +1,37 @@
+name: Terraform check
+
+on:
+  pull_request:
+    paths:
+      - "terraform/**"
+      - "scripts/check.sh"
+      - ".tflint.hcl"
+      - ".tool-versions"
+      - ".github/workflows/terraform-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  terraform-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.7
+
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: v0.63.1
+
+      - name: Install Trivy
+        run: |
+          curl -sfL "https://github.com/aquasecurity/trivy/releases/download/v0.72.0/trivy_0.72.0_Linux-64bit.tar.gz" \
+            | tar -xz -C /tmp
+          sudo mv /tmp/trivy /usr/local/bin/trivy
+          trivy --version
+
+      - name: Run harness checks
+        run: ./scripts/check.sh terraform/environments/dev
