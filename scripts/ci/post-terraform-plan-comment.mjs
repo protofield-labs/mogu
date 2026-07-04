@@ -17,7 +17,7 @@ if (!summaryPath || !token || !repo || !prNumber) {
 }
 
 const summary = JSON.parse(fs.readFileSync(summaryPath, "utf8"));
-const { create, update, del, replace } = summary.summary;
+const { create, update, replace, delete: del } = summary.summary;
 
 const lines = summary.resource_changes.map((change) => {
   const actions = change.actions.join(", ");

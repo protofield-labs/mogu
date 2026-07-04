@@ -4,7 +4,9 @@ on:
   pull_request:
     paths:
       - "terraform/**"
-      - "scripts/**"
+      - "scripts/check.sh"
+      - "scripts/plan.sh"
+      - "scripts/ci/**"
       - ".tflint.hcl"
       - ".tool-versions"
       - ".github/workflows/terraform-check.yml"
@@ -79,19 +81,20 @@ jobs:
 
       - id: plan
         name: Terraform plan
-        run: |
-          chmod +x scripts/ci/terraform-plan.sh
-          ./scripts/ci/terraform-plan.sh terraform/environments/dev
+        run: ./scripts/ci/terraform-plan.sh terraform/environments/dev
 
       - name: Write job summary
         if: always() && steps.plan.outputs.plan_summary_file != ''
         run: |
-          {
-            echo "## Terraform plan summary"
-            echo '```json'
-            cat "${{ steps.plan.outputs.plan_summary_file }}"
-            echo '```'
-          } >> "${GITHUB_STEP_SUMMARY}"
+          summary_file="${{ steps.plan.outputs.plan_summary_file }}"
+          if [[ -f "${summary_file}" ]]; then
+            {
+              echo "## Terraform plan summary"
+              echo '```json'
+              cat "${summary_file}"
+              echo '```'
+            } >> "${GITHUB_STEP_SUMMARY}"
+          fi
 
       - name: Comment plan on PR
         if: success() && steps.plan.outputs.plan_summary_file != ''

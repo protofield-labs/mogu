@@ -41,29 +41,26 @@ resource "google_service_account_iam_member" "github_actions_act_as_web" {
   member             = "serviceAccount:${google_service_account.github_actions.email}"
 }
 
-# GitHub Actions plan job: read project + state bucket (no apply permissions).
+# GitHub Actions plan job: strictly read-only. Anyone who can push a branch
+# can impersonate this SA via workflow edits, so it must not be able to
+# mutate state or infrastructure. CI plans with -lock=false so no state
+# writes are needed.
 resource "google_project_iam_member" "github_actions_plan_viewer" {
   project = var.project_id
   role    = "roles/viewer"
   member  = "serviceAccount:${google_service_account.github_actions_plan.email}"
 }
 
+# securityReviewer provides *.getIamPolicy (bucket/SA IAM reads during refresh).
 resource "google_project_iam_member" "github_actions_plan_security_reviewer" {
   project = var.project_id
   role    = "roles/iam.securityReviewer"
   member  = "serviceAccount:${google_service_account.github_actions_plan.email}"
 }
 
-# storage.admin on state bucket: lock/unlock + read bucket IAM for plan refresh.
+# Read tfstate objects (roles/viewer does not include object data access).
 resource "google_storage_bucket_iam_member" "github_actions_plan_state" {
   bucket = var.terraform_state_bucket
-  role   = "roles/storage.admin"
-  member = "serviceAccount:${google_service_account.github_actions_plan.email}"
-}
-
-# Read bucket IAM bindings managed in Terraform (budget dedupe prefix).
-resource "google_storage_bucket_iam_member" "github_actions_plan_app_bucket" {
-  bucket = module.storage.bucket_name
-  role   = "roles/storage.admin"
+  role   = "roles/storage.objectViewer"
   member = "serviceAccount:${google_service_account.github_actions_plan.email}"
 }
