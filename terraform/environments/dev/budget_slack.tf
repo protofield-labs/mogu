@@ -22,13 +22,8 @@ resource "google_pubsub_topic" "budget_alerts" {
   depends_on = [google_project_service.services]
 }
 
-resource "google_pubsub_topic_iam_member" "billing_budget_publisher" {
-  count = local.budget_slack_enabled ? 1 : 0
-
-  topic  = google_pubsub_topic.budget_alerts[0].name
-  role   = "roles/pubsub.publisher"
-  member = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-billing-budgets.iam.gserviceaccount.com"
-}
+# Billing → Pub/Sub publish IAM is granted automatically when the budget
+# connects to the topic (member: billing-budget-alert@system.gserviceaccount.com).
 
 resource "google_service_account" "budget_slack_notifier" {
   count = local.budget_slack_enabled ? 1 : 0
@@ -165,6 +160,6 @@ resource "google_cloudfunctions2_function" "budget_slack_notifier" {
 
   depends_on = [
     google_project_service.services,
-    google_pubsub_topic_iam_member.billing_budget_publisher,
+    google_secret_manager_secret_iam_member.budget_slack_notifier_webhook,
   ]
 }
