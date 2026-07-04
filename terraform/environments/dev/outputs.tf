@@ -22,3 +22,13 @@ output "artifact_registry_repo" {
   description = "Artifact Registry repository for the web image."
   value       = google_artifact_registry_repository.web.name
 }
+
+output "github_actions_service_account" {
+  description = "Service account email used by GitHub Actions deploy workflow."
+  value       = google_service_account.github_actions.email
+}
+
+output "github_actions_workload_identity_provider" {
+  description = "Full resource name for google-github-actions/auth workload_identity_provider."
+  value       = google_iam_workload_identity_pool_provider.github.name
+}

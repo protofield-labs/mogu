@@ -21,3 +21,22 @@ resource "google_project_iam_member" "web_cloudsql_client" {
   role    = "roles/cloudsql.client"
   member  = "serviceAccount:${google_service_account.web.email}"
 }
+
+# GitHub Actions: push images and deploy new revisions to Cloud Run.
+resource "google_project_iam_member" "github_actions_artifact_registry_writer" {
+  project = var.project_id
+  role    = "roles/artifactregistry.writer"
+  member  = "serviceAccount:${google_service_account.github_actions.email}"
+}
+
+resource "google_project_iam_member" "github_actions_run_admin" {
+  project = var.project_id
+  role    = "roles/run.admin"
+  member  = "serviceAccount:${google_service_account.github_actions.email}"
+}
+
+resource "google_service_account_iam_member" "github_actions_act_as_web" {
+  service_account_id = google_service_account.web.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.github_actions.email}"
+}
