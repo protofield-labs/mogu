@@ -1,0 +1,11 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - Dockerfile.migrate
+      - -t
+      - asia-northeast1-docker.pkg.dev/mogu-501309/web/migrate:latest
+      - .
+images:
+  - asia-northeast1-docker.pkg.dev/mogu-501309/web/migrate:latest

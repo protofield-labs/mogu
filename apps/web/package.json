@@ -8,12 +8,18 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "postinstall": "prisma generate",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:verify-rls": "tsx scripts/verify-users-rls.ts"
   },
   "dependencies": {
     "@google-cloud/cloud-sql-connector": "1.11.2",
+    "@prisma/client": "6.19.2",
     "next": "16.2.10",
     "pg": "8.16.3",
     "react": "19.2.7",
@@ -28,7 +34,10 @@
     "@types/react-dom": "^19.2.0",
     "eslint": "9.39.4",
     "eslint-config-next": "16.2.10",
+    "prisma": "6.19.2",
+    "server-only": "0.0.1",
     "tailwindcss": "4.3.2",
+    "tsx": "4.21.0",
     "typescript": "6.0.3"
   }
 }
