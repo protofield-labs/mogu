@@ -3,6 +3,11 @@ provider "google" {
   region  = var.region
 }
 
+provider "google-beta" {
+  project = var.project_id
+  region  = var.region
+}
+
 # The Billing Budgets API requires a quota project on every request,
 # so the budget resource uses this aliased provider.
 provider "google" {

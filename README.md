@@ -217,12 +217,60 @@ chmod +x scripts/verify-users-rls.sh
 ```
 
 Application code sets the RLS session variable via `withRls()` in
-`apps/web/src/lib/db/rls.ts` (`set_config('app.current_user_id', uid, true)`).
+`apps/web/src/lib/db/rls.ts`.
 
-Cloud Run will use a private-IP `DATABASE_URL` once wired in #14; until then
-`/api/health/db` continues to use the Cloud SQL connector pool.
+### 6. Authentication (Firebase)
 
-### 6. Monitoring alerts (Slack)
+Firebase Authentication (Email/Password + Google) with Bearer tokens on Route
+Handlers. Admin SDK uses ADC on Cloud Run (no service account keys). UI pages
+(`/login`, `/signup`) are tracked in #17; this section covers infrastructure
+and local verification.
+
+**Provision Firebase (Terraform)**:
+
+```bash
+cd terraform/environments/dev
+terraform apply   # creates Firebase project, Web App, Email/Password IdP
+```
+
+After apply, copy Web SDK config into `apps/web/.env` (from `.env.example`):
+
+```bash
+terraform -chdir=terraform/environments/dev output -json firebase_web_config
+```
+
+Enable **Google** sign-in once in [Firebase Console → Authentication → Sign-in
+method](https://console.firebase.google.com/) (same GCP project). Email/Password
+is enabled by Terraform.
+
+**Local dev with Auth Emulator** (no GCP Auth traffic):
+
+```bash
+# Terminal 1: Auth Emulator (requires Firebase CLI)
+firebase emulators:start --only auth --project demo-mogu
+
+# Terminal 2: app (use emulator vars from apps/web/.env.example)
+cd apps/web && pnpm dev
+```
+
+Set `FIREBASE_AUTH_EMULATOR_HOST` (server) and
+`NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST` (client) to `127.0.0.1:9099`.
+
+**Protected API routes** (`Authorization: Bearer <Firebase ID token>`):
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/v1/users/provision` | Idempotent user row create (`displayName`) |
+| GET | `/api/v1/users/me` | Current user's row (404 if not provisioned) |
+
+Public: `/api/health/*` only. Client helpers: `authFetch()`, `useAuth()` in
+`apps/web/src/lib/auth/` and `apps/web/src/contexts/auth-context.tsx`.
+
+**Deploy build-time Firebase config**: `NEXT_PUBLIC_FIREBASE_*` must be passed
+as Docker build args (see `apps/web/Dockerfile`). Set GitHub repository secrets
+from `terraform output firebase_web_config` before the first auth-enabled deploy.
+
+### 7. Monitoring alerts (Slack)
 
 Cloud Monitoring alert policies (Cloud Run 5xx / latency / request spike,
 Cloud SQL CPU / disk) notify Slack via a Monitoring notification channel.

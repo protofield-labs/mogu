@@ -25,6 +25,8 @@ resource "google_project_service" "services" {
     "cloudfunctions.googleapis.com",
     "cloudbuild.googleapis.com",
     "eventarc.googleapis.com",
+    "firebase.googleapis.com",
+    "identitytoolkit.googleapis.com",
   ])
 
   project = var.project_id
