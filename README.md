@@ -97,16 +97,20 @@ terraform output github_actions_plan_service_account
 terraform output github_actions_workload_identity_provider
 ```
 
-Configure these **GitHub repository secrets** (Settings → Secrets → Actions):
+Configure this **GitHub repository secret** (Settings → Secrets → Actions):
 
 | Secret | Purpose |
 |--------|---------|
-| `TF_VAR_billing_account_id` | Billing account for budget alerts |
-| `TF_VAR_slack_budget_webhook_url` | Budget → Slack webhook (optional if empty in tfvars) |
-| `TF_VAR_slack_auth_token` | Monitoring Slack OAuth (optional; prefer channel ID) |
-| `TF_VAR_slack_budget_bot_token` | Budget Slack bot token (optional; webhook alternative) |
+| `TF_VAR_slack_budget_webhook_url` | Budget → Slack webhook (must match state or plan shows spurious deletes) |
 
-Non-secret dev defaults (`project_id`, `region`, `enable_db_connection`, etc.)
+Optional secrets (leave unset if unused):
+
+| Secret | Purpose |
+|--------|---------|
+| `TF_VAR_slack_auth_token` | Monitoring Slack OAuth (prefer channel ID in workflow env) |
+| `TF_VAR_slack_budget_bot_token` | Budget Slack bot token (webhook alternative) |
+
+Non-secret dev defaults (`project_id`, `billing_account_id`, `enable_db_connection`, etc.)
 are set in the workflow env. Update workflow env if dev defaults change.
 
 Apply Terraform locally once to create `dev-github-actions-plan@...` and state

@@ -53,7 +53,7 @@ jobs:
       TF_VAR_app_image: asia-northeast1-docker.pkg.dev/mogu-501309/web/web:latest
       TF_VAR_monthly_budget_jpy: "3000"
       TF_VAR_slack_notification_channel_id: projects/mogu-501309/notificationChannels/13621059433386898433
-      TF_VAR_billing_account_id: ${{ secrets.TF_VAR_billing_account_id }}
+      TF_VAR_billing_account_id: "01F180-E9CD92-F8D826"
       TF_VAR_slack_budget_webhook_url: ${{ secrets.TF_VAR_slack_budget_webhook_url }}
       TF_VAR_slack_auth_token: ${{ secrets.TF_VAR_slack_auth_token }}
       TF_VAR_slack_budget_bot_token: ${{ secrets.TF_VAR_slack_budget_bot_token }}
