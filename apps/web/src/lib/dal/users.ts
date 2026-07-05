@@ -5,14 +5,14 @@ import { withRls } from "@/lib/db/rls";
 export type UserDto = {
   firebaseUid: string;
   displayName: string;
-  avatarColor: string | null;
+  avatarColor: string;
   createdAt: string;
 };
 
 function toUserDto(user: {
   firebaseUid: string;
   displayName: string;
-  avatarColor: string | null;
+  avatarColor: string;
   createdAt: Date;
 }): UserDto {
   return {

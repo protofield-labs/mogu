@@ -7,7 +7,7 @@ import { authFetch } from "@/lib/auth/auth-fetch";
 type MeUser = {
   firebaseUid: string;
   displayName: string;
-  avatarColor: string | null;
+  avatarColor: string;
   createdAt: string;
 };
 

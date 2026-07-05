@@ -9,7 +9,7 @@ type ProvisionResponse = {
   user: {
     firebaseUid: string;
     displayName: string;
-    avatarColor: string | null;
+    avatarColor: string;
     createdAt: string;
   };
 };
