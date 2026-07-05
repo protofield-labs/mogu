@@ -41,6 +41,22 @@ function main() {
     "concat stream text parts",
   );
 
+  const concatenated = parseAgentStreamResponse(
+    '{"content":{"parts":[{"text":"A"}]}}{"content":{"parts":[{"text":"B"}]}}',
+  );
+  assert(concatenated.text === "AB", "parse concatenated JSON on one line");
+
+  const withTrailing404 = parseAgentStreamResponse(
+    [
+      '{"content":{"parts":[{"text":"回答です。"}]}}',
+      '{"message":"404 metadata only"}',
+    ].join("\n"),
+  );
+  assert(
+    withTrailing404.text === "回答です。",
+    "ignore 404-like message after agent text collected",
+  );
+
   let threw = false;
   try {
     parseAgentStreamResponse('{"error_code":"ClientError","error_message":"boom"}');

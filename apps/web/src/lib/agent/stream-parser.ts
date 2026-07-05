@@ -10,42 +10,95 @@ type StreamEvent = {
   };
 };
 
-/** Parse NDJSON from Reasoning Engine :streamQuery into AgentMessage (#44). */
-export function parseAgentStreamResponse(raw: string): AgentMessage {
-  const textParts: string[] = [];
+/** Extract top-level JSON objects from NDJSON or concatenated JSON (#44). */
+export function extractJsonObjects(raw: string): StreamEvent[] {
+  const events: StreamEvent[] = [];
+  let depth = 0;
+  let start = -1;
+  let inString = false;
+  let escape = false;
 
-  for (const line of raw.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed) {
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+
+    if (inString) {
+      if (escape) {
+        escape = false;
+      } else if (ch === "\\") {
+        escape = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
       continue;
     }
 
-    let event: StreamEvent;
-    try {
-      event = JSON.parse(trimmed) as StreamEvent;
-    } catch {
+    if (ch === '"') {
+      inString = true;
       continue;
     }
 
-    if (event.error_code) {
-      throw new AgentSessionError(
-        event.error_message ?? event.message ?? "Vertex AI agent query failed",
-      );
+    if (ch === "{") {
+      if (depth === 0) {
+        start = i;
+      }
+      depth++;
+      continue;
     }
 
-    if (typeof event.message === "string" && event.message.startsWith("404")) {
-      throw new AgentSessionNotFoundError();
-    }
-
-    for (const part of event.content?.parts ?? []) {
-      if (part.text) {
-        textParts.push(part.text);
+    if (ch === "}" && depth > 0) {
+      depth--;
+      if (depth === 0 && start >= 0) {
+        try {
+          events.push(JSON.parse(raw.slice(start, i + 1)) as StreamEvent);
+        } catch {
+          // Skip malformed object; continue scanning for valid objects.
+        }
+        start = -1;
       }
     }
   }
 
+  return events;
+}
+
+function processStreamEvent(event: StreamEvent, textParts: string[]): void {
+  if (event.error_code) {
+    throw new AgentSessionError(
+      event.error_message ?? event.message ?? "Vertex AI agent query failed",
+    );
+  }
+
+  if (
+    textParts.length === 0 &&
+    typeof event.message === "string" &&
+    event.message.startsWith("404")
+  ) {
+    throw new AgentSessionNotFoundError();
+  }
+
+  for (const part of event.content?.parts ?? []) {
+    if (part.text) {
+      textParts.push(part.text);
+    }
+  }
+}
+
+/** Parse Reasoning Engine :streamQuery body into AgentMessage (#44). */
+export function parseAgentStreamResponse(raw: string): AgentMessage {
+  const textParts: string[] = [];
+  const events = extractJsonObjects(raw);
+
+  for (const event of events) {
+    processStreamEvent(event, textParts);
+  }
+
   const text = textParts.join("").trim();
   if (!text) {
+    if (raw.trim() && events.length === 0) {
+      throw new AgentSessionError(
+        "Vertex AI agent returned unparseable stream response",
+      );
+    }
     throw new AgentSessionError("Vertex AI agent returned empty response");
   }
 
