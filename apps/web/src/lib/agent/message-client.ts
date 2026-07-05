@@ -28,6 +28,19 @@ type SendAgentMessageInput = {
   chips?: string[];
 };
 
+function drainStreamBuffer(
+  buffer: string,
+  onEvent: (event: StreamEvent) => void,
+  textParts: string[],
+): string {
+  const drained = drainJsonObjects(buffer);
+  for (const event of drained.events) {
+    onEvent(event);
+    applyStreamEvent(event, textParts);
+  }
+  return drained.remainder;
+}
+
 async function consumeStreamQueryResponse(
   response: Response,
   onEvent: (event: StreamEvent) => void,
@@ -47,23 +60,14 @@ async function consumeStreamQueryResponse(
       break;
     }
 
-    buffer += decoder.decode(value, { stream: true });
-    const drained = drainJsonObjects(buffer);
-    buffer = drained.remainder;
-
-    for (const event of drained.events) {
-      onEvent(event);
-      applyStreamEvent(event, textParts);
-    }
+    buffer = drainStreamBuffer(
+      buffer + decoder.decode(value, { stream: true }),
+      onEvent,
+      textParts,
+    );
   }
 
-  if (buffer.trim()) {
-    const trailing = drainJsonObjects(buffer);
-    for (const event of trailing.events) {
-      onEvent(event);
-      applyStreamEvent(event, textParts);
-    }
-  }
+  buffer = drainStreamBuffer(buffer + decoder.decode(), onEvent, textParts);
 
   const text = textParts.join("").trim();
   if (!text) {
@@ -125,14 +129,17 @@ export async function sendAgentMessage(
     publishAgentEvent(input.userId, input.sessionId, event);
   };
 
-  const text = await consumeStreamQueryResponse(response, (streamEvent) => {
-    const thinking = extractThinkingEvent(streamEvent);
-    if (thinking) {
-      publishThinking(thinking);
-    }
-  });
-
-  publishAgentEvent(input.userId, input.sessionId, createDoneEvent());
+  let text: string;
+  try {
+    text = await consumeStreamQueryResponse(response, (streamEvent) => {
+      const thinking = extractThinkingEvent(streamEvent);
+      if (thinking) {
+        publishThinking(thinking);
+      }
+    });
+  } finally {
+    publishAgentEvent(input.userId, input.sessionId, createDoneEvent());
+  }
 
   return {
     role: "agent",

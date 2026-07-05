@@ -61,9 +61,31 @@ export async function GET(
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
         const encoder = new TextEncoder();
+        let closed = false;
 
         const push = (chunk: string) => {
-          controller.enqueue(encoder.encode(chunk));
+          if (closed) {
+            return;
+          }
+          try {
+            controller.enqueue(encoder.encode(chunk));
+          } catch {
+            closed = true;
+          }
+        };
+
+        const close = () => {
+          if (closed) {
+            return;
+          }
+          closed = true;
+          clearInterval(keepalive);
+          unsubscribe();
+          try {
+            controller.close();
+          } catch {
+            // Stream already closed by the client.
+          }
         };
 
         const unsubscribe = subscribeAgentEvents(uid, sessionId, (event) => {
@@ -73,12 +95,6 @@ export async function GET(
         const keepalive = setInterval(() => {
           push(formatSseKeepalive());
         }, AGENT_SSE_KEEPALIVE_MS);
-
-        const close = () => {
-          clearInterval(keepalive);
-          unsubscribe();
-          controller.close();
-        };
 
         req.signal.addEventListener("abort", close, { once: true });
       },
