@@ -5,6 +5,7 @@
 import {
   conflictResponse,
   forbiddenResponse,
+  internalServerErrorResponse,
   notFoundResponse,
   parseApiErrorBody,
   unauthorizedResponse,
@@ -47,6 +48,12 @@ const cases: Array<{
     response: validationErrorResponse("Invalid request body"),
     expectedStatus: 400,
     expectedCode: "validation",
+  },
+  {
+    name: "500 internal",
+    response: internalServerErrorResponse(),
+    expectedStatus: 500,
+    expectedCode: "internal",
   },
 ];
 
