@@ -1,4 +1,4 @@
-import { AgentSessionError } from "./errors";
+import { AgentSessionError, AgentSessionNotFoundError } from "./errors";
 import type { AgentMessage } from "./types";
 
 type StreamEvent = {
@@ -34,7 +34,7 @@ export function parseAgentStreamResponse(raw: string): AgentMessage {
     }
 
     if (typeof event.message === "string" && event.message.startsWith("404")) {
-      throw new AgentSessionError(event.message);
+      throw new AgentSessionNotFoundError();
     }
 
     for (const part of event.content?.parts ?? []) {

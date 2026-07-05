@@ -2,6 +2,7 @@ import "server-only";
 
 import {
   AgentSessionError,
+  AgentSessionNotFoundError,
 } from "./errors";
 import {
   buildAgentUserMessage,
@@ -54,6 +55,9 @@ export async function sendAgentMessage(
 
   const raw = await response.text();
   if (!response.ok) {
+    if (response.status === 404) {
+      throw new AgentSessionNotFoundError();
+    }
     throw new AgentSessionError(
       raw.trim() || `Vertex AI streamQuery failed (${response.status})`,
     );
