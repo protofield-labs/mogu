@@ -137,6 +137,12 @@ variable "enable_external_apis" {
   default     = false
 }
 
+variable "enable_agent_engine" {
+  description = "Deploy Vertex AI Reasoning Engines (orchestrator + maps) and inject AGENT_ENGINE_* env (#43). Requires enable_external_apis."
+  type        = bool
+  default     = false
+}
+
 # --- Monitoring / Slack notifications ---
 
 variable "slack_channel_name" {

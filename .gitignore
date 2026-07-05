@@ -13,6 +13,9 @@ override.tf.json
 *_override.tf.json
 terraform.tfvars
 
+# Terraform plan artifacts (agent_engine.tf archive_file)
+terraform/environments/dev/.agent-*.tar.gz
+
 # Node / Next.js
 node_modules/
 .next/

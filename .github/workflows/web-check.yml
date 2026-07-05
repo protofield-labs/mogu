@@ -54,6 +54,9 @@ jobs:
       - name: Verify auth error model
         run: pnpm exec tsx scripts/verify-auth-errors.ts
 
+      - name: Verify agent engine config
+        run: pnpm exec tsx scripts/verify-agent-config.ts
+
       - name: Build
         run: pnpm build
 
