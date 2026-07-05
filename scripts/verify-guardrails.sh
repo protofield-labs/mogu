@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Guardrail verification (#30): CI final defense line for docs/spec.md §7.
+# Requires DATABASE_URL (app_user, not superuser) and applied migrations.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+if [[ -z "${DATABASE_URL:-}" ]]; then
+  echo "DATABASE_URL is required (postgresql://app_user:...@127.0.0.1:5432/app)" >&2
+  exit 1
+fi
+
+echo "==> verify-core-schema (savedCount column ban, depth>=2 anonymization)"
+"${ROOT}/scripts/verify-core-schema.sh"
+
+echo "==> verify-users-rls (public SELECT + self INSERT/UPDATE)"
+"${ROOT}/scripts/verify-users-rls.sh"
+
+echo "PASS: guardrail verifications completed"

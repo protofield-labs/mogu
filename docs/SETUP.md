@@ -194,6 +194,14 @@ chmod +x scripts/verify-users-rls.sh
 ./scripts/verify-users-rls.sh
 ```
 
+**Verify guardrails (CI と同じ)** — `savedCount` カラム禁止・depth>=2 匿名化・users RLS:
+
+```bash
+export DATABASE_URL="postgresql://app_user:${DB_PASSWORD}@127.0.0.1:5432/app"
+chmod +x scripts/verify-guardrails.sh
+./scripts/verify-guardrails.sh
+```
+
 Application code sets the RLS session variable via `withRls()` in
 `apps/web/src/lib/db/rls.ts`.
 

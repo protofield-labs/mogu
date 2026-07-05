@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "apps/web/**"
+      - "scripts/verify-*.sh"
+      - "scripts/ci-setup-test-db.sh"
       - ".github/workflows/web-check.yml"
 
 permissions:
@@ -15,6 +17,21 @@ jobs:
     defaults:
       run:
         working-directory: apps/web
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://app_user:ci@localhost:5432/app
+      PGPASSWORD: postgres
     steps:
       - uses: actions/checkout@v4
 
@@ -36,3 +53,17 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Prepare test database
+        working-directory: ${{ github.workspace }}
+        run: bash scripts/ci-setup-test-db.sh
+
+      - name: Apply migrations
+        run: pnpm db:migrate
+
+      - name: Verify guardrails
+        working-directory: ${{ github.workspace }}
+        run: bash scripts/verify-guardrails.sh
