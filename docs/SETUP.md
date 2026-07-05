@@ -88,7 +88,8 @@ Optional secrets (leave unset if unused):
 | `TF_VAR_slack_auth_token` | Monitoring Slack OAuth (prefer channel ID in workflow env) |
 | `TF_VAR_slack_budget_bot_token` | Budget Slack bot token (webhook alternative) |
 
-Non-secret dev defaults (`project_id`, `billing_account_id`, `enable_db_connection`, etc.)
+Non-secret dev defaults (`project_id`, `billing_account_id`, `enable_db_connection`,
+`enable_external_apis`, `terraform_firebase_impersonators`, etc.)
 are set in the workflow env. Update workflow env if dev defaults change.
 
 Apply Terraform locally once to create `dev-github-actions-plan@...` and state
