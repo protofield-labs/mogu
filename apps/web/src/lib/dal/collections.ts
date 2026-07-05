@@ -1,0 +1,262 @@
+import "server-only";
+
+import { withAuthRls } from "@/lib/auth/with-auth-rls";
+
+export type CollectionVisibilityValue = "friends" | "secret";
+
+export type CollectionDto = {
+  id: string;
+  ownerId: string;
+  name: string;
+  description: string | null;
+  coverUrl: string | null;
+  visibility: CollectionVisibilityValue;
+  theme: string | null;
+  spotCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SpotDto = {
+  id: string;
+  placeId: string;
+  addedBy: string;
+  collectionId: string;
+  photoUrls: string[];
+  comment: string;
+  rating: "again" | "either" | "no";
+  structuredTags: {
+    area: string | null;
+    genre: string | null;
+    situation: string | null;
+  };
+  freeTags: string[];
+  savedCount: number;
+  originUserId: string | null;
+  createdAt: string;
+};
+
+export type CollectionDetailDto = CollectionDto & {
+  spots: SpotDto[];
+};
+
+export type CreateCollectionInput = {
+  name: string;
+  description?: string;
+  visibility: CollectionVisibilityValue;
+  theme?: string;
+};
+
+export type UpdateCollectionInput = {
+  name?: string;
+  description?: string | null;
+  coverUrl?: string | null;
+  visibility?: CollectionVisibilityValue;
+  theme?: string | null;
+};
+
+function toCollectionDto(collection: {
+  id: string;
+  ownerId: string;
+  name: string;
+  description: string | null;
+  coverUrl: string | null;
+  visibility: CollectionVisibilityValue;
+  theme: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  _count?: { spots: number };
+}): CollectionDto {
+  return {
+    id: collection.id,
+    ownerId: collection.ownerId,
+    name: collection.name,
+    description: collection.description,
+    coverUrl: collection.coverUrl,
+    visibility: collection.visibility,
+    theme: collection.theme,
+    spotCount: collection._count?.spots ?? 0,
+    createdAt: collection.createdAt.toISOString(),
+    updatedAt: collection.updatedAt.toISOString(),
+  };
+}
+
+function toSpotDto(
+  spot: {
+    id: string;
+    placeId: string;
+    addedBy: string;
+    collectionId: string;
+    photoUrls: string[];
+    comment: string;
+    rating: "again" | "either" | "no";
+    tagArea: string | null;
+    tagGenre: string | null;
+    tagSituation: string | null;
+    freeTags: string[];
+    originUserId: string | null;
+    createdAt: Date;
+  },
+  savedCount: number,
+): SpotDto {
+  return {
+    id: spot.id,
+    placeId: spot.placeId,
+    addedBy: spot.addedBy,
+    collectionId: spot.collectionId,
+    photoUrls: spot.photoUrls,
+    comment: spot.comment,
+    rating: spot.rating,
+    structuredTags: {
+      area: spot.tagArea,
+      genre: spot.tagGenre,
+      situation: spot.tagSituation,
+    },
+    freeTags: spot.freeTags,
+    savedCount,
+    originUserId: spot.originUserId,
+    createdAt: spot.createdAt.toISOString(),
+  };
+}
+
+export async function listCollections(
+  uid: string,
+  ownerId: string,
+): Promise<CollectionDto[]> {
+  const collections = await withAuthRls(uid, (tx) =>
+    tx.collection.findMany({
+      where: { ownerId },
+      include: { _count: { select: { spots: true } } },
+      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+    }),
+  );
+
+  return collections.map(toCollectionDto);
+}
+
+export async function createCollection(
+  uid: string,
+  input: CreateCollectionInput,
+): Promise<CollectionDto> {
+  const collection = await withAuthRls(uid, (tx) =>
+    tx.collection.create({
+      data: {
+        ownerId: uid,
+        name: input.name,
+        visibility: input.visibility,
+        ...(input.description !== undefined
+          ? { description: input.description }
+          : {}),
+        ...(input.theme !== undefined ? { theme: input.theme } : {}),
+      },
+      include: { _count: { select: { spots: true } } },
+    }),
+  );
+
+  return toCollectionDto(collection);
+}
+
+export async function getCollectionDetail(
+  uid: string,
+  id: string,
+): Promise<CollectionDetailDto | null> {
+  const detail = await withAuthRls(uid, async (tx) => {
+    const collection = await tx.collection.findUnique({
+      where: { id },
+      include: {
+        _count: { select: { spots: true } },
+        spots: { orderBy: { createdAt: "desc" } },
+      },
+    });
+
+    if (!collection) {
+      return null;
+    }
+
+    const placeIds = [...new Set(collection.spots.map((spot) => spot.placeId))];
+    const savedCounts = new Map<string, number>();
+
+    if (placeIds.length > 0) {
+      const grouped = await tx.spot.groupBy({
+        by: ["placeId"],
+        where: { placeId: { in: placeIds } },
+        _count: { _all: true },
+      });
+      for (const row of grouped) {
+        savedCounts.set(row.placeId, row._count._all);
+      }
+    }
+
+    return {
+      collection,
+      spots: collection.spots.map((spot) =>
+        toSpotDto(spot, savedCounts.get(spot.placeId) ?? 0),
+      ),
+    };
+  });
+
+  if (!detail) {
+    return null;
+  }
+
+  return {
+    ...toCollectionDto(detail.collection),
+    spots: detail.spots,
+  };
+}
+
+export async function updateCollection(
+  uid: string,
+  id: string,
+  input: UpdateCollectionInput,
+): Promise<CollectionDto | null> {
+  const data: UpdateCollectionInput = {};
+  if (input.name !== undefined) {
+    data.name = input.name;
+  }
+  if (input.description !== undefined) {
+    data.description = input.description;
+  }
+  if (input.coverUrl !== undefined) {
+    data.coverUrl = input.coverUrl;
+  }
+  if (input.visibility !== undefined) {
+    data.visibility = input.visibility;
+  }
+  if (input.theme !== undefined) {
+    data.theme = input.theme;
+  }
+
+  const collection = await withAuthRls(uid, async (tx) => {
+    const existing = await tx.collection.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!existing) {
+      return null;
+    }
+
+    return tx.collection.update({
+      where: { id },
+      data,
+      include: { _count: { select: { spots: true } } },
+    });
+  });
+
+  return collection ? toCollectionDto(collection) : null;
+}
+
+export async function deleteCollection(uid: string, id: string): Promise<boolean> {
+  return withAuthRls(uid, async (tx) => {
+    const existing = await tx.collection.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!existing) {
+      return false;
+    }
+
+    await tx.collection.delete({ where: { id } });
+    return true;
+  });
+}

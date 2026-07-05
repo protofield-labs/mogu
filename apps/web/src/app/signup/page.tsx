@@ -34,7 +34,7 @@ export default function SignupPage() {
     setSubmitting(true);
     try {
       await signUpWithEmail(email, password, displayName);
-      router.replace("/");
+      router.replace("/onboarding");
     } catch (err) {
       setError(getAuthErrorMessage(err));
     } finally {

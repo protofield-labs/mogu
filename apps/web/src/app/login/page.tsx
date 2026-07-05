@@ -56,7 +56,7 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       await signInWithGoogle();
-      router.replace("/");
+      router.replace("/onboarding");
     } catch (err) {
       setError(getAuthErrorMessage(err));
     } finally {
@@ -70,7 +70,7 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       await signInWithEmail(email, password);
-      router.replace("/");
+      router.replace("/onboarding");
     } catch (err) {
       setError(getAuthErrorMessage(err));
     } finally {
