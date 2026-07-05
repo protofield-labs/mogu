@@ -1,6 +1,10 @@
 /**
  * RLS verification for users table (#28 Definition of Done).
  * Run via: DATABASE_URL=... ./scripts/verify-users-rls.sh
+ *
+ * All mutations run inside a single transaction and are rolled back;
+ * the expected-failure INSERT runs in its own transaction because a
+ * policy violation aborts the enclosing Postgres transaction.
  */
 import { PrismaClient } from "@prisma/client";
 
@@ -9,53 +13,44 @@ const prisma = new PrismaClient();
 const UID_A = "rls-test-user-a";
 const UID_B = "rls-test-user-b";
 
+type Tx = Omit<
+  PrismaClient,
+  "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends"
+>;
+
 class Rollback extends Error {
   constructor() {
     super("rollback");
   }
 }
 
+/** Transaction-local set_config; subsequent calls in the same tx overwrite it. */
 async function withRls<T>(
+  tx: Tx,
   uid: string,
-  fn: (
-    tx: Omit<
-      PrismaClient,
-      "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends"
-    >,
-  ) => Promise<T>,
+  fn: (scoped: Tx) => Promise<T>,
 ): Promise<T> {
-  return prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT set_config('app.current_user_id', ${uid}, true)`;
-    return fn(tx);
-  });
+  await tx.$executeRaw`SELECT set_config('app.current_user_id', ${uid}, true)`;
+  return fn(tx);
 }
 
-async function main() {
+async function verifyPublicSelectAndSelfMutations() {
   try {
     await prisma.$transaction(async (tx) => {
-      await withRls(UID_A, async (scoped) => {
-        await scoped.user.upsert({
-          where: { firebaseUid: UID_A },
-          create: {
-            firebaseUid: UID_A,
-            displayName: "RLS Test A",
-          },
-          update: { displayName: "RLS Test A" },
-        });
-      });
+      for (const [uid, name] of [
+        [UID_A, "RLS Test A"],
+        [UID_B, "RLS Test B"],
+      ] as const) {
+        await withRls(tx, uid, (scoped) =>
+          scoped.user.upsert({
+            where: { firebaseUid: uid },
+            create: { firebaseUid: uid, displayName: name },
+            update: { displayName: name },
+          }),
+        );
+      }
 
-      await withRls(UID_B, async (scoped) => {
-        await scoped.user.upsert({
-          where: { firebaseUid: UID_B },
-          create: {
-            firebaseUid: UID_B,
-            displayName: "RLS Test B",
-          },
-          update: { displayName: "RLS Test B" },
-        });
-      });
-
-      const visibleAsA = await withRls(UID_A, (scoped) =>
+      const visibleAsA = await withRls(tx, UID_A, (scoped) =>
         scoped.user.findMany({
           where: { firebaseUid: { in: [UID_A, UID_B] } },
           select: {
@@ -83,37 +78,14 @@ async function main() {
         );
       }
 
-      let insertBlocked = false;
-      try {
-        await withRls(UID_A, (scoped) =>
-          scoped.user.create({
-            data: {
-              firebaseUid: "rls-test-impersonation",
-              displayName: "Should fail",
-            },
-          }),
-        );
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (!/row-level security|42501/i.test(message)) {
-          throw new Error(`INSERT failed for an unexpected reason: ${message}`);
-        }
-        insertBlocked = true;
-      }
-      if (!insertBlocked) {
-        throw new Error(
-          "Expected INSERT with foreign firebase_uid to fail WITH CHECK",
-        );
-      }
-
-      await withRls(UID_A, (scoped) =>
+      await withRls(tx, UID_A, (scoped) =>
         scoped.user.update({
           where: { firebaseUid: UID_A },
           data: { displayName: "RLS Test A Updated" },
         }),
       );
 
-      const crossUpdate = await withRls(UID_A, (scoped) =>
+      const crossUpdate = await withRls(tx, UID_A, (scoped) =>
         scoped.user.updateMany({
           where: { firebaseUid: UID_B },
           data: { displayName: "Should not apply" },
@@ -125,7 +97,7 @@ async function main() {
         );
       }
 
-      const crossDelete = await withRls(UID_A, (scoped) =>
+      const crossDelete = await withRls(tx, UID_A, (scoped) =>
         scoped.user.deleteMany({ where: { firebaseUid: UID_B } }),
       );
       if (crossDelete.count !== 0) {
@@ -141,7 +113,44 @@ async function main() {
       throw error;
     }
   }
+}
 
+async function verifyForeignInsertBlocked() {
+  let insertBlocked = false;
+  try {
+    await prisma.$transaction(async (tx) => {
+      await withRls(tx, UID_A, (scoped) =>
+        scoped.user.create({
+          data: {
+            firebaseUid: "rls-test-impersonation",
+            displayName: "Should fail",
+          },
+        }),
+      );
+      // If the INSERT unexpectedly succeeds, roll it back before failing.
+      throw new Rollback();
+    });
+  } catch (error) {
+    if (error instanceof Rollback) {
+      // INSERT unexpectedly succeeded; fall through to the failure below.
+    } else {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!/row-level security|42501/i.test(message)) {
+        throw new Error(`INSERT failed for an unexpected reason: ${message}`);
+      }
+      insertBlocked = true;
+    }
+  }
+  if (!insertBlocked) {
+    throw new Error(
+      "Expected INSERT with foreign firebase_uid to fail WITH CHECK",
+    );
+  }
+}
+
+async function main() {
+  await verifyPublicSelectAndSelfMutations();
+  await verifyForeignInsertBlocked();
   console.log("PASS: users RLS public SELECT + self INSERT/UPDATE verified");
 }
 
