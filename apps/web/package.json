@@ -16,7 +16,8 @@
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
     "db:seed": "tsx scripts/seed-demo.ts",
-    "db:verify-rls": "tsx scripts/verify-users-rls.ts"
+    "db:verify-rls": "tsx scripts/verify-users-rls.ts",
+    "db:verify-friends-rls": "tsx scripts/verify-friends-rls.ts"
   },
   "dependencies": {
     "@base-ui/react": "1.6.0",

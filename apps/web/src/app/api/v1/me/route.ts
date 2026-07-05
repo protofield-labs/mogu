@@ -1,5 +1,5 @@
-import { getMeByUid } from "@/lib/dal/users";
 import { notFoundResponse, withAuthRoute } from "@/lib/auth/require-auth";
+import { getMeByUid } from "@/lib/dal/users";
 
 export async function GET(request: Request): Promise<Response> {
   return withAuthRoute(request, async (_request, { uid }) => {
