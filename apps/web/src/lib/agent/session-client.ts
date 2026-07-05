@@ -1,10 +1,16 @@
 import "server-only";
 
-import { GoogleAuth } from "google-auth-library";
-
-import { getAgentEngineConfig } from "./config";
-import { AgentEngineNotConfiguredError, AgentSessionError } from "./errors";
+import {
+  AgentSessionForbiddenError,
+  AgentSessionNotFoundError,
+  AgentSessionError,
+} from "./errors";
 import { parseSessionId } from "./session-id";
+import {
+  getAuthorizedClient,
+  requireAgentEngineConfig,
+  vertexApiBase,
+} from "./vertex-client";
 
 type CreateSessionResponse = {
   done?: boolean;
@@ -14,9 +20,10 @@ type CreateSessionResponse = {
   };
 };
 
-const auth = new GoogleAuth({
-  scopes: ["https://www.googleapis.com/auth/cloud-platform"],
-});
+type VertexSession = {
+  name?: string;
+  userId?: string;
+};
 
 function extractSessionResourceName(
   payload: CreateSessionResponse,
@@ -34,18 +41,22 @@ function extractSessionResourceName(
   return match?.[1];
 }
 
+function isNotFoundError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+  const response = (error as { response?: { status?: number } }).response;
+  return response?.status === 404;
+}
+
 /**
  * Create a Vertex AI Agent Engine session (#43).
  * Conversation state lives in Agent Engine Sessions — not Cloud SQL.
  */
 export async function createAgentSession(userId: string): Promise<string> {
-  const config = getAgentEngineConfig();
-  if (!config) {
-    throw new AgentEngineNotConfiguredError();
-  }
-
-  const client = await auth.getClient();
-  const url = `https://${config.location}-aiplatform.googleapis.com/v1/${config.orchestratorResourceName}/sessions`;
+  const config = requireAgentEngineConfig();
+  const client = await getAuthorizedClient();
+  const url = `${vertexApiBase(config.location)}/${config.orchestratorResourceName}/sessions`;
 
   const response = await client.request<CreateSessionResponse>({
     url,
@@ -65,4 +76,35 @@ export async function createAgentSession(userId: string): Promise<string> {
   }
 
   return parseSessionId(sessionResourceName);
+}
+
+/** Fetch a Vertex session for ownership checks (#44). */
+export async function getAgentSession(sessionId: string): Promise<VertexSession> {
+  const config = requireAgentEngineConfig();
+  const client = await getAuthorizedClient();
+  const url = `${vertexApiBase(config.location)}/${config.orchestratorResourceName}/sessions/${sessionId}`;
+
+  try {
+    const response = await client.request<VertexSession>({
+      url,
+      method: "GET",
+    });
+    return response.data;
+  } catch (error) {
+    if (isNotFoundError(error)) {
+      throw new AgentSessionNotFoundError();
+    }
+    throw error;
+  }
+}
+
+/** Ensure the Firebase uid owns the Vertex session (#44). */
+export async function assertAgentSessionOwnership(
+  userId: string,
+  sessionId: string,
+): Promise<void> {
+  const session = await getAgentSession(sessionId);
+  if (session.userId !== userId) {
+    throw new AgentSessionForbiddenError();
+  }
 }
