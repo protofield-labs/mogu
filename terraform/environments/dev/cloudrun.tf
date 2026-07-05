@@ -27,6 +27,13 @@ locals {
       version = "latest"
     }
   } : {}
+  external_api_secret_env = var.enable_external_apis ? {
+    PLACES_API_KEY = {
+      secret  = google_secret_manager_secret.places_api_key[0].secret_id
+      version = "latest"
+    }
+  } : {}
+  secret_env = merge(local.db_secret_env, local.external_api_secret_env)
 }
 
 module "cloud_run" {
@@ -44,7 +51,7 @@ module "cloud_run" {
   labels                = local.labels
 
   env        = local.app_env
-  secret_env = local.db_secret_env
+  secret_env = local.secret_env
 
   # Phase 2: Direct VPC egress toggled by the feature flag.
   vpc_access_enabled = var.enable_db_connection

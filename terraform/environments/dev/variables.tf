@@ -131,6 +131,12 @@ variable "enable_db_connection" {
   default     = false
 }
 
+variable "enable_external_apis" {
+  description = "Enable Places API key (Secret Manager) and Vertex AI IAM for Cloud Run (#47). Requires Maps Platform billing on the project."
+  type        = bool
+  default     = false
+}
+
 # --- Monitoring / Slack notifications ---
 
 variable "slack_channel_name" {
