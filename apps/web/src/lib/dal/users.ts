@@ -161,3 +161,27 @@ export async function provisionUser(
 
   return toUserDto(user);
 }
+
+/** Create or update onboarding profile fields for the authenticated user. */
+export async function upsertOnboardingUser(
+  uid: string,
+  displayName: string,
+  avatarColor: string,
+): Promise<UserDto> {
+  const user = await withAuthRls(uid, (tx) =>
+    tx.user.upsert({
+      where: { firebaseUid: uid },
+      create: {
+        firebaseUid: uid,
+        displayName,
+        avatarColor,
+      },
+      update: {
+        displayName,
+        avatarColor,
+      },
+    }),
+  );
+
+  return toUserDto(user);
+}
