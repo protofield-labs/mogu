@@ -33,7 +33,7 @@ enum FriendshipStatus {
 model User {
   firebaseUid String   @id @map("firebase_uid")
   displayName String   @map("display_name")
-  avatarColor String?  @map("avatar_color")
+  avatarColor String   @default("#888888") @map("avatar_color")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   collections              Collection[]
