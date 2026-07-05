@@ -30,16 +30,17 @@ async function withRls<T>(
 }
 
 async function assertNoSavedCountColumn() {
-  const rows = await prisma.$queryRaw<{ column_name: string }[]>`
-    SELECT column_name
+  const rows = await prisma.$queryRaw<
+    { table_name: string; column_name: string }[]
+  >`
+    SELECT table_name, column_name
     FROM information_schema.columns
     WHERE table_schema = 'public'
-      AND table_name = 'spots'
       AND column_name IN ('saved_count', 'savedCount')
   `;
   if (rows.length > 0) {
     throw new Error(
-      `savedCount must not be a DB column; found: ${rows.map((r) => r.column_name).join(", ")}`,
+      `savedCount must not be a DB column; found: ${rows.map((r) => `${r.table_name}.${r.column_name}`).join(", ")}`,
     );
   }
 }
