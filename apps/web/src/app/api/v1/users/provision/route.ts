@@ -1,30 +1,30 @@
 import { z } from "zod";
 
 import { provisionUser } from "@/lib/dal/users";
-import { requireAuth } from "@/lib/auth/require-auth";
+import {
+  validationErrorResponse,
+  withAuthRoute,
+} from "@/lib/auth/require-auth";
 
 const provisionBodySchema = z.object({
   displayName: z.string().trim().min(1).max(100),
 });
 
 export async function POST(request: Request): Promise<Response> {
-  const auth = await requireAuth(request);
-  if (auth instanceof Response) {
-    return auth;
-  }
+  return withAuthRoute(request, async (req, { uid }) => {
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return validationErrorResponse("Invalid JSON");
+    }
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+    const parsed = provisionBodySchema.safeParse(body);
+    if (!parsed.success) {
+      return validationErrorResponse("Invalid request body");
+    }
 
-  const parsed = provisionBodySchema.safeParse(body);
-  if (!parsed.success) {
-    return Response.json({ error: "Invalid request body" }, { status: 400 });
-  }
-
-  const user = await provisionUser(auth.uid, parsed.data.displayName);
-  return Response.json({ user }, { status: 201 });
+    const user = await provisionUser(uid, parsed.data.displayName);
+    return Response.json({ user }, { status: 201 });
+  });
 }
