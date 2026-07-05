@@ -99,6 +99,12 @@ jobs:
       - name: Apply migrations
         run: pnpm db:migrate
 
+      - name: Seed demo data
+        run: pnpm db:seed
+
+      - name: Verify demo seed
+        run: pnpm exec tsx scripts/verify-demo-seed.ts
+
       - name: Verify guardrails
         working-directory: ${{ github.workspace }}
         run: bash scripts/verify-guardrails.sh
