@@ -51,6 +51,8 @@ async function wipeDemoRows(tx: SeedTx, viewerUid: string) {
   const personaUids = Object.values(DEMO_PERSONAS).map((p) => p.uid);
   const allUids = demoUserIds(viewerUid);
 
+  await enableDemoSeedFlags(tx);
+
   await tx.flag.deleteMany({
     where: { recipientId: { in: allUids } },
   });
@@ -93,6 +95,8 @@ async function wipeDemoRows(tx: SeedTx, viewerUid: string) {
       where: { firebaseUid: DEMO_VIEWER_DEFAULT.uid },
     });
   }
+
+  await disableDemoSeedFlags(tx);
 }
 
 async function upsertUser(tx: SeedTx, user: DemoUserDef) {

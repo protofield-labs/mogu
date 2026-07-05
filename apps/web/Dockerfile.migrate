@@ -11,9 +11,10 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY prisma ./prisma
 RUN pnpm install --frozen-lockfile
 COPY scripts ./scripts
+COPY src/lib/seed ./src/lib/seed
 COPY tsconfig.json ./
 RUN groupadd --system --gid 1001 nodejs \
   && useradd --system --create-home --uid 1001 --gid nodejs migrate \
   && chown -R migrate:nodejs /app "${COREPACK_HOME}"
 USER migrate
-CMD ["sh", "-c", "DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:5432/${DB_NAME}?sslmode=require exec pnpm db:migrate"]
+CMD ["sh", "-c", "DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:5432/${DB_NAME}?sslmode=require pnpm db:migrate && if [ \"${RUN_DEMO_SEED:-}\" = \"true\" ]; then pnpm db:seed; fi"]
