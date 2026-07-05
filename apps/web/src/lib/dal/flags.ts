@@ -9,12 +9,22 @@ export type FlagNotificationDto = {
   weekOf: string;
 };
 
+/** Validate a real calendar date; DB-side date_trunc snaps it to the week start. */
 function normalizeWeekStart(weekOf: string): string | null {
-  const parsed = /^\d{4}-\d{2}-\d{2}$/.exec(weekOf.trim());
+  const parsed = /^(\d{4})-(\d{2})-(\d{2})$/.exec(weekOf.trim());
   if (!parsed) {
     return null;
   }
-  return parsed[0];
+  const [value, year, month, day] = parsed;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  if (
+    date.getUTCFullYear() !== Number(year) ||
+    date.getUTCMonth() !== Number(month) - 1 ||
+    date.getUTCDate() !== Number(day)
+  ) {
+    return null;
+  }
+  return value;
 }
 
 /** Weekly flag inbox summary for the authenticated recipient (#38). */
@@ -38,7 +48,8 @@ export async function listFlagNotifications(
           date_trunc('week', f.created_at AT TIME ZONE 'UTC')::date AS week_of
         FROM flags f
         WHERE f.recipient_id = app_current_user()
-          AND date_trunc('week', f.created_at AT TIME ZONE 'UTC')::date = ${normalizedWeek}::date
+          AND date_trunc('week', f.created_at AT TIME ZONE 'UTC')::date
+            = date_trunc('week', ${normalizedWeek}::date)::date
         GROUP BY date_trunc('week', f.created_at AT TIME ZONE 'UTC'), f.is_anonymous
         ORDER BY f.is_anonymous ASC
       `;
