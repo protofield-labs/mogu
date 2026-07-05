@@ -1,14 +1,19 @@
 import "server-only";
 
+import { publishAgentEvent } from "./event-bus";
 import {
   AgentSessionError,
   AgentSessionNotFoundError,
 } from "./errors";
 import {
+  applyStreamEvent,
   buildAgentUserMessage,
-  parseAgentStreamResponse,
+  createDoneEvent,
+  drainJsonObjects,
+  extractThinkingEvent,
+  type StreamEvent,
 } from "./stream-parser";
-import type { AgentMessage } from "./types";
+import type { AgentMessage, AgentEvent } from "./types";
 import { assertAgentSessionOwnership } from "./session-client";
 import {
   getAccessToken,
@@ -23,9 +28,58 @@ type SendAgentMessageInput = {
   chips?: string[];
 };
 
+function drainStreamBuffer(
+  buffer: string,
+  onEvent: (event: StreamEvent) => void,
+  textParts: string[],
+): string {
+  const drained = drainJsonObjects(buffer);
+  for (const event of drained.events) {
+    onEvent(event);
+    applyStreamEvent(event, textParts);
+  }
+  return drained.remainder;
+}
+
+async function consumeStreamQueryResponse(
+  response: Response,
+  onEvent: (event: StreamEvent) => void,
+): Promise<string> {
+  if (!response.body) {
+    throw new AgentSessionError("Vertex AI streamQuery returned empty body");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  const textParts: string[] = [];
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+
+    buffer = drainStreamBuffer(
+      buffer + decoder.decode(value, { stream: true }),
+      onEvent,
+      textParts,
+    );
+  }
+
+  buffer = drainStreamBuffer(buffer + decoder.decode(), onEvent, textParts);
+
+  const text = textParts.join("").trim();
+  if (!text) {
+    throw new AgentSessionError("Vertex AI agent returned empty response");
+  }
+
+  return text;
+}
+
 /**
  * Send a user turn to the orchestrator via Vertex :streamQuery (#44).
- * Aggregates NDJSON chunks into a single AgentMessage for the REST API.
+ * Publishes thinking/done AgentEvents for SSE subscribers (#45).
  */
 export async function sendAgentMessage(
   input: SendAgentMessageInput,
@@ -53,8 +107,8 @@ export async function sendAgentMessage(
     }),
   });
 
-  const raw = await response.text();
   if (!response.ok) {
+    const raw = await response.text();
     if (response.status === 404) {
       throw new AgentSessionNotFoundError();
     }
@@ -63,5 +117,33 @@ export async function sendAgentMessage(
     );
   }
 
-  return parseAgentStreamResponse(raw);
+  const thinkingMessages: string[] = [];
+  const seenThinking = new Set<string>();
+
+  const publishThinking = (event: AgentEvent) => {
+    if (seenThinking.has(event.message)) {
+      return;
+    }
+    seenThinking.add(event.message);
+    thinkingMessages.push(event.message);
+    publishAgentEvent(input.userId, input.sessionId, event);
+  };
+
+  let text: string;
+  try {
+    text = await consumeStreamQueryResponse(response, (streamEvent) => {
+      const thinking = extractThinkingEvent(streamEvent);
+      if (thinking) {
+        publishThinking(thinking);
+      }
+    });
+  } finally {
+    publishAgentEvent(input.userId, input.sessionId, createDoneEvent());
+  }
+
+  return {
+    role: "agent",
+    text,
+    ...(thinkingMessages.length > 0 ? { thinking: thinkingMessages } : {}),
+  };
 }
