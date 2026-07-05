@@ -62,3 +62,13 @@ output "places_api_key_secret_id" {
   description = "Secret Manager secret id for PLACES_API_KEY (empty when enable_external_apis is false)."
   value       = try(google_secret_manager_secret.places_api_key[0].secret_id, null)
 }
+
+output "agent_engine_resource_name" {
+  description = "Full resource name of the orchestrator Reasoning Engine (#43)."
+  value       = try(google_vertex_ai_reasoning_engine.orchestrator[0].id, null)
+}
+
+output "maps_grounding_engine_resource_name" {
+  description = "Full resource name of the Maps Grounding Reasoning Engine (#43)."
+  value       = try(google_vertex_ai_reasoning_engine.maps_grounding[0].id, null)
+}

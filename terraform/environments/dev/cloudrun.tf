@@ -20,7 +20,6 @@ locals {
     } : {
     GOOGLE_CLOUD_PROJECT = var.project_id
   }
-  app_env = merge(local.base_env, local.db_env)
   db_secret_env = var.enable_db_connection ? {
     DB_PASSWORD = {
       secret  = google_secret_manager_secret.db_password.secret_id
@@ -33,7 +32,13 @@ locals {
       version = "latest"
     }
   } : {}
+  agent_engine_env = local.agent_engine_enabled ? {
+    AGENT_ENGINE_RESOURCE_NAME          = google_vertex_ai_reasoning_engine.orchestrator[0].id
+    MAPS_GROUNDING_ENGINE_RESOURCE_NAME = google_vertex_ai_reasoning_engine.maps_grounding[0].id
+    VERTEX_AI_LOCATION                  = var.region
+  } : {}
   secret_env = merge(local.db_secret_env, local.external_api_secret_env)
+  app_env    = merge(local.base_env, local.db_env, local.agent_engine_env)
 }
 
 module "cloud_run" {
@@ -64,5 +69,7 @@ module "cloud_run" {
     google_project_service.services,
     google_secret_manager_secret_version.places_api_key,
     google_secret_manager_secret_iam_member.web_places_api_key,
+    google_vertex_ai_reasoning_engine.orchestrator,
+    google_vertex_ai_reasoning_engine.maps_grounding,
   ]
 }
