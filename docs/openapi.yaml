@@ -609,6 +609,7 @@ components:
                 - not_found
                 - conflict
                 - validation
+                - internal
             message:
               type: string
 

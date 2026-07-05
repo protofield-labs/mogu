@@ -4,7 +4,8 @@ export type ApiErrorCode =
   | "forbidden"
   | "not_found"
   | "conflict"
-  | "validation";
+  | "validation"
+  | "internal";
 
 export type ApiErrorBody = {
   error: {
@@ -42,6 +43,12 @@ export function conflictResponse(message = "Conflict"): Response {
 
 export function validationErrorResponse(message: string): Response {
   return apiErrorResponse("validation", message, 400);
+}
+
+export function internalServerErrorResponse(
+  message = "Internal server error",
+): Response {
+  return apiErrorResponse("internal", message, 500);
 }
 
 /** Parse JSON body for tests and client error handling. */

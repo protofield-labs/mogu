@@ -1,7 +1,8 @@
 import "server-only";
 
 import { verifySession } from "./verify-session";
-import { unauthorizedResponse } from "./api-error";
+import { internalServerErrorResponse, unauthorizedResponse } from "./api-error";
+import { logger } from "@/lib/logger";
 
 export type AuthContext = {
   uid: string;
@@ -16,6 +17,7 @@ export {
   apiErrorResponse,
   conflictResponse,
   forbiddenResponse,
+  internalServerErrorResponse,
   notFoundResponse,
   parseApiErrorBody,
   unauthorizedResponse,
@@ -35,9 +37,22 @@ export async function requireAuth(
   return session;
 }
 
+function requestLogContext(request: Request, uid?: string): {
+  method: string;
+  path: string;
+  uid?: string;
+} {
+  const { pathname } = new URL(request.url);
+  return {
+    method: request.method,
+    path: pathname,
+    ...(uid ? { uid } : {}),
+  };
+}
+
 /**
  * Route Handler wrapper (#29): Bearer verify → uid → handler.
- * DAL calls `withAuthRls(uid, fn)` inside the handler for RLS-scoped queries.
+ * Uncaught errors are logged and returned as 500 ErrorBody (no stack leak).
  */
 export async function withAuthRoute(
   request: Request,
@@ -47,5 +62,15 @@ export async function withAuthRoute(
   if (auth instanceof Response) {
     return auth;
   }
-  return handler(request, auth);
+
+  try {
+    return await handler(request, auth);
+  } catch (error) {
+    logger.error(
+      "Unhandled route handler error",
+      requestLogContext(request, auth.uid),
+      error,
+    );
+    return internalServerErrorResponse();
+  }
 }
