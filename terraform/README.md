@@ -7,5 +7,5 @@ This directory holds the actual Terraform implementation code.
 - Root modules (apply targets) live in `environments/<env>/`.
 - Infrastructure rules: `terraform/AGENTS.md`.
 
-The dev root module is `environments/dev/`. See the repository root
-`README.md` for bootstrap, init, plan, apply, and image build steps.
+The dev root module is `environments/dev/`. See `docs/SETUP.md` at the
+repository root for bootstrap, init, plan, apply, and image build steps.
