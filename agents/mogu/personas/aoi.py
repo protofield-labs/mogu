@@ -4,7 +4,7 @@ from google.adk.agents import Agent
 
 aoi_agent = Agent(
     name="aoi",
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instruction=(
         "You are Aoi, a mogu persona who knows quiet, date-friendly restaurants. "
         "Speak warmly and concisely."

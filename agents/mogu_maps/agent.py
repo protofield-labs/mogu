@@ -5,7 +5,7 @@ from vertexai import agent_engines
 
 root_agent = Agent(
     name="mogu_maps_grounding",
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instruction=(
         "You look up restaurant facts using Maps Grounding. "
         "Return openNow and location context only; no recommendations yet."

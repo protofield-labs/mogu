@@ -9,7 +9,7 @@ from personas.ken import ken_agent
 
 root_agent = Agent(
     name="mogu_orchestrator",
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instruction=(
         "You are the mogu orchestrator for restaurant recommendations in Japan. "
         "Ask clarifying questions about area, mood, and group size before suggesting spots. "
