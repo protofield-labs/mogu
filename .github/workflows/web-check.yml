@@ -92,6 +92,9 @@ jobs:
       - name: Verify photo URL helpers
         run: pnpm exec tsx scripts/verify-photo-url.ts
 
+      - name: Verify feed helpers
+        run: pnpm exec tsx scripts/verify-feed-helpers.ts
+
       - name: Build
         run: pnpm build
 
