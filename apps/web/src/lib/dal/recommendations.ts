@@ -3,6 +3,7 @@ import "server-only";
 import { withAuthRls } from "@/lib/auth/with-auth-rls";
 import { countSavedInCircleByPlaceIds } from "@/lib/dal/saved-count";
 import { toSpotDto, type SpotDto } from "@/lib/dal/spot-dto";
+import { jstTodayDate } from "@/lib/recommendations/valid-date";
 
 export type RecommendationDto = {
   spot: SpotDto;
@@ -28,19 +29,12 @@ const spotSelect = {
   createdAt: true,
 } as const;
 
-function utcTodayDate(): Date {
-  const now = new Date();
-  return new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-  );
-}
-
 /** GET /home/recommendation (#42): today's row for the authenticated user. */
 export async function getHomeRecommendation(
   uid: string,
 ): Promise<RecommendationDto | null> {
   return withAuthRls(uid, async (tx) => {
-    const validDate = utcTodayDate();
+    const validDate = jstTodayDate();
     const row = await tx.dailyRecommendation.findUnique({
       where: {
         userId_validDate: {
@@ -52,10 +46,19 @@ export async function getHomeRecommendation(
         assertion: true,
         evidence: true,
         spotId: true,
-        spot: { select: spotSelect },
       },
     });
     if (!row) {
+      return null;
+    }
+
+    // Fetch via spot table so RLS applies: the spot may have become
+    // invisible since the batch ran (unfriended / collection made secret).
+    const spot = await tx.spot.findUnique({
+      where: { id: row.spotId },
+      select: spotSelect,
+    });
+    if (!spot) {
       return null;
     }
 
@@ -70,17 +73,17 @@ export async function getHomeRecommendation(
     });
 
     const placeIds = [
-      row.spot.placeId,
-      ...alternatives.map((spot) => spot.placeId),
+      spot.placeId,
+      ...alternatives.map((alt) => alt.placeId),
     ];
     const savedCounts = await countSavedInCircleByPlaceIds(tx, placeIds);
 
     return {
-      spot: toSpotDto(row.spot, savedCounts.get(row.spot.placeId) ?? 0),
+      spot: toSpotDto(spot, savedCounts.get(spot.placeId) ?? 0),
       assertion: row.assertion,
       evidence: row.evidence,
-      alternatives: alternatives.map((spot) =>
-        toSpotDto(spot, savedCounts.get(spot.placeId) ?? 0),
+      alternatives: alternatives.map((alt) =>
+        toSpotDto(alt, savedCounts.get(alt.placeId) ?? 0),
       ),
     };
   });

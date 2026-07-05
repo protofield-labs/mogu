@@ -58,6 +58,16 @@ export type GeneratedDailyRecommendation = {
   evidence: string;
 };
 
+const candidateSelect = {
+  id: true,
+  placeId: true,
+  addedBy: true,
+  rating: true,
+  tagArea: true,
+  tagGenre: true,
+  addedByUser: { select: { displayName: true } },
+} as const;
+
 /**
  * Rule-based daily recommendation (#42 MVP batch).
  * Prefers a friend's newest "again" spot, then own "again", then any visible spot.
@@ -66,35 +76,27 @@ export async function pickDailyRecommendation(
   tx: PrismaTransaction,
   viewerUid: string,
 ): Promise<GeneratedDailyRecommendation | null> {
-  const candidates = await tx.spot.findMany({
-    where: { rating: "again" },
+  const friendSpot = await tx.spot.findFirst({
+    where: { rating: "again", addedBy: { not: viewerUid } },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    take: 20,
-    select: {
-      id: true,
-      placeId: true,
-      addedBy: true,
-      rating: true,
-      tagArea: true,
-      tagGenre: true,
-      addedByUser: { select: { displayName: true } },
-    },
+    select: candidateSelect,
   });
 
-  const friendSpot = candidates.find((spot) => spot.addedBy !== viewerUid);
-  const ownSpot = candidates.find((spot) => spot.addedBy === viewerUid);
-  const fallback = await tx.spot.findFirst({
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    select: {
-      id: true,
-      placeId: true,
-      addedBy: true,
-      rating: true,
-      tagArea: true,
-      tagGenre: true,
-      addedByUser: { select: { displayName: true } },
-    },
-  });
+  const ownSpot = friendSpot
+    ? null
+    : await tx.spot.findFirst({
+        where: { rating: "again", addedBy: viewerUid },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        select: candidateSelect,
+      });
+
+  const fallback =
+    friendSpot || ownSpot
+      ? null
+      : await tx.spot.findFirst({
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          select: candidateSelect,
+        });
 
   const chosen = friendSpot ?? ownSpot ?? fallback;
   if (!chosen) {

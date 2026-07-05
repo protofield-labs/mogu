@@ -49,9 +49,11 @@ async function upsertUser(tx: Tx, uid: string, displayName: string) {
 }
 
 async function verifyFeed() {
+  const cursorId = "11111111-1111-4111-8111-111111111111";
   assert(
-    decodeFeedCursor(encodeFeedCursor(new Date("2026-07-06T00:00:00.000Z"), "abc"))?.id ===
-      "abc",
+    decodeFeedCursor(
+      encodeFeedCursor(new Date("2026-07-06T00:00:00.000Z"), cursorId),
+    )?.id === cursorId,
     "cursor round-trip",
   );
   assert(decodeFeedCursor("not-valid") === null, "invalid cursor rejected");

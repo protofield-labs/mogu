@@ -8,15 +8,9 @@
 import { PrismaClient } from "@prisma/client";
 
 import { pickDailyRecommendation } from "../src/lib/recommendations/pick";
+import { jstTodayDate } from "../src/lib/recommendations/valid-date";
 
 const prisma = new PrismaClient();
-
-function utcTodayDate(): Date {
-  const now = new Date();
-  return new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-  );
-}
 
 async function withUserRls<T>(
   tx: Omit<
@@ -36,7 +30,7 @@ async function withUserRls<T>(
 }
 
 async function main() {
-  const validDate = utcTodayDate();
+  const validDate = jstTodayDate();
   const users = await prisma.user.findMany({
     select: { firebaseUid: true },
     orderBy: { firebaseUid: "asc" },

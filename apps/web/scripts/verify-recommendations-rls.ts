@@ -9,6 +9,7 @@ import {
   buildEvidence,
   pickDailyRecommendation,
 } from "../src/lib/recommendations/pick";
+import { jstTodayDate } from "../src/lib/recommendations/valid-date";
 
 const prisma = new PrismaClient();
 
@@ -49,13 +50,6 @@ async function upsertUser(tx: Tx, uid: string, displayName: string) {
       create: { firebaseUid: uid, displayName },
       update: { displayName },
     }),
-  );
-}
-
-function utcTodayDate(): Date {
-  const now = new Date();
-  return new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
   );
 }
 
@@ -128,7 +122,7 @@ async function verifyRecommendations() {
         "assertion uses structured tags",
       );
 
-      const validDate = utcTodayDate();
+      const validDate = jstTodayDate();
       await tx.$executeRaw`
         SELECT upsert_daily_recommendation(
           ${UID_VIEWER},
