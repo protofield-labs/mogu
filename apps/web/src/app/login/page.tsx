@@ -51,6 +51,8 @@ export default function LoginPage() {
     }
   }, [user, loading, submitting, router]);
 
+  // On success, keep `submitting` true so the effect above cannot race the
+  // handler navigation with a redirect to "/"; the page unmounts on replace.
   async function handleGoogleSignIn() {
     setError(null);
     setSubmitting(true);
@@ -59,7 +61,6 @@ export default function LoginPage() {
       router.replace("/onboarding");
     } catch (err) {
       setError(getAuthErrorMessage(err));
-    } finally {
       setSubmitting(false);
     }
   }
@@ -73,7 +74,6 @@ export default function LoginPage() {
       router.replace("/onboarding");
     } catch (err) {
       setError(getAuthErrorMessage(err));
-    } finally {
       setSubmitting(false);
     }
   }

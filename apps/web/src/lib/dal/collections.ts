@@ -205,11 +205,15 @@ export async function getCollectionDetail(
   };
 }
 
+export type OwnedCollectionMutationResult<T> =
+  | { ok: true; value: T }
+  | { ok: false; reason: "not_found" | "forbidden" };
+
 export async function updateCollection(
   uid: string,
   id: string,
   input: UpdateCollectionInput,
-): Promise<CollectionDto | null> {
+): Promise<OwnedCollectionMutationResult<CollectionDto>> {
   const data: UpdateCollectionInput = {};
   if (input.name !== undefined) {
     data.name = input.name;
@@ -227,36 +231,50 @@ export async function updateCollection(
     data.theme = input.theme;
   }
 
-  const collection = await withAuthRls(uid, async (tx) => {
+  const result = await withAuthRls(uid, async (tx) => {
+    // RLS makes friends' collections readable, so an explicit owner check is
+    // needed here: without it the UPDATE matches 0 rows and Prisma throws.
     const existing = await tx.collection.findUnique({
       where: { id },
-      select: { id: true },
+      select: { ownerId: true },
     });
     if (!existing) {
-      return null;
+      return { ok: false as const, reason: "not_found" as const };
+    }
+    if (existing.ownerId !== uid) {
+      return { ok: false as const, reason: "forbidden" as const };
     }
 
-    return tx.collection.update({
+    const updated = await tx.collection.update({
       where: { id },
       data,
       include: { _count: { select: { spots: true } } },
     });
+    return { ok: true as const, value: updated };
   });
 
-  return collection ? toCollectionDto(collection) : null;
+  return result.ok
+    ? { ok: true, value: toCollectionDto(result.value) }
+    : result;
 }
 
-export async function deleteCollection(uid: string, id: string): Promise<boolean> {
+export async function deleteCollection(
+  uid: string,
+  id: string,
+): Promise<OwnedCollectionMutationResult<true>> {
   return withAuthRls(uid, async (tx) => {
     const existing = await tx.collection.findUnique({
       where: { id },
-      select: { id: true },
+      select: { ownerId: true },
     });
     if (!existing) {
-      return false;
+      return { ok: false as const, reason: "not_found" as const };
+    }
+    if (existing.ownerId !== uid) {
+      return { ok: false as const, reason: "forbidden" as const };
     }
 
     await tx.collection.delete({ where: { id } });
-    return true;
+    return { ok: true as const, value: true as const };
   });
 }

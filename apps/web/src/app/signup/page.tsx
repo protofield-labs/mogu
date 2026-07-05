@@ -28,6 +28,8 @@ export default function SignupPage() {
     }
   }, [user, loading, submitting, router]);
 
+  // On success, keep `submitting` true so the effect above cannot race the
+  // handler navigation with a redirect to "/"; the page unmounts on replace.
   async function handleSignUp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -37,7 +39,6 @@ export default function SignupPage() {
       router.replace("/onboarding");
     } catch (err) {
       setError(getAuthErrorMessage(err));
-    } finally {
       setSubmitting(false);
     }
   }

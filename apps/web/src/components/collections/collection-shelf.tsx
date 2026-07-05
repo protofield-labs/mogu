@@ -260,6 +260,7 @@ export function CollectionShelf() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [shelfError, setShelfError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -276,7 +277,9 @@ export function CollectionShelf() {
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "読み込みに失敗しました");
+          setShelfError(
+            err instanceof Error ? err.message : "読み込みに失敗しました",
+          );
         }
       } finally {
         if (!cancelled) {
@@ -323,7 +326,7 @@ export function CollectionShelf() {
     }
 
     setBusy(true);
-    setError(null);
+    setShelfError(null);
     try {
       const collection = await updateCollection(editingId, toUpdateInput(editForm));
       setCollections((current) =>
@@ -331,7 +334,7 @@ export function CollectionShelf() {
       );
       setEditingId(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "更新に失敗しました");
+      setShelfError(err instanceof Error ? err.message : "更新に失敗しました");
     } finally {
       setBusy(false);
     }
@@ -343,14 +346,14 @@ export function CollectionShelf() {
     }
 
     setBusy(true);
-    setError(null);
+    setShelfError(null);
     try {
       await deleteCollection(collection.id);
       setCollections((current) =>
         current.filter((item) => item.id !== collection.id),
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "削除に失敗しました");
+      setShelfError(err instanceof Error ? err.message : "削除に失敗しました");
     } finally {
       setBusy(false);
     }
@@ -433,6 +436,9 @@ export function CollectionShelf() {
             {collections.length} 件
           </span>
         </div>
+        {shelfError ? (
+          <p className="text-sm text-destructive">{shelfError}</p>
+        ) : null}
         {collections.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-border bg-mogu-surface-elevated p-8 text-center text-sm text-muted-foreground">
             まだコレクションがありません。最初の棚を作ってみましょう。

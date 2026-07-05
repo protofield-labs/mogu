@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  forbiddenResponse,
   notFoundResponse,
   validationErrorResponse,
   withAuthRoute,
@@ -75,12 +76,14 @@ export async function PATCH(
       return validationErrorResponse("Invalid request body");
     }
 
-    const collection = await updateCollection(uid, id, parsed.data);
-    if (!collection) {
-      return notFoundResponse("Collection not found");
+    const result = await updateCollection(uid, id, parsed.data);
+    if (!result.ok) {
+      return result.reason === "forbidden"
+        ? forbiddenResponse("Only the owner can update this collection")
+        : notFoundResponse("Collection not found");
     }
 
-    return Response.json(collection);
+    return Response.json(result.value);
   });
 }
 
@@ -94,9 +97,11 @@ export async function DELETE(
   }
 
   return withAuthRoute(request, async (_req, { uid }) => {
-    const deleted = await deleteCollection(uid, id);
-    if (!deleted) {
-      return notFoundResponse("Collection not found");
+    const result = await deleteCollection(uid, id);
+    if (!result.ok) {
+      return result.reason === "forbidden"
+        ? forbiddenResponse("Only the owner can delete this collection")
+        : notFoundResponse("Collection not found");
     }
 
     return new Response(null, { status: 204 });
