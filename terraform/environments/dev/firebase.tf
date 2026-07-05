@@ -29,13 +29,14 @@ resource "google_identity_platform_config" "default" {
   provider = google-beta.firebase
   project  = var.project_id
 
-  # Cloud Run URL is included so signInWithPopup works on the deployed app
-  # (auth/unauthorized-domain otherwise).
+  # Cloud Run exposes two URLs for the same service (legacy hash + deterministic).
+  # Both must be authorized or signInWithPopup fails with auth/unauthorized-domain.
   authorized_domains = [
     "localhost",
     "${var.project_id}.firebaseapp.com",
     "${var.project_id}.web.app",
     replace(module.cloud_run.uri, "https://", ""),
+    "${var.environment}-web-${data.google_project.current.number}.${var.region}.run.app",
   ]
 
   sign_in {

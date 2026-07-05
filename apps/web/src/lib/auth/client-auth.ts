@@ -22,19 +22,9 @@ function getAuthErrorMessage(error: unknown): string {
 export async function signInWithGoogle(): Promise<User> {
   const auth = getFirebaseAuth();
   const provider = new GoogleAuthProvider();
-  // #region agent log
-  fetch('http://127.0.0.1:7664/ingest/883f5353-0239-41eb-8ec0-112d036ddcef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5682c9'},body:JSON.stringify({sessionId:'5682c9',hypothesisId:'A,C,D',location:'client-auth.ts:signInWithGoogle:entry',message:'before signInWithPopup',data:{hostname:window.location.hostname,origin:window.location.origin,authDomain:auth.config.authDomain,apiKey:String(auth.config.apiKey).slice(0,8)+'...'},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
-  try {
-    const credential: UserCredential = await signInWithPopup(auth, provider);
-    await provisionUser(credential.user);
-    return credential.user;
-  } catch (error) {
-    // #region agent log
-    fetch('http://127.0.0.1:7664/ingest/883f5353-0239-41eb-8ec0-112d036ddcef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5682c9'},body:JSON.stringify({sessionId:'5682c9',hypothesisId:'A,C,D',location:'client-auth.ts:signInWithGoogle:error',message:'signInWithPopup failed',data:{hostname:window.location.hostname,code:(error as {code?:string})?.code ?? null,message:error instanceof Error ? error.message : String(error)},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-    throw error;
-  }
+  const credential: UserCredential = await signInWithPopup(auth, provider);
+  await provisionUser(credential.user);
+  return credential.user;
 }
 
 export async function signInWithEmail(
