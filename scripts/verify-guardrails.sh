@@ -16,4 +16,7 @@ echo "==> verify-core-schema (savedCount column ban, depth>=2 anonymization)"
 echo "==> verify-users-rls (public SELECT + self INSERT/UPDATE)"
 "${ROOT}/scripts/verify-users-rls.sh"
 
+echo "==> verify-recollect-rls (friend-visible spot copy + flag trigger)"
+"${ROOT}/scripts/verify-recollect-rls.sh"
+
 echo "PASS: guardrail verifications completed"

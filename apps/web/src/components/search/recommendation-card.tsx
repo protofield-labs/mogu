@@ -10,6 +10,7 @@ import {
   openNowLabel,
 } from "@/lib/agent/chat-helpers";
 import type { Recommendation, Spot } from "@/lib/agent/types";
+import { listMyCollections } from "@/lib/collections/browser-api";
 
 type RecommendationCardProps = {
   recommendation: Recommendation;
@@ -47,11 +48,20 @@ function SpotSummary({ spot, compact = false }: { spot: Spot; compact?: boolean 
   );
 }
 
+type CollectionsState =
+  | { status: "loading" }
+  | { status: "error" }
+  | { status: "ready"; targetCollectionId: string | null };
+
 export function RecommendationCard({ recommendation }: RecommendationCardProps) {
   const { spot, assertion, evidence, alternatives } = recommendation;
   const [openNow, setOpenNow] = useState<boolean | undefined>();
+  const [collections, setCollections] = useState<CollectionsState>({
+    status: "loading",
+  });
   const [recollecting, setRecollecting] = useState(false);
   const [recollected, setRecollected] = useState(false);
+  const [recollectError, setRecollectError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,14 +75,67 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
     };
   }, [spot.placeId]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void listMyCollections()
+      .then((result) => {
+        if (!cancelled) {
+          setCollections({
+            status: "ready",
+            targetCollectionId: result[0]?.id ?? null,
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCollections({ status: "error" });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const openNowText = openNowLabel(openNow);
+  const hasNoCollection =
+    collections.status === "ready" && collections.targetCollectionId === null;
+
+  async function resolveTargetCollectionId(): Promise<string | null> {
+    if (collections.status === "ready") {
+      return collections.targetCollectionId;
+    }
+    // Initial load failed or is in flight: retry here so a transient error
+    // does not permanently disable the save button.
+    try {
+      const result = await listMyCollections();
+      const targetCollectionId = result[0]?.id ?? null;
+      setCollections({ status: "ready", targetCollectionId });
+      return targetCollectionId;
+    } catch {
+      setCollections({ status: "error" });
+      return null;
+    }
+  }
 
   async function handleRecollect() {
     setRecollecting(true);
+    setRecollectError(null);
     try {
-      const ok = await recollectSpot(spot.id);
+      const targetCollectionId = await resolveTargetCollectionId();
+      if (!targetCollectionId) {
+        setRecollectError(
+          collections.status === "error"
+            ? "コレクションを読み込めませんでした。もう一度お試しください"
+            : "保存先のコレクションがありません",
+        );
+        return;
+      }
+
+      const ok = await recollectSpot(spot.id, targetCollectionId);
       if (ok) {
         setRecollected(true);
+      } else {
+        setRecollectError("リコレクションに失敗しました");
       }
     } finally {
       setRecollecting(false);
@@ -115,12 +178,21 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
         <Button
           variant="secondary"
           size="sm"
-          disabled={recollecting || recollected}
+          disabled={recollecting || recollected || hasNoCollection}
           onClick={() => void handleRecollect()}
         >
           {recollected ? "保存済み" : "リコレクション"}
         </Button>
       </div>
+
+      {recollectError ? (
+        <p className="mt-2 text-xs text-destructive">{recollectError}</p>
+      ) : null}
+      {hasNoCollection && !recollected ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          マイページでコレクションを作成すると保存できます
+        </p>
+      ) : null}
 
       <p className="mt-2 text-[0.65rem] text-muted-foreground">Google Maps</p>
 
