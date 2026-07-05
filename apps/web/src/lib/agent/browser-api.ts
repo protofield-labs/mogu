@@ -116,10 +116,15 @@ export async function fetchPlace(placeId: string): Promise<PlaceDTO | null> {
   return (await response.json()) as PlaceDTO;
 }
 
-/** Save a spot to the viewer's collection (#40 API — graceful if unavailable). */
-export async function recollectSpot(spotId: string): Promise<boolean> {
+/** Save a spot to the viewer's collection (#40). */
+export async function recollectSpot(
+  spotId: string,
+  targetCollectionId: string,
+): Promise<boolean> {
   const response = await authFetch(`/api/v1/spots/${spotId}/recollect`, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ targetCollectionId }),
   });
   return response.ok;
 }

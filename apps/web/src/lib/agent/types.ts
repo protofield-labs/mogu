@@ -52,5 +52,6 @@ export type PlaceDTO = {
   placeId: string;
   name: string;
   address: string;
+  photos: { url: string; authorAttributions: { name: string; uri: string }[] }[];
   openNow?: boolean;
 };

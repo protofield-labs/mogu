@@ -10,6 +10,7 @@ import {
   openNowLabel,
 } from "@/lib/agent/chat-helpers";
 import type { Recommendation, Spot } from "@/lib/agent/types";
+import { listMyCollections } from "@/lib/collections/browser-api";
 
 type RecommendationCardProps = {
   recommendation: Recommendation;
@@ -50,8 +51,12 @@ function SpotSummary({ spot, compact = false }: { spot: Spot; compact?: boolean 
 export function RecommendationCard({ recommendation }: RecommendationCardProps) {
   const { spot, assertion, evidence, alternatives } = recommendation;
   const [openNow, setOpenNow] = useState<boolean | undefined>();
+  const [targetCollectionId, setTargetCollectionId] = useState<string | null>(
+    null,
+  );
   const [recollecting, setRecollecting] = useState(false);
   const [recollected, setRecollected] = useState(false);
+  const [recollectError, setRecollectError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,14 +70,41 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
     };
   }, [spot.placeId]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void listMyCollections()
+      .then((collections) => {
+        if (!cancelled) {
+          setTargetCollectionId(collections[0]?.id ?? null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setTargetCollectionId(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const openNowText = openNowLabel(openNow);
+  const canRecollect = targetCollectionId !== null;
 
   async function handleRecollect() {
+    if (!targetCollectionId) {
+      setRecollectError("保存先のコレクションがありません");
+      return;
+    }
+
     setRecollecting(true);
+    setRecollectError(null);
     try {
-      const ok = await recollectSpot(spot.id);
+      const ok = await recollectSpot(spot.id, targetCollectionId);
       if (ok) {
         setRecollected(true);
+      } else {
+        setRecollectError("リコレクションに失敗しました");
       }
     } finally {
       setRecollecting(false);
@@ -115,12 +147,21 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
         <Button
           variant="secondary"
           size="sm"
-          disabled={recollecting || recollected}
+          disabled={recollecting || recollected || !canRecollect}
           onClick={() => void handleRecollect()}
         >
           {recollected ? "保存済み" : "リコレクション"}
         </Button>
       </div>
+
+      {recollectError ? (
+        <p className="mt-2 text-xs text-destructive">{recollectError}</p>
+      ) : null}
+      {!canRecollect && !recollected ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          マイページでコレクションを作成すると保存できます
+        </p>
+      ) : null}
 
       <p className="mt-2 text-[0.65rem] text-muted-foreground">Google Maps</p>
 
