@@ -1,4 +1,4 @@
-import { AppShell } from "@/components/app-shell";
+import { ProtectedAppShell } from "@/components/protected-app-shell";
 import { AuthGate } from "@/components/auth-gate";
 import { OnboardingGate } from "@/components/onboarding-gate";
 
@@ -10,7 +10,7 @@ export default function ProtectedLayout({
   return (
     <AuthGate>
       <OnboardingGate>
-        <AppShell>{children}</AppShell>
+        <ProtectedAppShell>{children}</ProtectedAppShell>
       </OnboardingGate>
     </AuthGate>
   );
