@@ -41,3 +41,16 @@ resource "google_service_account_iam_member" "terraform_firebase_act_as" {
   role               = "roles/iam.serviceAccountUser"
   member             = each.value
 }
+
+# CI plan job reads Firebase resources via the same impersonation pattern.
+resource "google_service_account_iam_member" "terraform_firebase_impersonation_plan" {
+  service_account_id = google_service_account.terraform_firebase.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:${google_service_account.github_actions_plan.email}"
+}
+
+resource "google_service_account_iam_member" "terraform_firebase_act_as_plan" {
+  service_account_id = google_service_account.terraform_firebase.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.github_actions_plan.email}"
+}
