@@ -11,28 +11,36 @@ type AuthImageProps = {
   className?: string;
 };
 
+type LoadedImage = {
+  forUrl: string;
+  src: string;
+};
+
 export function AuthImage({ objectUrl, alt, className }: AuthImageProps) {
-  const [src, setSrc] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState<LoadedImage | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    let objectUrlToRevoke: string | null = null;
+    let blobUrl: string | null = null;
 
     async function load() {
       try {
         const response = await authFetch(toMediaProxyPath(objectUrl));
         if (!response.ok) {
+          if (!cancelled) {
+            setLoaded(null);
+          }
           return;
         }
         const blob = await response.blob();
         if (cancelled) {
           return;
         }
-        objectUrlToRevoke = URL.createObjectURL(blob);
-        setSrc(objectUrlToRevoke);
+        blobUrl = URL.createObjectURL(blob);
+        setLoaded({ forUrl: objectUrl, src: blobUrl });
       } catch {
         if (!cancelled) {
-          setSrc(null);
+          setLoaded(null);
         }
       }
     }
@@ -40,19 +48,17 @@ export function AuthImage({ objectUrl, alt, className }: AuthImageProps) {
     void load();
     return () => {
       cancelled = true;
-      if (objectUrlToRevoke) {
-        URL.revokeObjectURL(objectUrlToRevoke);
+      if (blobUrl) {
+        URL.revokeObjectURL(blobUrl);
       }
     };
   }, [objectUrl]);
 
+  // Only render a blob that belongs to the current objectUrl (no stale image).
+  const src = loaded && loaded.forUrl === objectUrl ? loaded.src : null;
+
   if (!src) {
-    return (
-      <div
-        className={className}
-        aria-hidden
-      />
-    );
+    return <div className={className} aria-hidden />;
   }
 
   // eslint-disable-next-line @next/next/no-img-element -- blob URL from authenticated fetch

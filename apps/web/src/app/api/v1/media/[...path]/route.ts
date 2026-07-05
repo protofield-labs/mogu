@@ -4,8 +4,13 @@ import {
   notFoundResponse,
   withAuthRoute,
 } from "@/lib/auth/require-auth";
+import { canViewPhotoUrl } from "@/lib/dal/spots";
 import { readObjectStream, StorageNotConfiguredError } from "@/lib/storage/gcs-client";
-import { objectPathFromPublicUrl, resolveBucketName } from "@/lib/storage/photo-url";
+import {
+  buildObjectPublicUrl,
+  parseUploadObjectPath,
+  resolveBucketName,
+} from "@/lib/storage/photo-url";
 
 type RouteParams = {
   params: Promise<{ path: string[] }>;
@@ -20,26 +25,29 @@ export async function GET(
     return notFoundResponse("Object not found");
   }
 
-  const objectPath = segments.join("/");
-  const expectedPrefix = "uploads/";
+  // Strict parse rejects traversal and dot segments before any prefix check.
+  const parsed = parseUploadObjectPath(segments);
+  if (!parsed) {
+    return notFoundResponse("Object not found");
+  }
 
   return withAuthRoute(request, async (_req, { uid }) => {
-    const safeUid = uid.replace(/[^a-zA-Z0-9_-]/g, "");
-    if (!objectPath.startsWith(`${expectedPrefix}${safeUid}/`)) {
-      return forbiddenResponse("Cannot access this object");
-    }
-
     try {
       const bucket = resolveBucketName();
-      const normalizedPath = objectPathFromPublicUrl(
-        `https://storage.googleapis.com/${bucket}/${objectPath}`,
-        bucket,
-      );
-      if (!normalizedPath) {
-        return notFoundResponse("Object not found");
+      const safeUid = uid.replace(/[^a-zA-Z0-9_-]/g, "");
+      const isOwn = parsed.ownerUid === safeUid;
+
+      if (!isOwn) {
+        // Friend photos: allow only objects referenced by an RLS-visible
+        // spot/collection (mirrors spots_select visibility).
+        const objectUrl = buildObjectPublicUrl(bucket, parsed.objectPath);
+        const visible = await canViewPhotoUrl(uid, objectUrl);
+        if (!visible) {
+          return forbiddenResponse("Cannot access this object");
+        }
       }
 
-      const { stream, contentType } = await readObjectStream(normalizedPath);
+      const { stream, contentType } = await readObjectStream(parsed.objectPath);
       return new Response(stream as unknown as BodyInit, {
         headers: {
           ...(contentType ? { "Content-Type": contentType } : {}),

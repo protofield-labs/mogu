@@ -7,6 +7,7 @@ import {
   buildUploadObjectPath,
   extensionForContentType,
   isAllowedUploadContentType,
+  parseUploadObjectPath,
   validateOwnedPhotoUrl,
   validatePhotoUrls,
 } from "../src/lib/storage/photo-url";
@@ -38,6 +39,31 @@ function main() {
   );
   assert(validatePhotoUrls([objectUrl], uid, bucket), "photoUrls array valid");
   assert(!validatePhotoUrls(Array.from({ length: 6 }, () => objectUrl), uid, bucket), "max 5");
+
+  // Media proxy path parsing (traversal defense)
+  const parsed = parseUploadObjectPath(["uploads", "user-abc", "photo-1.jpg"]);
+  assert(parsed?.objectPath === "uploads/user-abc/photo-1.jpg", "valid path parsed");
+  assert(parsed?.ownerUid === "user-abc", "owner uid extracted");
+  assert(
+    parseUploadObjectPath(["uploads", "user-abc", "..", "user-xyz", "x.jpg"]) === null,
+    "traversal segments rejected (length)",
+  );
+  assert(
+    parseUploadObjectPath(["uploads", "..", "secret.jpg"]) === null,
+    "dot-dot owner rejected",
+  );
+  assert(
+    parseUploadObjectPath(["uploads", "user-abc", "..%2fescape.jpg"]) === null,
+    "encoded traversal filename rejected",
+  );
+  assert(
+    parseUploadObjectPath(["budget-slack-dedupe", "user-abc", "x.jpg"]) === null,
+    "non-uploads root rejected",
+  );
+  assert(
+    parseUploadObjectPath(["uploads", "user-abc", ".hidden"]) === null,
+    "dotfile rejected",
+  );
 
   console.log("PASS: photo URL validation verified");
 }

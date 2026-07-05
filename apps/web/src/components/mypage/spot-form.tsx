@@ -47,7 +47,7 @@ const ratingOptions: { value: SpotRating; label: string }[] = [
 function spotToForm(spot: Spot): SpotFormState {
   return {
     placeId: spot.placeId,
-    placeName: spot.comment || spot.placeId,
+    placeName: "",
     comment: spot.comment,
     rating: spot.rating,
     tagArea: spot.structuredTags.area ?? "",

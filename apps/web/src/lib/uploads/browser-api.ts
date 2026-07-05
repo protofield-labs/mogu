@@ -29,8 +29,30 @@ export async function requestSignedUploadUrl(
   return (await response.json()) as SignedUploadResponse;
 }
 
+const EXTENSION_CONTENT_TYPES: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  heic: "image/heic",
+  heif: "image/heif",
+};
+
+/** Some browsers report an empty file.type for HEIC/HEIF; fall back to extension. */
+function inferContentType(file: File): string | null {
+  if (file.type) {
+    return file.type;
+  }
+  const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+  return EXTENSION_CONTENT_TYPES[extension] ?? null;
+}
+
 export async function uploadPhotoFile(file: File): Promise<string> {
-  const signed = await requestSignedUploadUrl(file.type);
+  const contentType = inferContentType(file);
+  if (!contentType) {
+    throw new Error("対応していない画像形式です");
+  }
+  const signed = await requestSignedUploadUrl(contentType);
   const uploadResponse = await fetch(signed.uploadUrl, {
     method: "PUT",
     headers: { "Content-Type": signed.contentType },

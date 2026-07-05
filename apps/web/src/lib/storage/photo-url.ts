@@ -99,3 +99,34 @@ export function validatePhotoUrls(urls: string[], uid: string, bucket: string): 
   }
   return urls.every((url) => validateOwnedPhotoUrl(url, uid, bucket));
 }
+
+const SAFE_SEGMENT = /^[a-zA-Z0-9_-]+$/;
+const SAFE_FILENAME = /^[a-zA-Z0-9_-]+\.[a-z0-9]+$/;
+
+export type ParsedUploadPath = {
+  objectPath: string;
+  ownerUid: string;
+};
+
+/**
+ * Strictly parse media proxy segments as `uploads/{ownerUid}/{filename}`.
+ * Rejects traversal (`..`), dot segments, and any characters outside the
+ * charset produced by `buildUploadObjectPath` — so the returned path is
+ * already normalized and contained under `uploads/`.
+ */
+export function parseUploadObjectPath(segments: string[]): ParsedUploadPath | null {
+  if (segments.length !== 3) {
+    return null;
+  }
+  const [root, ownerUid, filename] = segments;
+  if (root !== "uploads") {
+    return null;
+  }
+  if (!SAFE_SEGMENT.test(ownerUid) || !SAFE_FILENAME.test(filename)) {
+    return null;
+  }
+  return {
+    objectPath: `uploads/${ownerUid}/${filename}`,
+    ownerUid,
+  };
+}

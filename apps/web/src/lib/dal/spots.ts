@@ -253,6 +253,32 @@ export async function updateSpot(
   });
 }
 
+/**
+ * Media proxy visibility (#35): a photo object is viewable when an
+ * RLS-visible spot references it in photoUrls, or an RLS-visible
+ * collection uses it as coverUrl.
+ */
+export async function canViewPhotoUrl(
+  uid: string,
+  objectUrl: string,
+): Promise<boolean> {
+  return withAuthRls(uid, async (tx) => {
+    const spot = await tx.spot.findFirst({
+      where: { photoUrls: { has: objectUrl } },
+      select: { id: true },
+    });
+    if (spot) {
+      return true;
+    }
+
+    const collection = await tx.collection.findFirst({
+      where: { coverUrl: objectUrl },
+      select: { id: true },
+    });
+    return collection !== null;
+  });
+}
+
 /** Delete an owned spot (#34 / spots_delete RLS). */
 export async function deleteSpot(
   uid: string,
