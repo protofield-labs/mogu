@@ -105,6 +105,26 @@ export async function recollectSpot(
       return { ok: false as const, reason: "forbidden" as const };
     }
 
+    // Idempotency: repeated recollects of the same source must not spam the
+    // origin user with flags (trigger fires on every edge INSERT).
+    const existingEdge = await tx.recollectionEdge.findFirst({
+      where: { actorId: uid, sourceSpotId: source.id },
+      select: { spotId: true },
+      orderBy: { createdAt: "asc" },
+    });
+    if (existingEdge) {
+      const existingSpot = await tx.spot.findUnique({
+        where: { id: existingEdge.spotId },
+      });
+      if (existingSpot) {
+        const savedCount = await countSavedInCircle(tx, existingSpot.placeId);
+        return {
+          ok: true as const,
+          spot: toSpotDto(existingSpot, savedCount),
+        };
+      }
+    }
+
     const originUserId = source.originUserId ?? source.addedBy;
     const depth = source.depth + 1;
 

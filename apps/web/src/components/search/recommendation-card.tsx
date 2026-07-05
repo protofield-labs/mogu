@@ -48,12 +48,17 @@ function SpotSummary({ spot, compact = false }: { spot: Spot; compact?: boolean 
   );
 }
 
+type CollectionsState =
+  | { status: "loading" }
+  | { status: "error" }
+  | { status: "ready"; targetCollectionId: string | null };
+
 export function RecommendationCard({ recommendation }: RecommendationCardProps) {
   const { spot, assertion, evidence, alternatives } = recommendation;
   const [openNow, setOpenNow] = useState<boolean | undefined>();
-  const [targetCollectionId, setTargetCollectionId] = useState<string | null>(
-    null,
-  );
+  const [collections, setCollections] = useState<CollectionsState>({
+    status: "loading",
+  });
   const [recollecting, setRecollecting] = useState(false);
   const [recollected, setRecollected] = useState(false);
   const [recollectError, setRecollectError] = useState<string | null>(null);
@@ -73,14 +78,17 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
   useEffect(() => {
     let cancelled = false;
     void listMyCollections()
-      .then((collections) => {
+      .then((result) => {
         if (!cancelled) {
-          setTargetCollectionId(collections[0]?.id ?? null);
+          setCollections({
+            status: "ready",
+            targetCollectionId: result[0]?.id ?? null,
+          });
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setTargetCollectionId(null);
+          setCollections({ status: "error" });
         }
       });
     return () => {
@@ -89,17 +97,40 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
   }, []);
 
   const openNowText = openNowLabel(openNow);
-  const canRecollect = targetCollectionId !== null;
+  const hasNoCollection =
+    collections.status === "ready" && collections.targetCollectionId === null;
+
+  async function resolveTargetCollectionId(): Promise<string | null> {
+    if (collections.status === "ready") {
+      return collections.targetCollectionId;
+    }
+    // Initial load failed or is in flight: retry here so a transient error
+    // does not permanently disable the save button.
+    try {
+      const result = await listMyCollections();
+      const targetCollectionId = result[0]?.id ?? null;
+      setCollections({ status: "ready", targetCollectionId });
+      return targetCollectionId;
+    } catch {
+      setCollections({ status: "error" });
+      return null;
+    }
+  }
 
   async function handleRecollect() {
-    if (!targetCollectionId) {
-      setRecollectError("保存先のコレクションがありません");
-      return;
-    }
-
     setRecollecting(true);
     setRecollectError(null);
     try {
+      const targetCollectionId = await resolveTargetCollectionId();
+      if (!targetCollectionId) {
+        setRecollectError(
+          collections.status === "error"
+            ? "コレクションを読み込めませんでした。もう一度お試しください"
+            : "保存先のコレクションがありません",
+        );
+        return;
+      }
+
       const ok = await recollectSpot(spot.id, targetCollectionId);
       if (ok) {
         setRecollected(true);
@@ -147,7 +178,7 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
         <Button
           variant="secondary"
           size="sm"
-          disabled={recollecting || recollected || !canRecollect}
+          disabled={recollecting || recollected || hasNoCollection}
           onClick={() => void handleRecollect()}
         >
           {recollected ? "保存済み" : "リコレクション"}
@@ -157,7 +188,7 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
       {recollectError ? (
         <p className="mt-2 text-xs text-destructive">{recollectError}</p>
       ) : null}
-      {!canRecollect && !recollected ? (
+      {hasNoCollection && !recollected ? (
         <p className="mt-2 text-xs text-muted-foreground">
           マイページでコレクションを作成すると保存できます
         </p>

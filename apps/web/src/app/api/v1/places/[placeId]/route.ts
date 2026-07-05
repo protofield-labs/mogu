@@ -35,11 +35,13 @@ export async function GET(
       if (error instanceof PlacesApiNotConfiguredError) {
         return apiErrorResponse("internal", error.message, 503);
       }
+      // fetchPlaceDetails already maps Google 404 to null; any remaining
+      // PlacesApiError (403 key/API issues, 400, 5xx) is an upstream failure.
       if (error instanceof PlacesApiError) {
         return apiErrorResponse(
           "internal",
           "Failed to fetch place details",
-          error.status >= 500 ? 502 : 404,
+          502,
         );
       }
       throw error;
