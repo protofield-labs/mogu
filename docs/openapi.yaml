@@ -1,0 +1,999 @@
+openapi: 3.0.3
+info:
+  title: mogu API
+  version: "1.0"
+  description: |
+    mogu REST API v1. 認可は Firebase ID Token (Bearer) + PostgreSQL RLS。
+    型の意味論は `docs/spec.md` §6 を正とする。
+    本ファイルが REST 契約の機械可読な正。
+
+servers:
+  - url: /api/v1
+    description: Cloud Run / local dev
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: users
+  - name: friends
+  - name: collections
+  - name: spots
+  - name: home
+  - name: agent
+  - name: flags
+  - name: places
+
+paths:
+  /users:
+    post:
+      tags: [users]
+      summary: ユーザー作成 / オンボーディング
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /me:
+    get:
+      tags: [users]
+      summary: 自分のプロフィール + 統計
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /me/badges:
+    get:
+      tags: [users]
+      summary: 未処理バッジ数（友達申請・未読フラグ）
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeBadges"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /users/search:
+    get:
+      tags: [users]
+      summary: ユーザー検索（名前・アバターのみ公開）
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /friends/requests:
+    get:
+      tags: [friends]
+      summary: 友達申請一覧
+      parameters:
+        - name: box
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [in, out]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FriendRequest"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      tags: [friends]
+      summary: 友達申請送信
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [toUserId]
+              properties:
+                toUserId:
+                  type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FriendRequestStatus"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /friends/requests/{pairId}/accept:
+    post:
+      tags: [friends]
+      summary: 友達申請承認
+      parameters:
+        - $ref: "#/components/parameters/pairId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FriendRequestStatus"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /friends/requests/{pairId}/reject:
+    post:
+      tags: [friends]
+      summary: 友達申請拒否
+      parameters:
+        - $ref: "#/components/parameters/pairId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [rejected]
+        default:
+          $ref: "#/components/responses/Error"
+
+  /friends:
+    get:
+      tags: [friends]
+      summary: 承認済み友達一覧
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /collections:
+    get:
+      tags: [collections]
+      summary: コレクション一覧
+      parameters:
+        - name: ownerId
+          in: query
+          schema:
+            type: string
+            description: 省略時は自分
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Collection"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      tags: [collections]
+      summary: コレクション作成
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCollectionRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Collection"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /collections/{id}:
+    get:
+      tags: [collections]
+      summary: コレクション詳細（スポット含む）
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectionDetail"
+        default:
+          $ref: "#/components/responses/Error"
+    patch:
+      tags: [collections]
+      summary: コレクション更新
+      parameters:
+        - $ref: "#/components/parameters/id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCollectionRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Collection"
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      tags: [collections]
+      summary: コレクション削除
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "204":
+          description: No Content
+        default:
+          $ref: "#/components/responses/Error"
+
+  /collections/{id}/suggestions:
+    get:
+      tags: [collections]
+      summary: 棚末尾エージェント提案（磨き）
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Spot"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /collections/{id}/spots:
+    post:
+      tags: [spots]
+      summary: スポット追加
+      parameters:
+        - $ref: "#/components/parameters/id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSpotRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Spot"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /spots/{id}:
+    patch:
+      tags: [spots]
+      summary: スポット更新
+      parameters:
+        - $ref: "#/components/parameters/id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSpotRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Spot"
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      tags: [spots]
+      summary: スポット削除
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "204":
+          description: No Content
+        default:
+          $ref: "#/components/responses/Error"
+
+  /spots/{id}/recollect:
+    post:
+      tags: [spots]
+      summary: リコレクション（スポット複製）
+      parameters:
+        - $ref: "#/components/parameters/id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [targetCollectionId]
+              properties:
+                targetCollectionId:
+                  type: string
+                  format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Spot"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /feed:
+    get:
+      tags: [home]
+      summary: 新着フィード（時系列・非アルゴリズム）
+      parameters:
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedPage"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /home/recommendation:
+    get:
+      tags: [home]
+      summary: 一推し（1日1枚）
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recommendation"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /agent/sessions:
+    post:
+      tags: [agent]
+      summary: エージェントセッション開始
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sessionId]
+                properties:
+                  sessionId:
+                    type: string
+        default:
+          $ref: "#/components/responses/Error"
+
+  /agent/sessions/{id}/messages:
+    post:
+      tags: [agent]
+      summary: エージェントへメッセージ送信
+      parameters:
+        - $ref: "#/components/parameters/id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentMessageRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentMessage"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /agent/sessions/{id}/events:
+    get:
+      tags: [agent]
+      summary: 思考進行イベント（SSE 推奨）
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "200":
+          description: Server-Sent Events stream
+          content:
+            text/event-stream:
+              schema:
+                $ref: "#/components/schemas/AgentEvent"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /flags:
+    get:
+      tags: [flags]
+      summary: フラグ週次サマリ（本人のみ）
+      parameters:
+        - name: weekOf
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FlagNotification"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /flags/read:
+    post:
+      tags: [flags]
+      summary: フラグ既読化
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [updated]
+                properties:
+                  updated:
+                    type: integer
+        default:
+          $ref: "#/components/responses/Error"
+
+  /places/search:
+    get:
+      tags: [places]
+      summary: Place オートコンプリート（都度取得・非保存）
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlaceSearchResult"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /places/{placeId}:
+    get:
+      tags: [places]
+      summary: Place 詳細（都度取得・非保存）
+      parameters:
+        - name: placeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaceDTO"
+        default:
+          $ref: "#/components/responses/Error"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Firebase ID Token
+
+  parameters:
+    id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    pairId:
+      name: pairId
+      in: path
+      required: true
+      schema:
+        type: string
+        description: friendships 正規化ペアキー
+
+  responses:
+    Error:
+      description: Error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+
+  schemas:
+    ErrorBody:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - unauthorized
+                - forbidden
+                - not_found
+                - conflict
+                - validation
+            message:
+              type: string
+
+    User:
+      type: object
+      required: [id, displayName, avatarColor]
+      properties:
+        id:
+          type: string
+          description: firebase_uid
+        displayName:
+          type: string
+        avatarColor:
+          type: string
+
+    Me:
+      allOf:
+        - $ref: "#/components/schemas/User"
+        - type: object
+          required: [counts]
+          properties:
+            counts:
+              type: object
+              required: [collections, spots, friends]
+              properties:
+                collections:
+                  type: integer
+                spots:
+                  type: integer
+                friends:
+                  type: integer
+
+    MeBadges:
+      type: object
+      required: [pendingFriendRequests, unreadFlags]
+      properties:
+        pendingFriendRequests:
+          type: integer
+        unreadFlags:
+          type: integer
+
+    CreateUserRequest:
+      type: object
+      required: [displayName, avatarColor]
+      properties:
+        displayName:
+          type: string
+        avatarColor:
+          type: string
+
+    FriendRequestStatus:
+      type: object
+      required: [pairId, status]
+      properties:
+        pairId:
+          type: string
+        status:
+          type: string
+          enum: [pending, accepted]
+
+    FriendRequest:
+      type: object
+      required: [pairId, from, to, status, createdAt]
+      properties:
+        pairId:
+          type: string
+        from:
+          $ref: "#/components/schemas/User"
+        to:
+          $ref: "#/components/schemas/User"
+        status:
+          type: string
+          enum: [pending, accepted]
+        createdAt:
+          type: string
+          format: date-time
+
+    StructuredTags:
+      type: object
+      properties:
+        area:
+          type: string
+        genre:
+          type: string
+        situation:
+          type: string
+
+    Spot:
+      type: object
+      required:
+        - id
+        - placeId
+        - addedBy
+        - collectionId
+        - photoUrls
+        - comment
+        - rating
+        - structuredTags
+        - freeTags
+        - savedCount
+        - originUserId
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        placeId:
+          type: string
+        addedBy:
+          type: string
+        collectionId:
+          type: string
+          format: uuid
+        photoUrls:
+          type: array
+          items:
+            type: string
+        comment:
+          type: string
+        rating:
+          type: string
+          enum: [again, either, no]
+        structuredTags:
+          $ref: "#/components/schemas/StructuredTags"
+        freeTags:
+          type: array
+          items:
+            type: string
+        savedCount:
+          type: integer
+          description: 読み取り時集計（DB カラムではない）
+        originUserId:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    Collection:
+      type: object
+      required: [id, ownerId, name, visibility, spotCount]
+      properties:
+        id:
+          type: string
+          format: uuid
+        ownerId:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        coverUrl:
+          type: string
+          nullable: true
+        visibility:
+          type: string
+          enum: [friends, secret]
+        theme:
+          type: string
+          nullable: true
+        spotCount:
+          type: integer
+
+    CollectionDetail:
+      allOf:
+        - $ref: "#/components/schemas/Collection"
+        - type: object
+          required: [spots]
+          properties:
+            spots:
+              type: array
+              items:
+                $ref: "#/components/schemas/Spot"
+
+    CreateCollectionRequest:
+      type: object
+      required: [name, visibility]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        visibility:
+          type: string
+          enum: [friends, secret]
+        theme:
+          type: string
+
+    UpdateCollectionRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        coverUrl:
+          type: string
+          nullable: true
+        visibility:
+          type: string
+          enum: [friends, secret]
+        theme:
+          type: string
+          nullable: true
+
+    CreateSpotRequest:
+      type: object
+      required: [placeId, comment, rating]
+      properties:
+        placeId:
+          type: string
+        comment:
+          type: string
+        rating:
+          type: string
+          enum: [again, either, no]
+        structuredTags:
+          $ref: "#/components/schemas/StructuredTags"
+        freeTags:
+          type: array
+          items:
+            type: string
+        photoUrls:
+          type: array
+          items:
+            type: string
+
+    UpdateSpotRequest:
+      type: object
+      properties:
+        comment:
+          type: string
+        rating:
+          type: string
+          enum: [again, either, no]
+        structuredTags:
+          $ref: "#/components/schemas/StructuredTags"
+        freeTags:
+          type: array
+          items:
+            type: string
+        photoUrls:
+          type: array
+          items:
+            type: string
+
+    FeedItem:
+      type: object
+      required: [spot, actor, collectionName, createdAt]
+      properties:
+        spot:
+          $ref: "#/components/schemas/Spot"
+        actor:
+          $ref: "#/components/schemas/User"
+        collectionName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    FeedPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeedItem"
+        nextCursor:
+          type: string
+          nullable: true
+
+    Recommendation:
+      type: object
+      required: [spot, assertion, evidence, alternatives]
+      properties:
+        spot:
+          $ref: "#/components/schemas/Spot"
+        assertion:
+          type: string
+        evidence:
+          type: string
+        alternatives:
+          type: array
+          items:
+            $ref: "#/components/schemas/Spot"
+
+    FlagNotification:
+      type: object
+      required: [type, count, isAnonymous, weekOf]
+      properties:
+        type:
+          type: string
+          enum: [recollected]
+        count:
+          type: integer
+        isAnonymous:
+          type: boolean
+        weekOf:
+          type: string
+          format: date
+
+    AgentMessageRequest:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+        chips:
+          type: array
+          items:
+            type: string
+
+    AgentMessage:
+      type: object
+      required: [role, text]
+      properties:
+        role:
+          type: string
+          enum: [agent]
+        text:
+          type: string
+        thinking:
+          type: array
+          items:
+            type: string
+        recommendation:
+          $ref: "#/components/schemas/Recommendation"
+        quickReplies:
+          type: array
+          items:
+            type: string
+
+    AgentEvent:
+      type: object
+      required: [type, message, timestamp]
+      properties:
+        type:
+          type: string
+          enum: [thinking, done]
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    PlaceSearchResult:
+      type: object
+      required: [placeId, name, address]
+      properties:
+        placeId:
+          type: string
+        name:
+          type: string
+        address:
+          type: string
+
+    PlaceDTO:
+      type: object
+      required: [placeId, name, address, photos]
+      properties:
+        placeId:
+          type: string
+        name:
+          type: string
+        address:
+          type: string
+        photos:
+          type: array
+          items:
+            type: object
+            required: [url, authorAttributions]
+            properties:
+              url:
+                type: string
+              authorAttributions:
+                type: array
+                items:
+                  type: object
+                  required: [name, uri]
+                  properties:
+                    name:
+                      type: string
+                    uri:
+                      type: string
+        openNow:
+          type: boolean
