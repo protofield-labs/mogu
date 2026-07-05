@@ -4,6 +4,7 @@ import { ChevronLeft, Lock, Search } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+import { notifyBadgesUpdated } from "@/lib/mypage/badge-events";
 import {
   acceptFriendRequest,
   fetchFriendCollectionCount,
@@ -124,6 +125,7 @@ export function FriendsView() {
     setError(null);
     try {
       await acceptFriendRequest(pairId);
+      notifyBadgesUpdated();
       await loadFriendsData();
     } catch (err) {
       setError(err instanceof Error ? err.message : "承認に失敗しました");

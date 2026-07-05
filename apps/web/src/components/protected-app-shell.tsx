@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { AppShell } from "@/components/app-shell";
+import { BADGES_UPDATED_EVENT } from "@/lib/mypage/badge-events";
 import { fetchMeBadges } from "@/lib/mypage/browser-api";
 import { shouldShowMypageTabBadge } from "@/lib/mypage/stats-row";
 
@@ -32,8 +33,15 @@ export function ProtectedAppShell({ children }: ProtectedAppShellProps) {
     }
 
     void loadBadges();
+
+    const handleBadgesUpdated = () => {
+      void loadBadges();
+    };
+    window.addEventListener(BADGES_UPDATED_EVENT, handleBadgesUpdated);
+
     return () => {
       cancelled = true;
+      window.removeEventListener(BADGES_UPDATED_EVENT, handleBadgesUpdated);
     };
   }, [pathname]);
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Lock, Sparkles } from "lucide-react";
+import { Lock, Pencil, Sparkles, Trash2 } from "lucide-react";
 
 import type { Collection } from "@/lib/collections/browser-api";
 import { cn } from "@/lib/utils";
@@ -9,7 +9,15 @@ function collectionInitials(name: string): string {
   return name.trim().slice(0, 1) || "棚";
 }
 
-function CollectionTile({ collection }: { collection: Collection }) {
+function CollectionTile({
+  collection,
+  onEdit,
+  onDelete,
+}: {
+  collection: Collection;
+  onEdit?: (collection: Collection) => void;
+  onDelete?: (collection: Collection) => void;
+}) {
   const isSecret = collection.visibility === "secret";
 
   return (
@@ -38,15 +46,45 @@ function CollectionTile({ collection }: { collection: Collection }) {
         {isSecret ? "secret ・ " : ""}
         {collection.spotCount}軒
       </p>
+      {onEdit || onDelete ? (
+        <div className="flex gap-1.5">
+          {onEdit ? (
+            <button
+              type="button"
+              onClick={() => onEdit(collection)}
+              className="inline-flex h-7 flex-1 items-center justify-center gap-1 rounded-xl border border-border bg-mogu-surface-elevated text-xs font-medium"
+            >
+              <Pencil className="size-3" aria-hidden />
+              編集
+            </button>
+          ) : null}
+          {onDelete ? (
+            <button
+              type="button"
+              onClick={() => onDelete(collection)}
+              className="inline-flex h-7 flex-1 items-center justify-center gap-1 rounded-xl border border-border bg-mogu-surface-elevated text-xs font-medium text-destructive"
+            >
+              <Trash2 className="size-3" aria-hidden />
+              削除
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </article>
   );
 }
 
 type CollectionGridProps = {
   collections: Collection[];
+  onEdit?: (collection: Collection) => void;
+  onDelete?: (collection: Collection) => void;
 };
 
-export function CollectionGrid({ collections }: CollectionGridProps) {
+export function CollectionGrid({
+  collections,
+  onEdit,
+  onDelete,
+}: CollectionGridProps) {
   return (
     <section className="space-y-4 px-mogu-screen-x">
       <h2 className="text-sm font-semibold text-foreground">あなたのコレクション</h2>
@@ -57,7 +95,12 @@ export function CollectionGrid({ collections }: CollectionGridProps) {
       ) : (
         <div className="grid grid-cols-2 gap-3">
           {collections.map((collection) => (
-            <CollectionTile key={collection.id} collection={collection} />
+            <CollectionTile
+              key={collection.id}
+              collection={collection}
+              onEdit={onEdit}
+              onDelete={onDelete}
+            />
           ))}
         </div>
       )}
