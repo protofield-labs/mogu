@@ -7,8 +7,28 @@ import { AgentEngineNotConfiguredError, AgentSessionError } from "./errors";
 import { parseSessionId } from "./session-id";
 
 type CreateSessionResponse = {
+  done?: boolean;
   name?: string;
+  response?: {
+    name?: string;
+  };
 };
+
+function extractSessionResourceName(
+  payload: CreateSessionResponse,
+): string | undefined {
+  if (payload.response?.name) {
+    return payload.response.name;
+  }
+
+  const operationName = payload.name;
+  if (!operationName) {
+    return undefined;
+  }
+
+  const match = operationName.match(/^(.*\/sessions\/[^/]+)/);
+  return match?.[1];
+}
 
 /**
  * Create a Vertex AI Agent Engine session (#43).
@@ -30,13 +50,11 @@ export async function createAgentSession(userId: string): Promise<string> {
     url,
     method: "POST",
     data: {
-      session: {
-        displayName: `mogu-${userId}`,
-      },
+      userId,
     },
   });
 
-  const sessionResourceName = response.data.name;
+  const sessionResourceName = extractSessionResourceName(response.data);
   if (!sessionResourceName) {
     throw new AgentSessionError("Vertex AI Session API returned no session name");
   }

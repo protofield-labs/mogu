@@ -1,10 +1,7 @@
-"""Maps Grounding agent — separate Reasoning Engine (#43 architecture).
-
-Google ADK built-in tools cannot coexist with Maps Grounding in one engine,
-so this agent is deployed independently from the orchestrator.
-"""
+"""Maps Grounding agent — separate Reasoning Engine (#43 architecture)."""
 
 from google.adk.agents import Agent
+from vertexai import agent_engines
 
 root_agent = Agent(
     name="mogu_maps_grounding",
@@ -13,4 +10,9 @@ root_agent = Agent(
         "You look up restaurant facts using Maps Grounding. "
         "Return openNow and location context only; no recommendations yet."
     ),
+)
+
+adk_app = agent_engines.AdkApp(
+    agent=root_agent,
+    enable_tracing=True,
 )

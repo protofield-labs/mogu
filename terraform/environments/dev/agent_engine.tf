@@ -1,6 +1,22 @@
 # Vertex AI Agent Engine (#43). Requires enable_external_apis (#47).
 locals {
   agent_engine_enabled = var.enable_external_apis && var.enable_agent_engine
+
+  # ADK AdkApp class methods (inline source deploy).
+  orchestrator_class_methods = [
+    {
+      name        = "async_create_session"
+      api_mode    = "async"
+      description = "Create a new session"
+      parameters  = { type = "object", required = [], properties = {} }
+    },
+    {
+      name        = "async_stream_query"
+      api_mode    = "async_stream"
+      description = "Stream responses from the agent"
+      parameters  = { type = "object", required = [], properties = {} }
+    },
+  ]
 }
 
 data "archive_file" "orchestrator_agent" {
@@ -29,6 +45,7 @@ resource "google_vertex_ai_reasoning_engine" "orchestrator" {
 
   spec {
     agent_framework = "google-adk"
+    class_methods   = jsonencode(local.orchestrator_class_methods)
 
     source_code_spec {
       inline_source {
@@ -36,8 +53,9 @@ resource "google_vertex_ai_reasoning_engine" "orchestrator" {
       }
 
       python_spec {
-        entrypoint_module = "app"
-        entrypoint_object = "root_agent"
+        entrypoint_module = "agent"
+        entrypoint_object = "adk_app"
+        requirements_file = "requirements.txt"
         version           = "3.12"
       }
     }
@@ -64,8 +82,9 @@ resource "google_vertex_ai_reasoning_engine" "maps_grounding" {
       }
 
       python_spec {
-        entrypoint_module = "app"
-        entrypoint_object = "root_agent"
+        entrypoint_module = "agent"
+        entrypoint_object = "adk_app"
+        requirements_file = "requirements.txt"
         version           = "3.12"
       }
     }
