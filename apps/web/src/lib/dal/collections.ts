@@ -1,6 +1,7 @@
 import "server-only";
 
 import { withAuthRls } from "@/lib/auth/with-auth-rls";
+import { countSavedInCircleByPlaceIds } from "@/lib/dal/saved-count";
 
 export type CollectionVisibilityValue = "friends" | "secret";
 
@@ -174,18 +175,7 @@ export async function getCollectionDetail(
     }
 
     const placeIds = [...new Set(collection.spots.map((spot) => spot.placeId))];
-    const savedCounts = new Map<string, number>();
-
-    if (placeIds.length > 0) {
-      const grouped = await tx.spot.groupBy({
-        by: ["placeId"],
-        where: { placeId: { in: placeIds } },
-        _count: { _all: true },
-      });
-      for (const row of grouped) {
-        savedCounts.set(row.placeId, row._count._all);
-      }
-    }
+    const savedCounts = await countSavedInCircleByPlaceIds(tx, placeIds);
 
     return {
       collection,

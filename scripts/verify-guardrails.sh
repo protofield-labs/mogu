@@ -19,4 +19,10 @@ echo "==> verify-users-rls (public SELECT + self INSERT/UPDATE)"
 echo "==> verify-recollect-rls (friend-visible spot copy + flag trigger)"
 "${ROOT}/scripts/verify-recollect-rls.sh"
 
+echo "==> verify-saved-count (circle DISTINCT added_by, #41)"
+"${ROOT}/scripts/verify-saved-count.sh"
+
+echo "==> verify-flags-rls (weekly summary + read, #38)"
+"${ROOT}/scripts/verify-flags-rls.sh"
+
 echo "PASS: guardrail verifications completed"
