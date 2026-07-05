@@ -7,10 +7,9 @@ import { resolveDisplayName } from "./display-name";
 
 type ProvisionResponse = {
   user: {
-    firebaseUid: string;
+    id: string;
     displayName: string;
     avatarColor: string;
-    createdAt: string;
   };
 };
 

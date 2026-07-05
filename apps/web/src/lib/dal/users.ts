@@ -4,10 +4,8 @@ import { withAuthRls } from "@/lib/auth/with-auth-rls";
 
 export type UserDto = {
   id: string;
-  firebaseUid: string;
   displayName: string;
   avatarColor: string;
-  createdAt: string;
 };
 
 export type MeDto = UserDto & {
@@ -18,26 +16,30 @@ export type MeDto = UserDto & {
   };
 };
 
-function toUserDto(user: {
+export function toUserDto(user: {
   firebaseUid: string;
   displayName: string;
   avatarColor: string;
-  createdAt: Date;
 }): UserDto {
   return {
     id: user.firebaseUid,
-    firebaseUid: user.firebaseUid,
     displayName: user.displayName,
     avatarColor: user.avatarColor,
-    createdAt: user.createdAt.toISOString(),
   };
 }
+
+export const userSelect = {
+  firebaseUid: true,
+  displayName: true,
+  avatarColor: true,
+} as const;
 
 /** Fetch the authenticated user's row (RLS-scoped). Returns null when absent. */
 export async function getUserByUid(uid: string): Promise<UserDto | null> {
   const user = await withAuthRls(uid, (tx) =>
     tx.user.findUnique({
       where: { firebaseUid: uid },
+      select: userSelect,
     }),
   );
 
@@ -49,6 +51,7 @@ export async function getMeByUid(uid: string): Promise<MeDto | null> {
   const result = await withAuthRls(uid, async (tx) => {
     const user = await tx.user.findUnique({
       where: { firebaseUid: uid },
+      select: userSelect,
     });
 
     if (!user) {
@@ -80,6 +83,61 @@ export async function getMeByUid(uid: string): Promise<MeDto | null> {
     ...toUserDto(result.user),
     counts: result.counts,
   };
+}
+
+export type MeBadgesDto = {
+  pendingFriendRequests: number;
+  unreadFlags: number;
+};
+
+/** Fetch lightweight badge counts for mypage/tab indicators. */
+export async function getMeBadges(uid: string): Promise<MeBadgesDto> {
+  return withAuthRls(uid, async (tx) => {
+    const [pendingFriendRequests, unreadFlags] = await Promise.all([
+      tx.friendship.count({
+        where: {
+          status: "pending",
+          requestedBy: { not: uid },
+          OR: [{ userLow: uid }, { userHigh: uid }],
+        },
+      }),
+      tx.flag.count({
+        where: {
+          recipientId: uid,
+          readAt: null,
+        },
+      }),
+    ]);
+
+    return { pendingFriendRequests, unreadFlags };
+  });
+}
+
+export async function searchUsers(
+  uid: string,
+  query: string,
+): Promise<UserDto[]> {
+  const normalizedQuery = query.trim();
+  if (normalizedQuery.length === 0) {
+    return [];
+  }
+
+  const users = await withAuthRls(uid, (tx) =>
+    tx.user.findMany({
+      where: {
+        firebaseUid: { not: uid },
+        displayName: {
+          contains: normalizedQuery,
+          mode: "insensitive",
+        },
+      },
+      select: userSelect,
+      orderBy: [{ displayName: "asc" }, { firebaseUid: "asc" }],
+      take: 20,
+    }),
+  );
+
+  return users.map(toUserDto);
 }
 
 /**
