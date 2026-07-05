@@ -26,6 +26,35 @@ export type RecollectSpotResult =
   | { ok: true; spot: SpotDto }
   | { ok: false; reason: "not_found" | "forbidden" };
 
+export type CreateSpotInput = {
+  placeId: string;
+  comment: string;
+  rating: "again" | "either" | "no";
+  structuredTags?: {
+    area?: string | null;
+    genre?: string | null;
+    situation?: string | null;
+  };
+  freeTags?: string[];
+  photoUrls?: string[];
+};
+
+export type UpdateSpotInput = {
+  comment?: string;
+  rating?: "again" | "either" | "no";
+  structuredTags?: {
+    area?: string | null;
+    genre?: string | null;
+    situation?: string | null;
+  };
+  freeTags?: string[];
+  photoUrls?: string[];
+};
+
+export type SpotMutationResult =
+  | { ok: true; spot: SpotDto }
+  | { ok: false; reason: "not_found" | "forbidden" };
+
 function toSpotDto(
   spot: {
     id: string;
@@ -144,4 +173,127 @@ export async function recollectSpot(
   });
 
   return result;
+}
+
+/** Add a spot to an owned collection (#34 / erd-api spots_insert). */
+export async function createSpot(
+  uid: string,
+  collectionId: string,
+  input: CreateSpotInput,
+): Promise<SpotMutationResult> {
+  return withAuthRls(uid, async (tx) => {
+    const collection = await tx.collection.findUnique({
+      where: { id: collectionId },
+      select: { id: true, ownerId: true },
+    });
+    if (!collection) {
+      return { ok: false as const, reason: "not_found" as const };
+    }
+    if (collection.ownerId !== uid) {
+      return { ok: false as const, reason: "forbidden" as const };
+    }
+
+    const created = await tx.spot.create({
+      data: {
+        placeId: input.placeId,
+        addedBy: uid,
+        collectionId,
+        comment: input.comment,
+        rating: input.rating,
+        photoUrls: input.photoUrls ?? [],
+        tagArea: input.structuredTags?.area ?? null,
+        tagGenre: input.structuredTags?.genre ?? null,
+        tagSituation: input.structuredTags?.situation ?? null,
+        freeTags: input.freeTags ?? [],
+        depth: 0,
+      },
+    });
+
+    const savedCount = await countSavedInCircle(tx, created.placeId);
+    return { ok: true as const, spot: toSpotDto(created, savedCount) };
+  });
+}
+
+/** Update an owned spot (#34 / spots_update RLS). */
+export async function updateSpot(
+  uid: string,
+  spotId: string,
+  input: UpdateSpotInput,
+): Promise<SpotMutationResult> {
+  return withAuthRls(uid, async (tx) => {
+    const existing = await tx.spot.findUnique({ where: { id: spotId } });
+    if (!existing) {
+      return { ok: false as const, reason: "not_found" as const };
+    }
+    if (existing.addedBy !== uid) {
+      return { ok: false as const, reason: "forbidden" as const };
+    }
+
+    const updated = await tx.spot.update({
+      where: { id: spotId },
+      data: {
+        ...(input.comment !== undefined ? { comment: input.comment } : {}),
+        ...(input.rating !== undefined ? { rating: input.rating } : {}),
+        ...(input.photoUrls !== undefined ? { photoUrls: input.photoUrls } : {}),
+        ...(input.freeTags !== undefined ? { freeTags: input.freeTags } : {}),
+        ...(input.structuredTags?.area !== undefined
+          ? { tagArea: input.structuredTags.area }
+          : {}),
+        ...(input.structuredTags?.genre !== undefined
+          ? { tagGenre: input.structuredTags.genre }
+          : {}),
+        ...(input.structuredTags?.situation !== undefined
+          ? { tagSituation: input.structuredTags.situation }
+          : {}),
+      },
+    });
+
+    const savedCount = await countSavedInCircle(tx, updated.placeId);
+    return { ok: true as const, spot: toSpotDto(updated, savedCount) };
+  });
+}
+
+/**
+ * Media proxy visibility (#35): a photo object is viewable when an
+ * RLS-visible spot references it in photoUrls, or an RLS-visible
+ * collection uses it as coverUrl.
+ */
+export async function canViewPhotoUrl(
+  uid: string,
+  objectUrl: string,
+): Promise<boolean> {
+  return withAuthRls(uid, async (tx) => {
+    const spot = await tx.spot.findFirst({
+      where: { photoUrls: { has: objectUrl } },
+      select: { id: true },
+    });
+    if (spot) {
+      return true;
+    }
+
+    const collection = await tx.collection.findFirst({
+      where: { coverUrl: objectUrl },
+      select: { id: true },
+    });
+    return collection !== null;
+  });
+}
+
+/** Delete an owned spot (#34 / spots_delete RLS). */
+export async function deleteSpot(
+  uid: string,
+  spotId: string,
+): Promise<{ ok: true } | { ok: false; reason: "not_found" | "forbidden" }> {
+  return withAuthRls(uid, async (tx) => {
+    const existing = await tx.spot.findUnique({ where: { id: spotId } });
+    if (!existing) {
+      return { ok: false as const, reason: "not_found" as const };
+    }
+    if (existing.addedBy !== uid) {
+      return { ok: false as const, reason: "forbidden" as const };
+    }
+
+    await tx.spot.delete({ where: { id: spotId } });
+    return { ok: true as const };
+  });
 }

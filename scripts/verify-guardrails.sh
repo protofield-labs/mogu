@@ -25,4 +25,7 @@ echo "==> verify-saved-count (circle DISTINCT added_by, #41)"
 echo "==> verify-flags-rls (weekly summary + read, #38)"
 "${ROOT}/scripts/verify-flags-rls.sh"
 
+echo "==> verify-spots-rls (owned collection CRUD, #34)"
+"${ROOT}/scripts/verify-spots-rls.sh"
+
 echo "PASS: guardrail verifications completed"
