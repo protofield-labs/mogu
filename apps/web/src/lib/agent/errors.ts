@@ -13,3 +13,19 @@ export class AgentSessionError extends Error {
     this.name = "AgentSessionError";
   }
 }
+
+/** Session id does not exist on the orchestrator Reasoning Engine. */
+export class AgentSessionNotFoundError extends Error {
+  constructor() {
+    super("Agent session not found");
+    this.name = "AgentSessionNotFoundError";
+  }
+}
+
+/** Authenticated user does not own the Vertex session. */
+export class AgentSessionForbiddenError extends Error {
+  constructor() {
+    super("Agent session forbidden");
+    this.name = "AgentSessionForbiddenError";
+  }
+}

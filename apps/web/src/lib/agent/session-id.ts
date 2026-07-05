@@ -7,6 +7,18 @@ export function parseSessionId(sessionResourceName: string): string {
   return sessionId;
 }
 
+/** Vertex session ids are numeric strings (#44 path param validation). */
+export function isValidSessionId(sessionId: string): boolean {
+  return /^\d{1,32}$/.test(sessionId);
+}
+
+export function buildSessionResourceName(
+  orchestratorResourceName: string,
+  sessionId: string,
+): string {
+  return `${orchestratorResourceName}/sessions/${sessionId}`;
+}
+
 /** Read Agent Engine env without server-only (for CI verify script). */
 export function readAgentEngineConfigFromEnv(
   env: Record<string, string | undefined>,

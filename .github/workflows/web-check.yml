@@ -57,6 +57,9 @@ jobs:
       - name: Verify agent engine config
         run: pnpm exec tsx scripts/verify-agent-config.ts
 
+      - name: Verify agent message helpers
+        run: pnpm exec tsx scripts/verify-agent-message.ts
+
       - name: Build
         run: pnpm build
 
