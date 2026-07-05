@@ -7,6 +7,28 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Rating {
+  again
+  either
+  no
+
+  @@map("rating")
+}
+
+enum CollectionVisibility {
+  friends
+  secret
+
+  @@map("collection_visibility")
+}
+
+enum FriendshipStatus {
+  pending
+  accepted
+
+  @@map("friendship_status")
+}
+
 /// Application user keyed by Firebase Authentication uid (#16, #14).
 model User {
   firebaseUid String   @id @map("firebase_uid")
@@ -14,5 +36,135 @@ model User {
   avatarColor String?  @map("avatar_color")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
+  collections              Collection[]
+  spotsAdded               Spot[]               @relation("SpotAddedBy")
+  spotsOrigin              Spot[]               @relation("SpotOrigin")
+  friendshipsLow           Friendship[]         @relation("FriendshipLow")
+  friendshipsHigh          Friendship[]         @relation("FriendshipHigh")
+  friendshipsRequested     Friendship[]         @relation("FriendshipRequestedBy")
+  recollectionEdgesActor   RecollectionEdge[]   @relation("RecollectionActor")
+  recollectionEdgesOrigin  RecollectionEdge[]   @relation("RecollectionOrigin")
+  flagsReceived            Flag[]               @relation("FlagRecipient")
+  flagsActor               Flag[]               @relation("FlagActor")
+  dailyRecommendations     DailyRecommendation[]
+
   @@map("users")
+}
+
+model Friendship {
+  userLow     String           @map("user_low")
+  userHigh    String           @map("user_high")
+  status      FriendshipStatus @default(pending)
+  requestedBy String           @map("requested_by")
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  acceptedAt  DateTime?        @map("accepted_at") @db.Timestamptz(6)
+
+  userLowUser     User @relation("FriendshipLow", fields: [userLow], references: [firebaseUid])
+  userHighUser    User @relation("FriendshipHigh", fields: [userHigh], references: [firebaseUid])
+  requestedByUser User @relation("FriendshipRequestedBy", fields: [requestedBy], references: [firebaseUid])
+
+  @@id([userLow, userHigh])
+  @@map("friendships")
+}
+
+model Collection {
+  id          String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId     String             @map("owner_id")
+  name        String
+  description String?
+  coverUrl    String?            @map("cover_url")
+  visibility  CollectionVisibility @default(friends)
+  theme       String?
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  owner User   @relation(fields: [ownerId], references: [firebaseUid])
+  spots Spot[]
+
+  @@index([ownerId], map: "idx_collections_owner")
+  @@map("collections")
+}
+
+model Spot {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  placeId      String   @map("place_id")
+  addedBy      String   @map("added_by")
+  collectionId String   @map("collection_id") @db.Uuid
+  photoUrls    String[] @default([]) @map("photo_urls")
+  comment      String   @default("")
+  rating       Rating
+  tagArea      String?  @map("tag_area")
+  tagGenre     String?  @map("tag_genre")
+  tagSituation String?  @map("tag_situation")
+  freeTags     String[] @default([]) @map("free_tags")
+  originUserId String?  @map("origin_user_id")
+  depth        Int      @default(0)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  addedByUser   User       @relation("SpotAddedBy", fields: [addedBy], references: [firebaseUid])
+  originUser    User?      @relation("SpotOrigin", fields: [originUserId], references: [firebaseUid])
+  collection    Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  recollectionEdgesAsCopy     RecollectionEdge[] @relation("RecollectionSpot")
+  recollectionEdgesAsSource   RecollectionEdge[] @relation("RecollectionSource")
+  flags                       Flag[]
+  dailyRecommendations        DailyRecommendation[]
+
+  @@index([placeId], map: "idx_spots_place")
+  @@index([collectionId], map: "idx_spots_collection")
+  @@index([addedBy], map: "idx_spots_added_by")
+  @@index([tagArea, tagGenre, tagSituation], map: "idx_spots_tags")
+  @@map("spots")
+}
+
+model RecollectionEdge {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  spotId       String   @map("spot_id") @db.Uuid
+  sourceSpotId String?  @map("source_spot_id") @db.Uuid
+  actorId      String   @map("actor_id")
+  originUserId String   @map("origin_user_id")
+  depth        Int
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  spot       Spot  @relation("RecollectionSpot", fields: [spotId], references: [id], onDelete: Cascade)
+  sourceSpot Spot? @relation("RecollectionSource", fields: [sourceSpotId], references: [id], onDelete: SetNull)
+  actor      User  @relation("RecollectionActor", fields: [actorId], references: [firebaseUid])
+  originUser User  @relation("RecollectionOrigin", fields: [originUserId], references: [firebaseUid])
+
+  @@index([originUserId], map: "idx_reco_edges_origin")
+  @@index([actorId], map: "idx_reco_edges_actor")
+  @@map("recollection_edges")
+}
+
+model Flag {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  recipientId String    @map("recipient_id")
+  spotId      String?   @map("spot_id") @db.Uuid
+  actorId     String?   @map("actor_id")
+  isAnonymous Boolean   @default(false) @map("is_anonymous")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  readAt      DateTime? @map("read_at") @db.Timestamptz(6)
+
+  recipient User  @relation("FlagRecipient", fields: [recipientId], references: [firebaseUid])
+  spot      Spot? @relation(fields: [spotId], references: [id], onDelete: SetNull)
+  actor     User? @relation("FlagActor", fields: [actorId], references: [firebaseUid])
+
+  @@index([recipientId, createdAt(sort: Desc)], map: "idx_flags_recipient")
+  @@map("flags")
+}
+
+model DailyRecommendation {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @map("user_id")
+  spotId      String   @map("spot_id") @db.Uuid
+  assertion   String
+  evidence    String
+  validDate   DateTime @map("valid_date") @db.Date
+  generatedAt DateTime @default(now()) @map("generated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [firebaseUid])
+  spot Spot @relation(fields: [spotId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, validDate])
+  @@map("daily_recommendations")
 }
