@@ -13,7 +13,6 @@ import {
   DEMO_SHARED_PLACE_ID,
   DEMO_SPOT_IDS,
   DEMO_VIEWER_DEFAULT,
-  demoUserIds,
   friendshipPair,
 } from "./demo-data";
 import {
@@ -45,58 +44,7 @@ function resolveViewerProfile(viewerUid: string) {
 }
 
 async function wipeDemoRows(tx: SeedTx, viewerUid: string) {
-  const demoCollections = Object.values(DEMO_COLLECTION_IDS);
-  const demoSpots = Object.values(DEMO_SPOT_IDS);
-  const demoEdges = Object.values(DEMO_RECO_EDGE_IDS);
-  const personaUids = Object.values(DEMO_PERSONAS).map((p) => p.uid);
-  const allUids = demoUserIds(viewerUid);
-
-  await enableDemoSeedFlags(tx);
-
-  await tx.flag.deleteMany({
-    where: { recipientId: { in: allUids } },
-  });
-  await tx.dailyRecommendation.deleteMany({
-    where: { userId: { in: allUids } },
-  });
-  await tx.recollectionEdge.deleteMany({
-    where: { id: { in: demoEdges } },
-  });
-  await tx.spot.deleteMany({
-    where: {
-      OR: [
-        { id: { in: demoSpots } },
-        { collectionId: { in: demoCollections } },
-      ],
-    },
-  });
-  await tx.collection.deleteMany({
-    where: { id: { in: demoCollections } },
-  });
-  await tx.friendship.deleteMany({
-    where: {
-      OR: [
-        { userLow: { in: allUids } },
-        { userHigh: { in: allUids } },
-      ],
-    },
-  });
-
-  await tx.user.deleteMany({
-    where: {
-      firebaseUid: {
-        in: personaUids,
-      },
-    },
-  });
-
-  if (viewerUid === DEMO_VIEWER_DEFAULT.uid) {
-    await tx.user.deleteMany({
-      where: { firebaseUid: DEMO_VIEWER_DEFAULT.uid },
-    });
-  }
-
-  await disableDemoSeedFlags(tx);
+  await tx.$executeRaw`SELECT demo_seed_wipe(${viewerUid})`;
 }
 
 async function upsertUser(tx: SeedTx, user: DemoUserDef) {

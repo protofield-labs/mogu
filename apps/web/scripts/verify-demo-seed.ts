@@ -15,7 +15,6 @@ import {
   DEMO_VIEWER_DEFAULT,
 } from "../src/lib/seed/demo-data";
 import { withSeedRls } from "../src/lib/seed/rls";
-import { seedDemo } from "../src/lib/seed/run-demo-seed";
 
 const prisma = new PrismaClient();
 
@@ -26,8 +25,6 @@ function assert(condition: boolean, message: string): void {
 }
 
 async function main() {
-  await seedDemo(prisma);
-
   const viewerUid = process.env.SEED_VIEWER_UID?.trim() || DEMO_VIEWER_DEFAULT.uid;
 
   await prisma.$transaction(async (tx) => {
