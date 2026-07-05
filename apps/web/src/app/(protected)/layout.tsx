@@ -1,4 +1,4 @@
-import { AppHeader } from "@/components/app-header";
+import { AppShell } from "@/components/app-shell";
 import { AuthGate } from "@/components/auth-gate";
 
 export default function ProtectedLayout({
@@ -8,8 +8,7 @@ export default function ProtectedLayout({
 }>) {
   return (
     <AuthGate>
-      <AppHeader />
-      {children}
+      <AppShell>{children}</AppShell>
     </AuthGate>
   );
 }
