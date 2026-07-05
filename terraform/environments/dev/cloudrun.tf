@@ -58,5 +58,11 @@ module "cloud_run" {
   vpc_network        = google_compute_network.main.id
   vpc_subnetwork     = google_compute_subnetwork.main.id
 
-  depends_on = [google_project_service.services]
+  # Secret versions and accessor IAM must exist before the revision update,
+  # or the first enable_external_apis apply fails with "version not found".
+  depends_on = [
+    google_project_service.services,
+    google_secret_manager_secret_version.places_api_key,
+    google_secret_manager_secret_iam_member.web_places_api_key,
+  ]
 }
