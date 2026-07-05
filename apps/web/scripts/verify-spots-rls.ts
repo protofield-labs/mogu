@@ -39,6 +39,25 @@ async function upsertUser(tx: Tx, uid: string, displayName: string) {
   );
 }
 
+/** RLS-denied ops abort the outer tx unless we roll back to a savepoint. */
+async function expectRlsDenied(
+  tx: Tx,
+  uid: string,
+  fn: (scoped: Tx) => Promise<unknown>,
+): Promise<void> {
+  await tx.$executeRaw`SAVEPOINT rls_denied`;
+  try {
+    await withRls(tx, uid, fn);
+    await tx.$executeRaw`ROLLBACK TO SAVEPOINT rls_denied`;
+    throw new Error("Expected RLS to deny operation");
+  } catch (error) {
+    if (error instanceof Error && error.message === "Expected RLS to deny operation") {
+      throw error;
+    }
+    await tx.$executeRaw`ROLLBACK TO SAVEPOINT rls_denied`;
+  }
+}
+
 async function verifySpotCrudRls() {
   try {
     await prisma.$transaction(async (tx) => {
@@ -81,26 +100,18 @@ async function verifySpotCrudRls() {
         return spot.id;
       });
 
-      let forbiddenInsert = false;
-      try {
-        await withRls(tx, UID_OTHER, (scoped) =>
-          scoped.spot.create({
-            data: {
-              placeId: "ChIJseedSpotCrudTest02",
-              addedBy: UID_OTHER,
-              collectionId: ownerCollectionId,
-              rating: Rating.either,
-              comment: "intruder",
-              depth: 0,
-            },
-          }),
-        );
-      } catch {
-        forbiddenInsert = true;
-      }
-      if (!forbiddenInsert) {
-        throw new Error("Other user should not insert into owner collection");
-      }
+      await expectRlsDenied(tx, UID_OTHER, (scoped) =>
+        scoped.spot.create({
+          data: {
+            placeId: "ChIJseedSpotCrudTest02",
+            addedBy: UID_OTHER,
+            collectionId: ownerCollectionId,
+            rating: Rating.either,
+            comment: "intruder",
+            depth: 0,
+          },
+        }),
+      );
 
       await withRls(tx, UID_OWNER, (scoped) =>
         scoped.spot.update({
@@ -109,20 +120,12 @@ async function verifySpotCrudRls() {
         }),
       );
 
-      let forbiddenUpdate = false;
-      try {
-        await withRls(tx, UID_OTHER, (scoped) =>
-          scoped.spot.update({
-            where: { id: spotId },
-            data: { comment: "hacked" },
-          }),
-        );
-      } catch {
-        forbiddenUpdate = true;
-      }
-      if (!forbiddenUpdate) {
-        throw new Error("Other user should not update owner spot");
-      }
+      await expectRlsDenied(tx, UID_OTHER, (scoped) =>
+        scoped.spot.update({
+          where: { id: spotId },
+          data: { comment: "hacked" },
+        }),
+      );
 
       await withRls(tx, UID_OWNER, (scoped) =>
         scoped.spot.delete({ where: { id: spotId } }),
