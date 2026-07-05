@@ -16,7 +16,7 @@ export function AppShell({ children, showMypageBadge = false }: AppShellProps) {
   return (
     <div className="flex min-h-dvh justify-center bg-background">
       <div className="flex h-dvh w-full max-w-mogu-shell flex-col bg-mogu-surface">
-        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto pt-[env(safe-area-inset-top)]">
           {children}
         </main>
         <TabBar showMypageBadge={showMypageBadge} />
