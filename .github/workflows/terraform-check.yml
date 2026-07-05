@@ -52,6 +52,7 @@ jobs:
       TF_VAR_owner: m-maehara
       TF_VAR_enable_db_connection: "true"
       TF_VAR_enable_external_apis: "true"
+      TF_VAR_enable_agent_engine: "true"
       TF_VAR_terraform_firebase_impersonators: '["user:micci184@gmail.com"]'
       TF_VAR_github_repository: protofield-labs/mogu
       TF_VAR_app_image: asia-northeast1-docker.pkg.dev/mogu-501309/web/web:latest
