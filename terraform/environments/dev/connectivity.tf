@@ -27,6 +27,25 @@ resource "google_project_iam_member" "web_cloudsql_client" {
 # web SA gets none here. Add roles/firebaseauth.viewer (checkRevoked) or
 # roles/firebaseauth.admin (user management) only when those APIs are used.
 
+# #47: Places API key in Secret Manager → Cloud Run env PLACES_API_KEY.
+resource "google_secret_manager_secret_iam_member" "web_places_api_key" {
+  count = var.enable_external_apis ? 1 : 0
+
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.places_api_key[0].secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.web.email}"
+}
+
+# #47: Vertex AI / Agent Engine calls use Application Default Credentials.
+resource "google_project_iam_member" "web_vertex_ai_user" {
+  count = var.enable_external_apis ? 1 : 0
+
+  project = var.project_id
+  role    = "roles/aiplatform.user"
+  member  = "serviceAccount:${google_service_account.web.email}"
+}
+
 # GitHub Actions: push images and deploy new revisions to Cloud Run.
 resource "google_project_iam_member" "github_actions_artifact_registry_writer" {
   project = var.project_id

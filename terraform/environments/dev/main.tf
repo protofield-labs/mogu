@@ -30,6 +30,9 @@ resource "google_project_service" "services" {
     "eventarc.googleapis.com",
     "firebase.googleapis.com",
     "identitytoolkit.googleapis.com",
+    "places.googleapis.com",
+    "aiplatform.googleapis.com",
+    "apikeys.googleapis.com",
   ])
 
   project = var.project_id

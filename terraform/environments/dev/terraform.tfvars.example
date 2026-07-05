@@ -19,6 +19,9 @@ billing_account_id = "000000-000000-000000"
 # Phase 2: flip to true to wire Cloud Run to Cloud SQL.
 # enable_db_connection = false
 
+# #47: Places API key + Vertex AI IAM for Cloud Run (Maps Platform billing required).
+# enable_external_apis = true
+
 # Slack alerts (Monitoring + Billing budget). One-time Console OAuth setup:
 #   GCP Console → Monitoring → Alerting → Edit notification channels → Slack
 # Then: gcloud monitoring channels list --project=PROJECT_ID --filter='type="slack"'

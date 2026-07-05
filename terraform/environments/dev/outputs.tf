@@ -57,3 +57,8 @@ output "firebase_web_config" {
     app_id      = google_firebase_web_app.web.app_id
   }
 }
+
+output "places_api_key_secret_id" {
+  description = "Secret Manager secret id for PLACES_API_KEY (empty when enable_external_apis is false)."
+  value       = try(google_secret_manager_secret.places_api_key[0].secret_id, null)
+}
