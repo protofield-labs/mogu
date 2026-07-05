@@ -63,6 +63,9 @@ jobs:
       - name: Verify agent SSE helpers
         run: pnpm exec tsx scripts/verify-agent-events.ts
 
+      - name: Verify agent chat helpers
+        run: pnpm exec tsx scripts/verify-agent-chat.ts
+
       - name: Build
         run: pnpm build
 
