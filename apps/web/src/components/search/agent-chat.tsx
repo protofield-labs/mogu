@@ -111,6 +111,7 @@ export function AgentChat() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const initRef = useRef(false);
+  const sendingRef = useRef(false);
 
   useEffect(() => {
     if (initRef.current) {
@@ -133,7 +134,7 @@ export function AgentChat() {
 
   const sendMessage = useCallback(
     async (text: string, chips?: string[]) => {
-      if (!sessionId || sending) {
+      if (!sessionId || sendingRef.current) {
         return;
       }
       const trimmed = text.trim();
@@ -141,10 +142,12 @@ export function AgentChat() {
         return;
       }
 
+      sendingRef.current = true;
       setSending(true);
       setError(null);
       setThinkingMessages([]);
-      setEntries((prev) => [...prev, createUserEntry(trimmed, chips)]);
+      const userEntry = createUserEntry(trimmed, chips);
+      setEntries((prev) => [...prev, userEntry]);
       setInput("");
 
       const abort = new AbortController();
@@ -180,14 +183,18 @@ export function AgentChat() {
           }),
         ]);
       } catch (err) {
+        // Roll back the optimistic user bubble and restore the draft for retry.
+        setEntries((prev) => prev.filter((entry) => entry.id !== userEntry.id));
+        setInput(trimmed);
         setError(err instanceof Error ? err.message : "メッセージの送信に失敗しました");
       } finally {
         abort.abort();
         setThinkingMessages([]);
+        sendingRef.current = false;
         setSending(false);
       }
     },
-    [sessionId, sending],
+    [sessionId],
   );
 
   function handleSubmit(event: React.FormEvent) {

@@ -102,7 +102,9 @@ export async function connectAgentEvents(
     throw new Error("Event stream returned empty body");
   }
 
-  void readAgentEventStream(response.body, onEvent, signal);
+  // Thinking events are best-effort; swallow abort/network errors so the
+  // per-turn abort() in the chat UI never surfaces an unhandled rejection.
+  readAgentEventStream(response.body, onEvent, signal).catch(() => {});
 }
 
 /** Fetch place display fields at render time (guardrail 7). */

@@ -1,18 +1,38 @@
 name: Web check
 
+# Always trigger so `web-check` can be a required status check.
+# Path filtering happens in the `web-changes` job: when nothing relevant
+# changed, `web-check` is skipped via `if:` and reports Success.
 on:
   pull_request:
-    paths:
-      - "apps/web/**"
-      - "scripts/verify-*.sh"
-      - "scripts/ci-setup-test-db.sh"
-      - ".github/workflows/web-check.yml"
 
 permissions:
   contents: read
 
 jobs:
+  web-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      web: ${{ steps.filter.outputs.web }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        name: Detect web-related changes
+        run: |
+          changed="$(git diff --name-only "origin/${GITHUB_BASE_REF}...HEAD")"
+          echo "${changed}"
+          if echo "${changed}" | grep -qE '^(apps/web/|scripts/verify-[^/]*\.sh$|scripts/ci-setup-test-db\.sh$|\.github/workflows/web-check\.yml$)'; then
+            echo "web=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "web=false" >> "${GITHUB_OUTPUT}"
+          fi
+
   web-check:
+    needs: web-changes
+    if: needs.web-changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:

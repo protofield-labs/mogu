@@ -1,21 +1,39 @@
 name: Terraform check
 
+# Always trigger so `terraform-check` can be a required status check.
+# Path filtering happens in the `terraform-changes` job: when nothing
+# relevant changed, `terraform-check` is skipped via `if:` and reports
+# Success.
 on:
   pull_request:
-    paths:
-      - "terraform/**"
-      - "scripts/check.sh"
-      - "scripts/plan.sh"
-      - "scripts/ci/**"
-      - ".tflint.hcl"
-      - ".tool-versions"
-      - ".github/workflows/terraform-check.yml"
 
 permissions:
   contents: read
 
 jobs:
+  terraform-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      terraform: ${{ steps.filter.outputs.terraform }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        name: Detect terraform-related changes
+        run: |
+          changed="$(git diff --name-only "origin/${GITHUB_BASE_REF}...HEAD")"
+          echo "${changed}"
+          if echo "${changed}" | grep -qE '^(terraform/|scripts/check\.sh$|scripts/plan\.sh$|scripts/ci/|\.tflint\.hcl$|\.tool-versions$|\.github/workflows/terraform-check\.yml$)'; then
+            echo "terraform=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "terraform=false" >> "${GITHUB_OUTPUT}"
+          fi
+
   terraform-check:
+    needs: terraform-changes
+    if: needs.terraform-changes.outputs.terraform == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
