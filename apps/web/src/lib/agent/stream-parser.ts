@@ -1,22 +1,33 @@
 import { AgentSessionError, AgentSessionNotFoundError } from "./errors";
-import type { AgentMessage } from "./types";
+import type { AgentEvent, AgentMessage } from "./types";
 
-type StreamEvent = {
+export type StreamEvent = {
   error_code?: string;
   error_message?: string;
   message?: string;
+  author?: string;
   content?: {
-    parts?: Array<{ text?: string }>;
+    parts?: Array<{
+      text?: string;
+      function_call?: unknown;
+    }>;
   };
 };
 
-/** Extract top-level JSON objects from NDJSON or concatenated JSON (#44). */
-export function extractJsonObjects(raw: string): StreamEvent[] {
+const PERSONA_THINKING: Record<string, string> = {
+  ken: "Kenのコレクションを参照中…",
+  aoi: "Aoiのコレクションを参照中…",
+};
+
+function scanJsonObjects(
+  raw: string,
+): { events: StreamEvent[]; remainder: string } {
   const events: StreamEvent[] = [];
   let depth = 0;
   let start = -1;
   let inString = false;
   let escape = false;
+  let cursor = 0;
 
   for (let i = 0; i < raw.length; i++) {
     const ch = raw[i];
@@ -51,17 +62,34 @@ export function extractJsonObjects(raw: string): StreamEvent[] {
         try {
           events.push(JSON.parse(raw.slice(start, i + 1)) as StreamEvent);
         } catch {
-          // Skip malformed object; continue scanning for valid objects.
+          // Skip malformed object; continue scanning.
         }
+        cursor = i + 1;
         start = -1;
       }
     }
   }
 
-  return events;
+  return {
+    events,
+    remainder: raw.slice(cursor),
+  };
 }
 
-function processStreamEvent(event: StreamEvent, textParts: string[]): void {
+/** Extract complete JSON objects from a growing stream buffer (#44/#45). */
+export function drainJsonObjects(buffer: string): {
+  events: StreamEvent[];
+  remainder: string;
+} {
+  return scanJsonObjects(buffer);
+}
+
+/** Extract all JSON objects from a complete response body (#44). */
+export function extractJsonObjects(raw: string): StreamEvent[] {
+  return scanJsonObjects(raw).events;
+}
+
+export function applyStreamEvent(event: StreamEvent, textParts: string[]): void {
   if (event.error_code) {
     throw new AgentSessionError(
       event.error_message ?? event.message ?? "Vertex AI agent query failed",
@@ -83,13 +111,47 @@ function processStreamEvent(event: StreamEvent, textParts: string[]): void {
   }
 }
 
+/** Map Vertex stream event to OpenAPI AgentEvent thinking (#45). */
+export function extractThinkingEvent(event: StreamEvent): AgentEvent | null {
+  const personaMessage = event.author
+    ? PERSONA_THINKING[event.author]
+    : undefined;
+  if (personaMessage) {
+    return createThinkingEvent(personaMessage);
+  }
+
+  for (const part of event.content?.parts ?? []) {
+    if (part.function_call) {
+      return createThinkingEvent("エージェントが情報を集めています…");
+    }
+  }
+
+  return null;
+}
+
+export function createThinkingEvent(message: string): AgentEvent {
+  return {
+    type: "thinking",
+    message,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+export function createDoneEvent(message = "思考が完了しました"): AgentEvent {
+  return {
+    type: "done",
+    message,
+    timestamp: new Date().toISOString(),
+  };
+}
+
 /** Parse Reasoning Engine :streamQuery body into AgentMessage (#44). */
 export function parseAgentStreamResponse(raw: string): AgentMessage {
   const textParts: string[] = [];
   const events = extractJsonObjects(raw);
 
   for (const event of events) {
-    processStreamEvent(event, textParts);
+    applyStreamEvent(event, textParts);
   }
 
   const text = textParts.join("").trim();

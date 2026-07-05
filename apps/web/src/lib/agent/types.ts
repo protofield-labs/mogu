@@ -7,6 +7,13 @@ export type AgentMessage = {
   quickReplies?: string[];
 };
 
+/** OpenAPI AgentEvent (#45). */
+export type AgentEvent = {
+  type: "thinking" | "done";
+  message: string;
+  timestamp: string;
+};
+
 export type AgentMessageRequest = {
   text: string;
   chips?: string[];
