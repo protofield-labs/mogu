@@ -133,9 +133,69 @@ async function verifyFriendshipRlsBoundary() {
   }
 }
 
+async function verifyFriendRequestRejectDelete() {
+  try {
+    await prisma.$transaction(async (tx) => {
+      await upsertUser(tx, UID_A, "RLS Friend A");
+      await upsertUser(tx, UID_B, "RLS Friend B");
+
+      const pair = friendshipPair(UID_A, UID_B);
+      await withRls(tx, UID_A, (scoped) =>
+        scoped.friendship.create({
+          data: {
+            ...pair,
+            status: "pending",
+            requestedBy: UID_A,
+          },
+        }),
+      );
+
+      await withRls(tx, UID_B, (scoped) =>
+        scoped.friendship.delete({
+          where: { userLow_userHigh: pair },
+        }),
+      );
+
+      const remaining = await withRls(tx, UID_A, (scoped) =>
+        scoped.friendship.count({ where: pair }),
+      );
+      if (remaining !== 0) {
+        throw new Error("Recipient could not delete pending friend request");
+      }
+
+      const requesterDelete = await withRls(tx, UID_A, (scoped) =>
+        scoped.friendship
+          .create({
+            data: {
+              ...pair,
+              status: "pending",
+              requestedBy: UID_A,
+            },
+          })
+          .then(() =>
+            scoped.friendship.delete({ where: { userLow_userHigh: pair } }),
+          )
+          .then(() => "deleted" as const)
+          .catch(() => "denied" as const),
+      );
+      if (requesterDelete !== "denied") {
+        throw new Error("Requester must not delete their own pending request");
+      }
+
+      throw new Rollback();
+    });
+  } catch (error) {
+    if (!(error instanceof Rollback)) {
+      throw error;
+    }
+  }
+}
+
 async function main() {
   await verifyFriendshipRlsBoundary();
   console.log("PASS: friends RLS pending/accepted boundary verified");
+  await verifyFriendRequestRejectDelete();
+  console.log("PASS: friends RLS reject delete verified");
 }
 
 main()
