@@ -1,0 +1,11 @@
+---
+description: mogu core stack, spec source of truth, and authorization flow
+alwaysApply: true
+---
+
+# mogu Core
+
+- Stack: Next.js (App Router) / TypeScript / PostgreSQL 18 (RLS) / Firebase Auth / pnpm.
+- 仕様は `docs/spec.md` `docs/erd-api.md` `docs/features.md` が正。実装前に必ず該当セクションを参照する。
+- 用語（スポット / コレクション / リコレクション / フラグ）と型定義（`docs/erd-api.md` の types）に従う。仕様と実装指示が矛盾したら実装せず人間に確認する。
+- 認可: 全ミューテーションは Bearer 検証 → `set_config('app.current_user_id', uid, true)` → RLS 配下で実行する。

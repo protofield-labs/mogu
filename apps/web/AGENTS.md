@@ -5,6 +5,17 @@ repository-wide `AGENTS.md`; when more specific, these win.
 
 This is development mode: fast iteration is encouraged.
 
+## Product Spec (Source of Truth)
+
+- `docs/spec.md`, `docs/erd-api.md`, and `docs/features.md` are the
+  source of truth for the product spec.
+- Before implementing any feature, read the relevant sections of these
+  documents.
+- Follow the shared terminology (スポット / コレクション / リコレクション /
+  フラグ) and the type definitions in `docs/erd-api.md` (types).
+- If the spec and an implementation instruction conflict, do not
+  implement; ask a human first.
+
 ## Stack
 
 - Next.js 16 (App Router) + TypeScript.
