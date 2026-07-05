@@ -9,7 +9,7 @@ importers:
   .:
     dependencies:
       '@base-ui/react':
-        specifier: ^1.6.0
+        specifier: 1.6.0
         version: 1.6.0(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@google-cloud/cloud-sql-connector':
         specifier: 1.11.2
@@ -18,13 +18,13 @@ importers:
         specifier: 6.19.2
         version: 6.19.2(prisma@6.19.2(typescript@6.0.3))(typescript@6.0.3)
       '@shadcn/react':
-        specifier: ^0.2.0
+        specifier: 0.2.0
         version: 0.2.0(@types/react@19.2.17)(react@19.2.7)
       class-variance-authority:
-        specifier: ^0.7.1
+        specifier: 0.7.1
         version: 0.7.1
       clsx:
-        specifier: ^2.1.1
+        specifier: 2.1.1
         version: 2.1.1
       firebase:
         specifier: ^12.15.0
@@ -33,7 +33,7 @@ importers:
         specifier: ^14.1.0
         version: 14.1.0
       lucide-react:
-        specifier: ^1.23.0
+        specifier: 1.23.0
         version: 1.23.0(react@19.2.7)
       next:
         specifier: 16.2.10
@@ -47,14 +47,11 @@ importers:
       react-dom:
         specifier: 19.2.7
         version: 19.2.7(react@19.2.7)
-      shadcn:
-        specifier: ^4.13.0
-        version: 4.13.0(typescript@6.0.3)
       tailwind-merge:
-        specifier: ^3.6.0
+        specifier: 3.6.0
         version: 3.6.0
       tw-animate-css:
-        specifier: ^1.4.0
+        specifier: 1.4.0
         version: 1.4.0
       zod:
         specifier: 4.4.3
@@ -87,6 +84,9 @@ importers:
       server-only:
         specifier: 0.0.1
         version: 0.0.1
+      shadcn:
+        specifier: 4.13.0
+        version: 4.13.0(typescript@6.0.3)
       tailwindcss:
         specifier: 4.3.2
         version: 4.3.2
