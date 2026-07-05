@@ -1,6 +1,7 @@
 import "server-only";
 
 import { withAuthRls } from "@/lib/auth/with-auth-rls";
+import { countSavedInCircle } from "@/lib/dal/saved-count";
 
 export type SpotDto = {
   id: string;
@@ -24,22 +25,6 @@ export type SpotDto = {
 export type RecollectSpotResult =
   | { ok: true; spot: SpotDto }
   | { ok: false; reason: "not_found" | "forbidden" };
-
-async function countSavedInCircle(
-  tx: Parameters<Parameters<typeof withAuthRls>[1]>[0],
-  placeId: string,
-): Promise<number> {
-  const rows = await tx.$queryRaw<{ count: bigint }[]>`
-    SELECT count(DISTINCT s.added_by)::bigint AS count
-    FROM spots s
-    WHERE s.place_id = ${placeId}
-      AND (
-        s.added_by = app_current_user()
-        OR are_friends(s.added_by, app_current_user())
-      )
-  `;
-  return Number(rows[0]?.count ?? 0n);
-}
 
 function toSpotDto(
   spot: {
