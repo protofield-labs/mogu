@@ -1,6 +1,6 @@
 import "server-only";
 
-import { withRls } from "@/lib/db/rls";
+import { withAuthRls } from "@/lib/auth/with-auth-rls";
 
 export type UserDto = {
   firebaseUid: string;
@@ -25,7 +25,7 @@ function toUserDto(user: {
 
 /** Fetch the authenticated user's row (RLS-scoped). Returns null when absent. */
 export async function getUserByUid(uid: string): Promise<UserDto | null> {
-  const user = await withRls(uid, (tx) =>
+  const user = await withAuthRls(uid, (tx) =>
     tx.user.findUnique({
       where: { firebaseUid: uid },
     }),
@@ -42,7 +42,7 @@ export async function provisionUser(
   uid: string,
   displayName: string,
 ): Promise<UserDto> {
-  const user = await withRls(uid, (tx) =>
+  const user = await withAuthRls(uid, (tx) =>
     tx.user.upsert({
       where: { firebaseUid: uid },
       create: {

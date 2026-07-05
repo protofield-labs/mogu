@@ -1,16 +1,13 @@
 import { getUserByUid } from "@/lib/dal/users";
-import { notFoundResponse, requireAuth } from "@/lib/auth/require-auth";
+import { notFoundResponse, withAuthRoute } from "@/lib/auth/require-auth";
 
 export async function GET(request: Request): Promise<Response> {
-  const auth = await requireAuth(request);
-  if (auth instanceof Response) {
-    return auth;
-  }
+  return withAuthRoute(request, async (_request, { uid }) => {
+    const user = await getUserByUid(uid);
+    if (!user) {
+      return notFoundResponse();
+    }
 
-  const user = await getUserByUid(auth.uid);
-  if (!user) {
-    return notFoundResponse();
-  }
-
-  return Response.json({ user });
+    return Response.json({ user });
+  });
 }
