@@ -86,6 +86,9 @@ jobs:
       - name: Verify agent chat helpers
         run: pnpm exec tsx scripts/verify-agent-chat.ts
 
+      - name: Verify mypage UI helpers
+        run: pnpm exec tsx scripts/verify-mypage-ui.ts
+
       - name: Build
         run: pnpm build
 

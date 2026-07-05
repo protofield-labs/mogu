@@ -1,5 +1,5 @@
-import { CollectionShelf } from "@/components/collections/collection-shelf";
+import { MypageView } from "@/components/mypage/mypage-view";
 
 export default function MypagePage() {
-  return <CollectionShelf />;
+  return <MypageView />;
 }
