@@ -1,0 +1,105 @@
+import type { AgentEvent, Recommendation } from "./types";
+
+/** Agent opening copy (features 2-1, wireframe search-2b). */
+export const AGENT_OPENING_MESSAGE =
+  "今夜はどんな気分？\nエリアや人数だけでもOK。";
+
+export const AGENT_FOOTER_CAPTION =
+  "自分と友達のコレクションを参照して答えます";
+
+export type ChatEntry =
+  | { id: string; kind: "user"; text: string; chips?: string[] }
+  | { id: string; kind: "agent"; text: string; recommendation?: Recommendation; quickReplies?: string[] };
+
+export function createWelcomeEntry(): ChatEntry {
+  return {
+    id: "welcome",
+    kind: "agent",
+    text: AGENT_OPENING_MESSAGE,
+  };
+}
+
+export function createUserEntry(text: string, chips?: string[]): ChatEntry {
+  return {
+    id: `user-${Date.now()}`,
+    kind: "user",
+    text,
+    ...(chips?.length ? { chips } : {}),
+  };
+}
+
+export function createAgentEntry(message: {
+  text: string;
+  recommendation?: Recommendation;
+  quickReplies?: string[];
+}): ChatEntry {
+  return {
+    id: `agent-${Date.now()}`,
+    kind: "agent",
+    text: message.text,
+    ...(message.recommendation ? { recommendation: message.recommendation } : {}),
+    ...(message.quickReplies?.length
+      ? { quickReplies: message.quickReplies }
+      : {}),
+  };
+}
+
+export function formatUserBubbleText(entry: Extract<ChatEntry, { kind: "user" }>): string {
+  if (!entry.chips?.length) {
+    return entry.text;
+  }
+  return `${entry.text}\n[${entry.chips.join(" / ")}]`;
+}
+
+export function isRecommendation(value: unknown): value is Recommendation {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const rec = value as Recommendation;
+  return (
+    typeof rec.assertion === "string" &&
+    typeof rec.evidence === "string" &&
+    typeof rec.spot === "object" &&
+    rec.spot !== null &&
+    Array.isArray(rec.alternatives)
+  );
+}
+
+/** Parse SSE frames from a growing buffer (#45 client). */
+export function parseSseBuffer(buffer: string): {
+  events: AgentEvent[];
+  remainder: string;
+} {
+  const events: AgentEvent[] = [];
+  const frames = buffer.split("\n\n");
+  const remainder = frames.pop() ?? "";
+
+  for (const frame of frames) {
+    for (const line of frame.split("\n")) {
+      if (!line.startsWith("data: ")) {
+        continue;
+      }
+      try {
+        events.push(JSON.parse(line.slice(6)) as AgentEvent);
+      } catch {
+        // Skip malformed frames.
+      }
+    }
+  }
+
+  return { events, remainder };
+}
+
+export function googleMapsPlaceUrl(placeId: string): string {
+  return `https://www.google.com/maps/search/?api=1&query_place_id=${encodeURIComponent(placeId)}`;
+}
+
+export function openNowLabel(openNow: boolean | undefined): string | null {
+  if (openNow === true) {
+    return "営業中";
+  }
+  if (openNow === false) {
+    return "営業時間外";
+  }
+  return null;
+}
