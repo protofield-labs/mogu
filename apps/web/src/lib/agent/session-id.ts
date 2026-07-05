@@ -17,8 +17,8 @@ export function readAgentEngineConfigFromEnv(
 } | null {
   const orchestratorResourceName = env.AGENT_ENGINE_RESOURCE_NAME?.trim();
   const location =
-    env.VERTEX_AI_LOCATION?.trim() ??
-    env.GOOGLE_CLOUD_REGION?.trim() ??
+    env.VERTEX_AI_LOCATION?.trim() ||
+    env.GOOGLE_CLOUD_REGION?.trim() ||
     "asia-northeast1";
 
   if (!orchestratorResourceName) {

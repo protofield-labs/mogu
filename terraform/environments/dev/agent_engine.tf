@@ -2,8 +2,8 @@
 locals {
   agent_engine_enabled = var.enable_external_apis && var.enable_agent_engine
 
-  # ADK AdkApp class methods (inline source deploy).
-  orchestrator_class_methods = [
+  # ADK AdkApp class methods (inline source deploy). Shared by both engines.
+  adk_class_methods = [
     {
       name        = "async_create_session"
       api_mode    = "async"
@@ -25,6 +25,7 @@ data "archive_file" "orchestrator_agent" {
   type        = "tar.gz"
   source_dir  = "${path.module}/../../../agents/mogu"
   output_path = "${path.module}/.agent-orchestrator.tar.gz"
+  excludes    = ["__pycache__", "**/__pycache__"]
 }
 
 data "archive_file" "maps_grounding_agent" {
@@ -33,6 +34,7 @@ data "archive_file" "maps_grounding_agent" {
   type        = "tar.gz"
   source_dir  = "${path.module}/../../../agents/mogu_maps"
   output_path = "${path.module}/.agent-maps-grounding.tar.gz"
+  excludes    = ["__pycache__", "**/__pycache__"]
 }
 
 resource "google_vertex_ai_reasoning_engine" "orchestrator" {
@@ -45,7 +47,7 @@ resource "google_vertex_ai_reasoning_engine" "orchestrator" {
 
   spec {
     agent_framework = "google-adk"
-    class_methods   = jsonencode(local.orchestrator_class_methods)
+    class_methods   = jsonencode(local.adk_class_methods)
 
     source_code_spec {
       inline_source {
@@ -75,6 +77,7 @@ resource "google_vertex_ai_reasoning_engine" "maps_grounding" {
 
   spec {
     agent_framework = "google-adk"
+    class_methods   = jsonencode(local.adk_class_methods)
 
     source_code_spec {
       inline_source {

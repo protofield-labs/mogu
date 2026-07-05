@@ -14,6 +14,10 @@ type CreateSessionResponse = {
   };
 };
 
+const auth = new GoogleAuth({
+  scopes: ["https://www.googleapis.com/auth/cloud-platform"],
+});
+
 function extractSessionResourceName(
   payload: CreateSessionResponse,
 ): string | undefined {
@@ -40,9 +44,6 @@ export async function createAgentSession(userId: string): Promise<string> {
     throw new AgentEngineNotConfiguredError();
   }
 
-  const auth = new GoogleAuth({
-    scopes: ["https://www.googleapis.com/auth/cloud-platform"],
-  });
   const client = await auth.getClient();
   const url = `https://${config.location}-aiplatform.googleapis.com/v1/${config.orchestratorResourceName}/sessions`;
 
@@ -53,6 +54,10 @@ export async function createAgentSession(userId: string): Promise<string> {
       userId,
     },
   });
+
+  if (response.data.done === false) {
+    throw new AgentSessionError("Vertex AI session creation did not complete");
+  }
 
   const sessionResourceName = extractSessionResourceName(response.data);
   if (!sessionResourceName) {
