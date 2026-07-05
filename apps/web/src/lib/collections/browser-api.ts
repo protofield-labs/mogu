@@ -2,6 +2,7 @@
 
 import { parseApiErrorBody } from "@/lib/auth/api-error";
 import { authFetch } from "@/lib/auth/auth-fetch";
+import type { Spot } from "@/lib/spots/browser-api";
 
 export type CollectionVisibility = "friends" | "secret";
 
@@ -30,11 +31,24 @@ export type CollectionUpdateInput = {
   description?: string | null;
   visibility?: CollectionVisibility;
   theme?: string | null;
+  coverUrl?: string | null;
+};
+
+export type CollectionDetail = Collection & {
+  spots: Spot[];
 };
 
 async function readApiError(response: Response, fallback: string): Promise<Error> {
   const body = await parseApiErrorBody(response);
   return new Error(body?.error.message ?? fallback);
+}
+
+export async function getCollectionDetail(id: string): Promise<CollectionDetail> {
+  const response = await authFetch(`/api/v1/collections/${id}`);
+  if (!response.ok) {
+    throw await readApiError(response, "コレクションを読み込めませんでした");
+  }
+  return (await response.json()) as CollectionDetail;
 }
 
 export async function listMyCollections(): Promise<Collection[]> {

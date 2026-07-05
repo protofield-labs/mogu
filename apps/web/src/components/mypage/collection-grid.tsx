@@ -1,6 +1,7 @@
 "use client";
 
 import { Lock, Pencil, Sparkles, Trash2 } from "lucide-react";
+import Link from "next/link";
 
 import type { Collection } from "@/lib/collections/browser-api";
 import { cn } from "@/lib/utils";
@@ -22,7 +23,8 @@ function CollectionTile({
 
   return (
     <article className="space-y-2">
-      <div className="relative aspect-square overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-muted to-background">
+      <Link href={`/mypage/collections/${collection.id}`} className="block">
+        <div className="relative aspect-square overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-muted to-background">
         {collection.coverUrl ? (
           <div
             className="size-full bg-cover bg-center"
@@ -41,7 +43,8 @@ function CollectionTile({
             <Lock className="size-3.5" aria-label="secret コレクション" />
           </span>
         ) : null}
-      </div>
+        </div>
+      </Link>
       <p className="text-center text-xs text-muted-foreground">
         {isSecret ? "secret ・ " : ""}
         {collection.spotCount}軒

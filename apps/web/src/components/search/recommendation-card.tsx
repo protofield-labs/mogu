@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ChevronDownIcon } from "lucide-react";
 
+import { AuthImage } from "@/components/mypage/auth-image";
 import { Button } from "@/components/ui/button";
 import { fetchPlace, recollectSpot } from "@/lib/agent/browser-api";
 import {
@@ -145,9 +146,8 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
   return (
     <div className="mt-2 w-full max-w-full rounded-xl border border-border bg-mogu-surface-elevated p-mogu-screen-x py-3">
       {spot.photoUrls[0] ? (
-        // eslint-disable-next-line @next/next/no-img-element -- user-uploaded spot photos
-        <img
-          src={spot.photoUrls[0]}
+        <AuthImage
+          objectUrl={spot.photoUrls[0]}
           alt=""
           className="mb-3 aspect-[16/10] w-full rounded-lg object-cover"
         />

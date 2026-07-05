@@ -22,6 +22,7 @@
   "dependencies": {
     "@base-ui/react": "1.6.0",
     "@google-cloud/cloud-sql-connector": "1.11.2",
+    "@google-cloud/storage": "7.21.0",
     "@prisma/client": "6.19.2",
     "@shadcn/react": "0.2.0",
     "class-variance-authority": "0.7.1",

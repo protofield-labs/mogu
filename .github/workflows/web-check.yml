@@ -89,6 +89,9 @@ jobs:
       - name: Verify mypage UI helpers
         run: pnpm exec tsx scripts/verify-mypage-ui.ts
 
+      - name: Verify photo URL helpers
+        run: pnpm exec tsx scripts/verify-photo-url.ts
+
       - name: Build
         run: pnpm build
 

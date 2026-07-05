@@ -11,6 +11,15 @@ import {
   getCollectionDetail,
   updateCollection,
 } from "@/lib/dal/collections";
+import { resolveBucketName, validateOwnedPhotoUrl } from "@/lib/storage/photo-url";
+
+function validateOwnedCoverUrl(url: string, uid: string): boolean {
+  try {
+    return validateOwnedPhotoUrl(url, uid, resolveBucketName());
+  } catch {
+    return false;
+  }
+}
 
 const routeParamsSchema = z.object({
   id: z.string().uuid(),
@@ -74,6 +83,13 @@ export async function PATCH(
     const parsed = updateCollectionBodySchema.safeParse(body);
     if (!parsed.success) {
       return validationErrorResponse("Invalid request body");
+    }
+
+    if (
+      parsed.data.coverUrl &&
+      !validateOwnedCoverUrl(parsed.data.coverUrl, uid)
+    ) {
+      return validationErrorResponse("Invalid coverUrl");
     }
 
     const result = await updateCollection(uid, id, parsed.data);
