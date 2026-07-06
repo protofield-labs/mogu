@@ -86,6 +86,9 @@ jobs:
       - name: Verify spot DTO unification
         run: pnpm exec tsx scripts/verify-spot-dto.ts
 
+      - name: Verify browser API client
+        run: pnpm exec tsx scripts/verify-browser-client.ts
+
       - name: Verify agent engine config
         run: pnpm exec tsx scripts/verify-agent-config.ts
 

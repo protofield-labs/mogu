@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { uuidRouteParamsSchema } from "@/lib/api/schemas/common";
 import {
   forbiddenResponse,
   notFoundResponse,
@@ -7,10 +8,6 @@ import {
   withAuthRoute,
 } from "@/lib/auth/require-auth";
 import { recollectSpot } from "@/lib/dal/spots";
-
-const routeParamsSchema = z.object({
-  id: z.string().uuid(),
-});
 
 const recollectBodySchema = z.object({
   targetCollectionId: z.string().uuid(),
@@ -24,7 +21,7 @@ export async function POST(
   request: Request,
   { params }: RouteParams,
 ): Promise<Response> {
-  const parsedParams = routeParamsSchema.safeParse(await params);
+  const parsedParams = uuidRouteParamsSchema.safeParse(await params);
   if (!parsedParams.success) {
     return validationErrorResponse("Invalid spot id");
   }

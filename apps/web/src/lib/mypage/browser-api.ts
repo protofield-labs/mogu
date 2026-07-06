@@ -1,8 +1,20 @@
 "use client";
 
-import { readApiErrorResponse } from "@/lib/auth/api-error";
+import { apiJson, apiVoid, parseApiJson } from "@/lib/api/browser-client";
+import { collectionSchema } from "@/lib/api/schemas/collection";
+import {
+  flagNotificationListSchema,
+  flagsReadResponseSchema,
+  friendRequestListSchema,
+  friendUserListSchema,
+  meBadgesSchema,
+} from "@/lib/api/schemas/social";
+import {
+  meProfileSchema,
+  userSchema,
+} from "@/lib/api/schemas/user";
 import { authFetch } from "@/lib/auth/auth-fetch";
-import type { Collection } from "@/lib/collections/browser-api";
+import { z } from "zod";
 import type {
   FlagNotification,
   FriendRequest,
@@ -11,133 +23,120 @@ import type {
   MeProfile,
 } from "@/lib/mypage/types";
 
+const collectionListSchema = z.array(collectionSchema);
+
 export async function fetchMe(): Promise<MeProfile> {
-  const response = await authFetch("/api/v1/me");
-  if (!response.ok) {
-    throw await readApiErrorResponse(response, "プロフィールを読み込めませんでした");
-  }
-  return (await response.json()) as MeProfile;
+  return apiJson("/api/v1/me", meProfileSchema, "プロフィールを読み込めませんでした");
 }
 
 export async function updateMeProfile(body: {
   displayName: string;
   avatarColor: string;
 }): Promise<Pick<MeProfile, "id" | "displayName" | "avatarColor">> {
-  const response = await authFetch("/api/v1/me", {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+  return apiJson("/api/v1/me", userSchema, "プロフィールを保存できませんでした", {
+    init: {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
   });
-  if (!response.ok) {
-    throw await readApiErrorResponse(response, "プロフィールを保存できませんでした");
-  }
-  return (await response.json()) as Pick<
-    MeProfile,
-    "id" | "displayName" | "avatarColor"
-  >;
 }
 
 export async function fetchMeBadges(): Promise<MeBadges> {
-  const response = await authFetch("/api/v1/me/badges");
-  if (!response.ok) {
-    throw await readApiErrorResponse(response, "バッジを読み込めませんでした");
-  }
-  return (await response.json()) as MeBadges;
+  return apiJson("/api/v1/me/badges", meBadgesSchema, "バッジを読み込めませんでした");
 }
 
 export async function fetchFlagNotifications(): Promise<FlagNotification[]> {
-  const response = await authFetch("/api/v1/flags");
-  if (!response.ok) {
-    throw await readApiErrorResponse(response, "フラグを読み込めませんでした");
-  }
-  return (await response.json()) as FlagNotification[];
+  return apiJson(
+    "/api/v1/flags",
+    flagNotificationListSchema,
+    "フラグを読み込めませんでした",
+  );
 }
 
 export async function markFlagsRead(): Promise<number> {
-  const response = await authFetch("/api/v1/flags/read", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({}),
-  });
-  if (!response.ok) {
-    throw await readApiErrorResponse(response, "フラグを既読にできませんでした");
-  }
-  const body = (await response.json()) as { updated: number };
+  const body = await apiJson(
+    "/api/v1/flags/read",
+    flagsReadResponseSchema,
+    "フラグを既読にできませんでした",
+    {
+      init: {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      },
+    },
+  );
   return body.updated;
 }
 
 export async function fetchFriends(): Promise<FriendUser[]> {
-  const response = await authFetch("/api/v1/friends");
-  if (!response.ok) {
-    throw await readApiErrorResponse(response, "友達一覧を読み込めませんでした");
-  }
-  return (await response.json()) as FriendUser[];
+  return apiJson("/api/v1/friends", friendUserListSchema, "友達一覧を読み込めませんでした");
 }
 
 export async function fetchFriendCollectionCount(friendId: string): Promise<number> {
-  const response = await authFetch(
-    `/api/v1/collections?ownerId=${encodeURIComponent(friendId)}`,
-  );
-  if (!response.ok) {
+  try {
+    const response = await authFetch(
+      `/api/v1/collections?ownerId=${encodeURIComponent(friendId)}`,
+    );
+    if (!response.ok) {
+      return 0;
+    }
+    const parsed = await parseApiJson(
+      response,
+      collectionListSchema,
+      "コレクションを読み込めませんでした",
+    );
+    return parsed.length;
+  } catch {
     return 0;
   }
-  const collections = (await response.json()) as Collection[];
-  return collections.length;
 }
 
 export async function fetchIncomingFriendRequests(): Promise<FriendRequest[]> {
-  const response = await authFetch("/api/v1/friends/requests?box=in");
-  if (!response.ok) {
-    throw await readApiErrorResponse(response, "友達申請を読み込めませんでした");
-  }
-  return (await response.json()) as FriendRequest[];
+  return apiJson(
+    "/api/v1/friends/requests?box=in",
+    friendRequestListSchema,
+    "友達申請を読み込めませんでした",
+  );
 }
 
 export async function fetchOutgoingFriendRequests(): Promise<FriendRequest[]> {
-  const response = await authFetch("/api/v1/friends/requests?box=out");
-  if (!response.ok) {
-    throw await readApiErrorResponse(response, "送信済み申請を読み込めませんでした");
-  }
-  return (await response.json()) as FriendRequest[];
+  return apiJson(
+    "/api/v1/friends/requests?box=out",
+    friendRequestListSchema,
+    "送信済み申請を読み込めませんでした",
+  );
 }
 
 export async function searchUsers(query: string): Promise<FriendUser[]> {
-  const response = await authFetch(
+  return apiJson(
     `/api/v1/users/search?q=${encodeURIComponent(query)}`,
+    friendUserListSchema,
+    "ユーザーを検索できませんでした",
   );
-  if (!response.ok) {
-    throw await readApiErrorResponse(response, "ユーザーを検索できませんでした");
-  }
-  return (await response.json()) as FriendUser[];
 }
 
 export async function sendFriendRequest(toUserId: string): Promise<void> {
-  const response = await authFetch("/api/v1/friends/requests", {
+  await apiVoid("/api/v1/friends/requests", "友達申請を送信できませんでした", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ toUserId }),
   });
-  if (!response.ok) {
-    throw await readApiErrorResponse(response, "友達申請を送信できませんでした");
-  }
 }
 
 export async function acceptFriendRequest(pairId: string): Promise<void> {
-  const response = await authFetch(
+  await apiVoid(
     `/api/v1/friends/requests/${encodeURIComponent(pairId)}/accept`,
+    "友達申請を承認できませんでした",
     { method: "POST" },
   );
-  if (!response.ok) {
-    throw await readApiErrorResponse(response, "友達申請を承認できませんでした");
-  }
 }
 
 export async function rejectFriendRequest(pairId: string): Promise<void> {
-  const response = await authFetch(
+  await apiVoid(
     `/api/v1/friends/requests/${encodeURIComponent(pairId)}/reject`,
+    "友達申請を拒否できませんでした",
     { method: "POST" },
   );
-  if (!response.ok) {
-    throw await readApiErrorResponse(response, "友達申請を拒否できませんでした");
-  }
 }

@@ -1,21 +1,17 @@
 "use client";
 
-import { readApiErrorResponse } from "@/lib/auth/api-error";
-import { authFetch } from "@/lib/auth/auth-fetch";
+import { apiJson } from "@/lib/api/browser-client";
+import { placeSearchResultListSchema } from "@/lib/api/schemas/places";
+import { z } from "zod";
 
-export type PlaceSearchResult = {
-  placeId: string;
-  name: string;
-  address: string;
-  openNow?: boolean;
-};
+export type PlaceSearchResult = z.infer<
+  typeof placeSearchResultListSchema
+>[number];
 
 export async function searchPlaces(query: string): Promise<PlaceSearchResult[]> {
-  const response = await authFetch(
+  return apiJson(
     `/api/v1/places/search?q=${encodeURIComponent(query)}`,
+    placeSearchResultListSchema,
+    "店舗を検索できませんでした",
   );
-  if (!response.ok) {
-    throw await readApiErrorResponse(response, "店舗を検索できませんでした");
-  }
-  return (await response.json()) as PlaceSearchResult[];
 }

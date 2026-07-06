@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export { signedUploadBodySchema } from "@/lib/api/schemas/uploads";
+
 export const ratingSchema = z.enum(["again", "either", "no"]);
 
 export const structuredTagsSchema = z.object({
@@ -26,7 +28,3 @@ export const updateSpotBodySchema = z
     photoUrls: z.array(z.string().trim().url().max(2048)).max(5).optional(),
   })
   .refine((body) => Object.keys(body).length > 0);
-
-export const signedUploadBodySchema = z.object({
-  contentType: z.string().trim().min(1).max(128),
-});

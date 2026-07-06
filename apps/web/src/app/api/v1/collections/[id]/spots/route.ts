@@ -1,5 +1,4 @@
-import { z } from "zod";
-
+import { uuidRouteParamsSchema } from "@/lib/api/schemas/common";
 import {
   forbiddenResponse,
   notFoundResponse,
@@ -9,10 +8,6 @@ import {
 import { createSpot } from "@/lib/dal/spots";
 import { createSpotBodySchema } from "@/lib/spots/schemas";
 import { resolveBucketName, validatePhotoUrls } from "@/lib/storage/photo-url";
-
-const routeParamsSchema = z.object({
-  id: z.string().uuid(),
-});
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -33,7 +28,7 @@ export async function POST(
   request: Request,
   { params }: RouteParams,
 ): Promise<Response> {
-  const parsedParams = routeParamsSchema.safeParse(await params);
+  const parsedParams = uuidRouteParamsSchema.safeParse(await params);
   if (!parsedParams.success) {
     return validationErrorResponse("Invalid collection id");
   }

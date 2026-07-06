@@ -1,5 +1,5 @@
-import { z } from "zod";
-
+import { updateCollectionBodySchema } from "@/lib/api/schemas/collection";
+import { uuidRouteParamsSchema } from "@/lib/api/schemas/common";
 import {
   forbiddenResponse,
   notFoundResponse,
@@ -21,26 +21,12 @@ function validateOwnedCoverUrl(url: string, uid: string): boolean {
   }
 }
 
-const routeParamsSchema = z.object({
-  id: z.string().uuid(),
-});
-
-const updateCollectionBodySchema = z
-  .object({
-    name: z.string().trim().min(1).max(80).optional(),
-    description: z.string().trim().max(240).nullable().optional(),
-    coverUrl: z.string().trim().url().max(2048).nullable().optional(),
-    visibility: z.enum(["friends", "secret"]).optional(),
-    theme: z.string().trim().max(80).nullable().optional(),
-  })
-  .refine((body) => Object.keys(body).length > 0);
-
 type RouteParams = {
   params: Promise<{ id: string }>;
 };
 
 async function parseId(params: RouteParams["params"]): Promise<string | null> {
-  const parsed = routeParamsSchema.safeParse(await params);
+  const parsed = uuidRouteParamsSchema.safeParse(await params);
   return parsed.success ? parsed.data.id : null;
 }
 
