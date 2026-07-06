@@ -458,6 +458,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Recommendation"
+        "204":
+          description: 本日の一推しはまだない
         default:
           $ref: "#/components/responses/Error"
 

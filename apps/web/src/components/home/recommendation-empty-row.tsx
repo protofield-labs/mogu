@@ -11,7 +11,7 @@ type RecommendationEmptyRowProps = {
 };
 
 /**
- * Fallback when GET /home/recommendation is 404 (no pick for today).
+ * Fallback when GET /home/recommendation has no pick for today (204).
  * Hidden until the user has enough own spots (#91 UX).
  */
 export function RecommendationEmptyRow({
