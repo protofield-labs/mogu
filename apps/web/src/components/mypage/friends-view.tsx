@@ -23,6 +23,7 @@ import {
   formatAvatarColorLabel,
   formatFriendRequestError,
   isAlreadyFriend,
+  isIncomingPending,
   isOutgoingPending,
 } from "@/lib/mypage/friend-request-ui";
 import type { FriendRequest, FriendUser } from "@/lib/mypage/types";
@@ -58,6 +59,8 @@ function UserAvatar({
   );
 }
 
+type RequestAction = "accept" | "reject";
+
 export function FriendsView() {
   const [friends, setFriends] = useState<FriendWithCollections[]>([]);
   const [requests, setRequests] = useState<FriendRequest[]>([]);
@@ -68,8 +71,12 @@ export function FriendsView() {
   const [friendCount, setFriendCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busyPairId, setBusyPairId] = useState<string | null>(null);
+  const [busyRequestAction, setBusyRequestAction] = useState<RequestAction | null>(
+    null,
+  );
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   const friendIds = useMemo(
     () => new Set(friends.map((friend) => friend.id)),
@@ -78,6 +85,10 @@ export function FriendsView() {
   const outgoingUserIds = useMemo(
     () => new Set(outgoingRequests.map((request) => request.to.id)),
     [outgoingRequests],
+  );
+  const incomingUserIds = useMemo(
+    () => new Set(requests.map((request) => request.from.id)),
+    [requests],
   );
   const duplicateSearchNames = useMemo(
     () => findDuplicateDisplayNames(searchResults),
@@ -140,12 +151,14 @@ export function FriendsView() {
         .then((results) => {
           if (!cancelled) {
             setSearchResults(results);
-            setError(null);
+            setSearchError(null);
           }
         })
         .catch((err) => {
           if (!cancelled) {
-            setError(err instanceof Error ? err.message : "検索に失敗しました");
+            setSearchError(
+              err instanceof Error ? err.message : "検索に失敗しました",
+            );
             setSearchResults([]);
           }
         })
@@ -164,6 +177,7 @@ export function FriendsView() {
 
   async function handleAccept(pairId: string) {
     setBusyPairId(pairId);
+    setBusyRequestAction("accept");
     setError(null);
     try {
       await acceptFriendRequest(pairId);
@@ -173,11 +187,13 @@ export function FriendsView() {
       setError(err instanceof Error ? err.message : "承認に失敗しました");
     } finally {
       setBusyPairId(null);
+      setBusyRequestAction(null);
     }
   }
 
   async function handleReject(pairId: string) {
     setBusyPairId(pairId);
+    setBusyRequestAction("reject");
     setError(null);
     try {
       await rejectFriendRequest(pairId);
@@ -187,6 +203,15 @@ export function FriendsView() {
       setError(err instanceof Error ? err.message : "拒否に失敗しました");
     } finally {
       setBusyPairId(null);
+      setBusyRequestAction(null);
+    }
+  }
+
+  async function refreshFriendsData(failureMessage: string) {
+    try {
+      await loadFriendsData();
+    } catch {
+      setError(failureMessage);
     }
   }
 
@@ -194,7 +219,8 @@ export function FriendsView() {
     if (
       busyUserId === user.id ||
       isAlreadyFriend(user.id, friendIds) ||
-      isOutgoingPending(user.id, outgoingUserIds)
+      isOutgoingPending(user.id, outgoingUserIds) ||
+      isIncomingPending(user.id, incomingUserIds)
     ) {
       return;
     }
@@ -202,14 +228,18 @@ export function FriendsView() {
     setBusyUserId(user.id);
     setError(null);
     try {
-      await sendFriendRequest(user.id);
-      await loadFriendsData();
-    } catch (err) {
-      const message = formatFriendRequestError(err, "申請に失敗しました");
-      setError(message);
-      if (message === "すでに申請済みです") {
-        await loadFriendsData();
+      try {
+        await sendFriendRequest(user.id);
+      } catch (err) {
+        const message = formatFriendRequestError(err, "申請に失敗しました");
+        setError(message);
+        if (message === "すでに申請済みです") {
+          await refreshFriendsData("一覧の更新に失敗しました");
+        }
+        return;
       }
+
+      await refreshFriendsData("申請は送信しましたが、一覧の更新に失敗しました");
     } finally {
       setBusyUserId(null);
     }
@@ -227,6 +257,13 @@ export function FriendsView() {
       return (
         <span className="rounded-full border border-border bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground">
           申請済み
+        </span>
+      );
+    }
+    if (isIncomingPending(user.id, incomingUserIds)) {
+      return (
+        <span className="rounded-full border border-border bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground">
+          申請あり
         </span>
       );
     }
@@ -256,7 +293,10 @@ export function FriendsView() {
 
   const trimmedQuery = searchQuery.trim();
   const showSearchEmpty =
-    trimmedQuery.length > 0 && !searching && searchResults.length === 0;
+    trimmedQuery.length > 0 &&
+    !searching &&
+    !searchError &&
+    searchResults.length === 0;
 
   return (
     <div className="flex flex-1 flex-col gap-6 pb-mogu-screen-y">
@@ -289,6 +329,7 @@ export function FriendsView() {
               if (nextQuery.trim().length === 0) {
                 setSearchResults([]);
                 setSearching(false);
+                setSearchError(null);
               }
             }}
             placeholder="名前で友達を探す"
@@ -300,6 +341,12 @@ export function FriendsView() {
       {error ? (
         <p className="px-mogu-screen-x text-sm text-destructive" role="alert">
           {error}
+        </p>
+      ) : null}
+
+      {searchError ? (
+        <p className="px-mogu-screen-x text-sm text-destructive" role="alert">
+          {searchError}
         </p>
       ) : null}
 
@@ -356,7 +403,9 @@ export function FriendsView() {
         <section className="space-y-2 px-mogu-screen-x">
           <h2 className="text-xs font-medium text-muted-foreground">申請(受信)</h2>
           <ul className="space-y-3">
-            {requests.map((request) => (
+            {requests.map((request) => {
+              const isBusy = busyPairId === request.pairId;
+              return (
               <li
                 key={request.pairId}
                 className="rounded-2xl border border-border bg-mogu-surface-elevated p-4"
@@ -377,19 +426,26 @@ export function FriendsView() {
                   <Button
                     type="button"
                     variant="outline"
-                    disabled={busyPairId === request.pairId}
+                    disabled={isBusy}
                     onClick={() => void handleReject(request.pairId)}
                     className="h-10 flex-1 rounded-2xl"
                   >
-                    拒否
+                    {isBusy && busyRequestAction === "reject" ? (
+                      <>
+                        <LoaderCircleIcon className="size-4 animate-spin" aria-hidden />
+                        処理中…
+                      </>
+                    ) : (
+                      "拒否"
+                    )}
                   </Button>
                   <Button
                     type="button"
-                    disabled={busyPairId === request.pairId}
+                    disabled={isBusy}
                     onClick={() => void handleAccept(request.pairId)}
                     className="h-10 flex-1 rounded-2xl"
                   >
-                    {busyPairId === request.pairId ? (
+                    {isBusy && busyRequestAction === "accept" ? (
                       <>
                         <LoaderCircleIcon className="size-4 animate-spin" aria-hidden />
                         処理中…
@@ -400,7 +456,8 @@ export function FriendsView() {
                   </Button>
                 </div>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </section>
       ) : null}

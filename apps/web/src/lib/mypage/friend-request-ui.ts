@@ -72,3 +72,10 @@ export function isAlreadyFriend(
 ): boolean {
   return friendIds.has(userId);
 }
+
+export function isIncomingPending(
+  userId: string,
+  incomingUserIds: ReadonlySet<string>,
+): boolean {
+  return incomingUserIds.has(userId);
+}

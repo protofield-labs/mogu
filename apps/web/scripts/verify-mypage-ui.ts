@@ -20,6 +20,7 @@ import {
   findDuplicateDisplayNames,
   formatAvatarColorLabel,
   formatFriendRequestError,
+  isIncomingPending,
 } from "../src/lib/mypage/friend-request-ui";
 
 function assert(condition: boolean, message: string): void {
@@ -97,6 +98,7 @@ function main() {
   ]);
   assert(duplicates.has("dev") && !duplicates.has("Ken"), "duplicate names");
   assert(formatAvatarColorLabel("#2563EB") === "ブルー", "avatar color label");
+  assert(isIncomingPending("u1", new Set(["u1"])), "incoming pending");
 
   console.log("PASS: mypage UI helpers verified");
 }
