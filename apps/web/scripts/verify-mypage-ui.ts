@@ -63,7 +63,7 @@ function main() {
   assert(!shouldShowFlagInbox(summarizeWeeklyFlags([], weekOf)), "hide empty inbox");
 
   const stats = formatStatsRow({ collections: 6, spots: 41, friends: 3 });
-  assert(stats.collectionsLabel === "6 棚", "collections label");
+  assert(stats.collectionsLabel === "6 コレクション", "collections label");
   assert(stats.spotsLabel === "41 スポット", "spots label");
   assert(stats.friendsLabel === "3 友達", "friends label");
 

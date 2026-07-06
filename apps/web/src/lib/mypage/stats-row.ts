@@ -10,7 +10,7 @@ export function formatStatsRow(counts: MeCounts): {
   friendsLabel: string;
 } {
   return {
-    collectionsLabel: `${counts.collections} 棚`,
+    collectionsLabel: `${counts.collections} コレクション`,
     spotsLabel: `${counts.spots} スポット`,
     friendsLabel: `${counts.friends} 友達`,
   };
