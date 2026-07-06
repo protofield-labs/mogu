@@ -22,6 +22,13 @@ export function markFeedRead(at: Date = new Date()): void {
   window.localStorage.setItem(LAST_READ_FEED_AT_KEY, at.toISOString());
 }
 
+export function clearLastReadFeedAt(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.localStorage.removeItem(LAST_READ_FEED_AT_KEY);
+}
+
 export function isFeedItemUnread(
   createdAt: string,
   lastReadAt: Date | null,
@@ -40,6 +47,14 @@ export function friendHasUnreadFeed(
   return feedItems.some(
     (item) =>
       item.actor.id === friendId && isFeedItemUnread(item.createdAt, lastReadAt),
+  );
+}
+
+/** Oldest createdAt among loaded items (ms). Infinity when empty. */
+export function oldestFeedItemTime(feedItems: FeedItem[]): number {
+  return feedItems.reduce(
+    (oldest, item) => Math.min(oldest, new Date(item.createdAt).getTime()),
+    Number.POSITIVE_INFINITY,
   );
 }
 

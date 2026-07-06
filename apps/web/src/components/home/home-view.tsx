@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { AvatarRow } from "@/components/home/avatar-row";
 import { FeedCompactRow } from "@/components/home/feed-compact-row";
@@ -14,34 +14,76 @@ import { fetchFeedPage, fetchHomeRecommendation } from "@/lib/home/browser-api";
 import {
   getLastReadFeedAt,
   markFeedRead,
+  oldestFeedItemTime,
   shouldShowSoloEmptyState,
 } from "@/lib/home/feed-read";
-import type { FeedItem, Recommendation } from "@/lib/home/types";
+import type { FeedItem, FeedPage, Recommendation } from "@/lib/home/types";
 import { fetchFriends, fetchMe } from "@/lib/mypage/browser-api";
 import type { FriendUser, MeProfile } from "@/lib/mypage/types";
+
+type RecommendationState =
+  | { status: "loading" }
+  | { status: "ready"; value: Recommendation | null }
+  | { status: "error" };
+
+/**
+ * Extra pages fetched on load so avatar-row unread rings can see items
+ * between lastReadFeedAt and the first page boundary (#54 ring accuracy).
+ */
+const MAX_RING_BACKFILL_PAGES = 3;
+
+async function loadFeedForRings(
+  lastReadAt: Date | null,
+): Promise<{ items: FeedItem[]; nextCursor: string | null }> {
+  let page: FeedPage = await fetchFeedPage();
+  const items = [...page.items];
+
+  if (lastReadAt) {
+    let backfills = 0;
+    while (
+      page.nextCursor &&
+      backfills < MAX_RING_BACKFILL_PAGES &&
+      oldestFeedItemTime(items) > lastReadAt.getTime()
+    ) {
+      page = await fetchFeedPage(page.nextCursor);
+      items.push(...page.items);
+      backfills += 1;
+    }
+  }
+
+  return { items, nextCursor: page.nextCursor };
+}
 
 export function HomeView() {
   const [me, setMe] = useState<MeProfile | null>(null);
   const [friends, setFriends] = useState<FriendUser[]>([]);
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
+  const [recommendation, setRecommendation] = useState<RecommendationState>({
+    status: "loading",
+  });
   const [lastReadAt, setLastReadAt] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const feedViewedRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       try {
-        const [profile, friendList, feedPage, homeRecommendation] =
+        const storedLastReadAt = getLastReadFeedAt();
+        const [profile, friendList, feed, homeRecommendation] =
           await Promise.all([
             fetchMe(),
             fetchFriends(),
-            fetchFeedPage(),
-            fetchHomeRecommendation().catch(() => null),
+            loadFeedForRings(storedLastReadAt),
+            fetchHomeRecommendation()
+              .then(
+                (value): RecommendationState => ({ status: "ready", value }),
+              )
+              .catch((): RecommendationState => ({ status: "error" })),
           ]);
 
         if (cancelled) {
@@ -50,10 +92,12 @@ export function HomeView() {
 
         setMe(profile);
         setFriends(friendList);
-        setFeedItems(feedPage.items);
-        setNextCursor(feedPage.nextCursor);
+        setFeedItems(feed.items);
+        setNextCursor(feed.nextCursor);
         setRecommendation(homeRecommendation);
-        setLastReadAt(getLastReadFeedAt());
+        setLastReadAt(storedLastReadAt);
+        // Only a successfully rendered feed counts as "seen" (#54 既読管理).
+        feedViewedRef.current = true;
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "読み込みに失敗しました");
@@ -73,7 +117,9 @@ export function HomeView() {
 
   useEffect(() => {
     return () => {
-      markFeedRead();
+      if (feedViewedRef.current) {
+        markFeedRead();
+      }
     };
   }, []);
 
@@ -91,6 +137,16 @@ export function HomeView() {
       setError(err instanceof Error ? err.message : "続きを読み込めませんでした");
     } finally {
       setLoadingMore(false);
+    }
+  }
+
+  async function handleRetryRecommendation() {
+    setRecommendation({ status: "loading" });
+    try {
+      const value = await fetchHomeRecommendation();
+      setRecommendation({ status: "ready", value });
+    } catch {
+      setRecommendation({ status: "error" });
     }
   }
 
@@ -131,8 +187,22 @@ export function HomeView() {
         lastReadAt={lastReadAt}
       />
 
-      {recommendation ? (
-        <RecommendationCompactRow recommendation={recommendation} />
+      {recommendation.status === "ready" && recommendation.value ? (
+        <RecommendationCompactRow recommendation={recommendation.value} />
+      ) : recommendation.status === "error" ? (
+        <div className="mx-mogu-screen-x flex items-center justify-between rounded-2xl border border-border bg-mogu-surface-elevated px-4 py-3">
+          <span className="text-sm text-muted-foreground">
+            一推しを読み込めませんでした
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void handleRetryRecommendation()}
+          >
+            再読み込み
+          </Button>
+        </div>
       ) : (
         <Link
           href="/search"

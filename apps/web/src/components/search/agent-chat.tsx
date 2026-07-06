@@ -120,10 +120,13 @@ export function AgentChat() {
     }
     initRef.current = true;
 
+    // Consume before any await: a failed session create must not leave the
+    // stashed recommendation behind for the next visitor on a shared device.
+    const pending = consumePendingRecommendation();
+
     void (async () => {
       try {
         const id = await createAgentSession();
-        const pending = consumePendingRecommendation();
         const initialEntries: ChatEntry[] = [createWelcomeEntry()];
         if (pending) {
           initialEntries.push(

@@ -7,6 +7,7 @@ import {
   getLastReadFeedAt,
   isFeedItemUnread,
   markFeedRead,
+  oldestFeedItemTime,
   shouldShowSoloEmptyState,
   sortFriendsForAvatarRow,
 } from "../src/lib/home/feed-read";
@@ -84,6 +85,16 @@ function main() {
 
   const sorted = sortFriendsForAvatarRow(friends, feedItems, lastRead);
   assert(sorted[0]?.id === "f-ken", "unread friend sorted first");
+
+  assert(
+    oldestFeedItemTime(feedItems) ===
+      new Date("2026-07-05T10:00:00.000Z").getTime(),
+    "oldest feed item time",
+  );
+  assert(
+    oldestFeedItemTime([]) === Number.POSITIVE_INFINITY,
+    "empty feed yields Infinity (stops ring backfill)",
+  );
 
   assert(formatRatingChip("again") === "また行きたい", "rating chip");
   assert(formatViaLabel("Ken") === "via Ken", "via label");
