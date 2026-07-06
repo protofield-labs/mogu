@@ -124,8 +124,12 @@ export function AgentChat() {
     undefined,
   );
   const sendingRef = useRef(false);
+  const mountInitStartedRef = useRef(false);
+  const connectGenerationRef = useRef(0);
 
   async function connectAgentChatSession({ isRetry = false } = {}) {
+    const generation = ++connectGenerationRef.current;
+
     if (isRetry) {
       setSessionStatus("loading");
       setInitError(null);
@@ -138,6 +142,9 @@ export function AgentChat() {
 
     try {
       const id = await createAgentSession();
+      if (generation !== connectGenerationRef.current) {
+        return;
+      }
       const initialEntries: ChatEntry[] = [createWelcomeEntry()];
       const pending = pendingRecommendationRef.current;
       if (pending) {
@@ -153,6 +160,9 @@ export function AgentChat() {
       setEntries(initialEntries);
       setSessionStatus("ready");
     } catch (err) {
+      if (generation !== connectGenerationRef.current) {
+        return;
+      }
       setSessionId(null);
       setInitError(
         formatAgentUserError(err, "セッションの開始に失敗しました"),
@@ -163,12 +173,19 @@ export function AgentChat() {
   }
 
   useEffect(() => {
+    if (mountInitStartedRef.current) {
+      return;
+    }
+    mountInitStartedRef.current = true;
     queueMicrotask(() => {
       void connectAgentChatSession();
     });
   }, []);
 
   async function handleRetrySession() {
+    if (retryingSession) {
+      return;
+    }
     setRetryingSession(true);
     try {
       await connectAgentChatSession({ isRetry: true });
