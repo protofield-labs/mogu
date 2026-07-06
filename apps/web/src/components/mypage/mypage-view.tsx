@@ -1,13 +1,16 @@
 "use client";
 
-import { Plus } from "lucide-react";
-import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
+import { Plus, Sparkles } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { MypageViewSkeleton } from "@/components/loading/skeletons";
+import { AccountSettings } from "@/components/mypage/account-settings";
 import { CollectionGrid } from "@/components/mypage/collection-grid";
 import { FlagInboxCard } from "@/components/mypage/flag-inbox-card";
+import { MypageNavTiles } from "@/components/mypage/mypage-nav-tiles";
 import { MypageTopBar } from "@/components/mypage/mypage-top-bar";
-import { ProfileSection } from "@/components/mypage/profile-section";
+import { ProfileHeroCard } from "@/components/mypage/profile-hero-card";
 import {
   createCollection,
   deleteCollection,
@@ -24,6 +27,7 @@ import {
   markFlagsRead,
 } from "@/lib/mypage/browser-api";
 import { summarizeWeeklyFlags } from "@/lib/mypage/flag-inbox";
+import { shouldShowFriendRequestBadge } from "@/lib/mypage/stats-row";
 
 type CollectionForm = {
   name: string;
@@ -54,6 +58,7 @@ export function MypageView() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shelfError, setShelfError] = useState<string | null>(null);
+  const collectionsRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -229,33 +234,72 @@ export function MypageView() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-6 pb-mogu-screen-y">
+    <div className="flex flex-1 flex-col gap-5 pb-mogu-screen-y">
       <MypageTopBar />
-      <ProfileSection
+      <ProfileHeroCard me={me} pendingFriendRequests={pendingFriendRequests} />
+
+      <MypageNavTiles
+        collectionCount={me.counts.collections}
+        friendCount={me.counts.friends}
+        showFriendBadge={shouldShowFriendRequestBadge(pendingFriendRequests)}
+        coverUrl={collections.find((collection) => collection.coverUrl)?.coverUrl ?? null}
+        onCollectionsClick={() =>
+          collectionsRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          })
+        }
+      />
+
+      <FlagInboxCard summary={flagSummary} />
+
+      {me.counts.spots === 0 ? (
+        <section className="px-mogu-screen-x">
+          <Link
+            href="/search"
+            className="flex items-center gap-4 rounded-3xl bg-mogu-surface-elevated p-4 shadow-sm transition-shadow hover:shadow-md"
+          >
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-muted to-background">
+              <Sparkles className="size-5 text-foreground" aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-foreground">
+                最初のお店を記録しよう
+              </span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                記録が増えるほど、断言が鋭くなります
+              </span>
+            </span>
+          </Link>
+        </section>
+      ) : null}
+
+      <AccountSettings
         me={me}
-        pendingFriendRequests={pendingFriendRequests}
         onProfileUpdated={(profile) =>
           setMe((current) => (current ? { ...current, ...profile } : current))
         }
       />
-      <FlagInboxCard summary={flagSummary} />
 
-      <section className="space-y-3 px-mogu-screen-x">
+      <section
+        ref={collectionsRef}
+        className="scroll-mt-4 space-y-3 px-mogu-screen-x pt-2"
+      >
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground">棚を追加</h2>
+          <h2 className="text-lg font-semibold text-foreground">コレクション</h2>
           <button
             type="button"
             onClick={() => setShowCreateForm((current) => !current)}
-            className="inline-flex items-center gap-1 rounded-full border border-border bg-mogu-surface-elevated px-3 py-1.5 text-xs font-medium"
+            className="inline-flex items-center gap-1 rounded-full bg-mogu-surface-elevated px-3 py-1.5 text-xs font-medium shadow-sm transition-shadow hover:shadow-md"
           >
             <Plus className="size-3.5" aria-hidden />
-            新しい棚
+            新しいコレクション
           </button>
         </div>
         {showCreateForm ? (
           <form
             onSubmit={(event) => void handleCreate(event)}
-            className="space-y-3 rounded-3xl border border-border bg-mogu-surface-elevated p-4"
+            className="space-y-3 rounded-3xl bg-mogu-surface-elevated p-4 shadow-sm"
           >
             <CollectionFormFields form={createForm} onChange={setCreateForm} />
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -277,7 +321,7 @@ export function MypageView() {
           </h2>
           <form
             onSubmit={(event) => void handleSaveEdit(event)}
-            className="space-y-3 rounded-3xl border border-border bg-mogu-surface-elevated p-4"
+            className="space-y-3 rounded-3xl bg-mogu-surface-elevated p-4 shadow-sm"
           >
             <CollectionFormFields form={editForm} onChange={setEditForm} />
             {shelfError ? (
@@ -347,7 +391,7 @@ function CollectionFormFields({
             onChange({ ...form, description: event.target.value })
           }
           className="min-h-20 w-full resize-none rounded-2xl border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-          placeholder="どんな棚かメモ"
+          placeholder="どんなコレクションかメモ"
         />
       </label>
       <div className="grid grid-cols-2 gap-3">
@@ -375,7 +419,7 @@ function CollectionFormFields({
             value={form.theme}
             onChange={(event) => onChange({ ...form, theme: event.target.value })}
             className="h-10 w-full rounded-2xl border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-            placeholder="デート"
+          placeholder="デート"
           />
         </label>
       </div>

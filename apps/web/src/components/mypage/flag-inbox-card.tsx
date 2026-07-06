@@ -42,7 +42,7 @@ export function FlagInboxCard({ summary }: FlagInboxCardProps) {
 
   return (
     <section
-      className="mx-mogu-screen-x rounded-3xl border border-border bg-mogu-surface-elevated p-4"
+      className="mx-mogu-screen-x rounded-3xl bg-mogu-surface-elevated p-4 shadow-sm"
       aria-label="フラグ受信箱"
     >
       <p className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
