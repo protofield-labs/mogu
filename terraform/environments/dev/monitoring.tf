@@ -12,6 +12,7 @@
 locals {
   cloud_run_service_name = "${var.environment}-web"
   cloud_sql_database_id  = "${var.project_id}:${var.environment}-pg"
+  daily_reco_job_name    = "${var.environment}-daily-reco"
 
   slack_notification_channel_ids = var.slack_notification_channel_id != "" ? [var.slack_notification_channel_id] : [
     for ch in google_monitoring_notification_channel.slack : ch.id
@@ -204,6 +205,44 @@ resource "google_monitoring_alert_policy" "cloud_sql_disk" {
       aggregations {
         alignment_period   = "60s"
         per_series_aligner = "ALIGN_MEAN"
+      }
+    }
+  }
+
+  notification_channels = local.slack_notification_channel_ids
+
+  alert_strategy {
+    auto_close = "604800s"
+  }
+
+  user_labels = local.labels
+
+  depends_on = [google_project_service.services]
+}
+
+resource "google_monitoring_alert_policy" "daily_reco_job_failed" {
+  count = var.enable_db_connection && length(local.slack_notification_channel_ids) > 0 ? 1 : 0
+
+  display_name = "${var.environment}-daily-reco-job-failed"
+  combiner     = "OR"
+
+  conditions {
+    display_name = "Daily recommendation job failed on ${local.daily_reco_job_name}"
+
+    condition_threshold {
+      filter = join(" AND ", [
+        "resource.type=\"cloud_run_job\"",
+        "resource.labels.job_name=\"${local.daily_reco_job_name}\"",
+        "resource.labels.location=\"${var.region}\"",
+        "metric.type=\"run.googleapis.com/job/completed_execution_count\"",
+        "metric.labels.result=\"failed\"",
+      ])
+      duration        = "60s"
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_RATE"
       }
     }
   }

@@ -187,6 +187,23 @@ gcloud run jobs execute dev-db-migrate \
   --project=mogu-501309 --region=asia-northeast1 --wait
 ```
 
+**Daily recommendations batch (#91)** — Terraform creates `dev-daily-reco` (Cloud Run Job)
+and `dev-daily-reco` (Cloud Scheduler, JST 04:00). Rebuild the migrate image after
+batch script changes, then apply Terraform:
+
+```bash
+gcloud builds submit apps/web \
+  --project=mogu-501309 \
+  --config=apps/web/cloudbuild.migrate.yaml
+
+./scripts/plan.sh terraform/environments/dev
+terraform -chdir=terraform/environments/dev apply
+
+# Manual smoke test
+gcloud run jobs execute dev-daily-reco \
+  --project=mogu-501309 --region=asia-northeast1 --wait
+```
+
 Copy `apps/web/.env.example` to `apps/web/.env` for local `pnpm dev` if needed.
 
 **Verify RLS** (uses `app_user`, not the Cloud SQL admin):

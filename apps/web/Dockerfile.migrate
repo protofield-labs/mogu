@@ -12,6 +12,8 @@ COPY prisma ./prisma
 RUN pnpm install --frozen-lockfile
 COPY scripts ./scripts
 COPY src/lib/seed ./src/lib/seed
+COPY src/lib/recommendations ./src/lib/recommendations
+COPY src/lib/db/prisma.ts ./src/lib/db/prisma.ts
 COPY tsconfig.json ./
 RUN groupadd --system --gid 1001 nodejs \
   && useradd --system --create-home --uid 1001 --gid nodejs migrate \

@@ -77,6 +77,17 @@ resource "google_service_account_iam_member" "web_sign_blob" {
   member             = "serviceAccount:${google_service_account.web.email}"
 }
 
+# #91: Cloud Scheduler OAuth → daily recommendation Cloud Run Job.
+resource "google_cloud_run_v2_job_iam_member" "daily_reco_scheduler_invoker" {
+  count = var.enable_db_connection ? 1 : 0
+
+  project  = var.project_id
+  location = var.region
+  name     = module.daily_reco_job[0].name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.daily_reco_scheduler[0].email}"
+}
+
 # GitHub Actions: push images and deploy new revisions to Cloud Run.
 resource "google_project_iam_member" "github_actions_artifact_registry_writer" {
   project = var.project_id
