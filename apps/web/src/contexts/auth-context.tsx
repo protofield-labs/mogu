@@ -16,6 +16,8 @@ import {
 } from "firebase/auth";
 
 import { getFirebaseAuth } from "@/lib/auth/firebase-client";
+import { clearLastReadFeedAt } from "@/lib/home/feed-read";
+import { clearPendingRecommendation } from "@/lib/home/pending-recommendation";
 
 function isFirebaseConfigured(): boolean {
   return Boolean(
@@ -62,6 +64,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    // Per-user client state must not leak to the next account on a
+    // shared device (stashed recommendation, feed read marker).
+    clearPendingRecommendation();
+    clearLastReadFeedAt();
     await signOut(getFirebaseAuth());
   }, []);
 
