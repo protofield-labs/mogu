@@ -185,3 +185,23 @@ export async function upsertOnboardingUser(
 
   return toUserDto(user);
 }
+
+/** Update profile fields for an existing user (#81). */
+export async function updateUserProfile(
+  uid: string,
+  displayName: string,
+  avatarColor: string,
+): Promise<UserDto | null> {
+  try {
+    const user = await withAuthRls(uid, (tx) =>
+      tx.user.update({
+        where: { firebaseUid: uid },
+        data: { displayName, avatarColor },
+        select: userSelect,
+      }),
+    );
+    return toUserDto(user);
+  } catch {
+    return null;
+  }
+}

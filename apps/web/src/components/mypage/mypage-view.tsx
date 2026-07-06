@@ -8,6 +8,7 @@ import { CollectionGrid } from "@/components/mypage/collection-grid";
 import { FlagInboxCard } from "@/components/mypage/flag-inbox-card";
 import { MypageTopBar } from "@/components/mypage/mypage-top-bar";
 import { ProfileHeader } from "@/components/mypage/profile-header";
+import { SettingsSection } from "@/components/mypage/settings-section";
 import {
   createCollection,
   deleteCollection,
@@ -232,6 +233,12 @@ export function MypageView() {
     <div className="flex flex-1 flex-col gap-6 pb-mogu-screen-y">
       <MypageTopBar />
       <ProfileHeader me={me} pendingFriendRequests={pendingFriendRequests} />
+      <SettingsSection
+        me={me}
+        onProfileUpdated={(profile) =>
+          setMe((current) => (current ? { ...current, ...profile } : current))
+        }
+      />
       <FlagInboxCard summary={flagSummary} />
 
       <section className="space-y-3 px-mogu-screen-x">
