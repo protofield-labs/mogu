@@ -5,13 +5,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
+import {
+  AuthErrorMessage,
+  AuthFormField,
+  AuthFormShell,
+  AuthPasswordField,
+} from "@/components/auth/auth-form";
 import { AuthFormSkeleton } from "@/components/loading/skeletons";
 import { useAuth } from "@/contexts/auth-context";
-import {
-  getAuthErrorMessage,
-  signUpWithEmail,
-} from "@/lib/auth/client-auth";
-import { cn } from "@/lib/utils";
+import { getAuthErrorMessage, signUpWithEmail } from "@/lib/auth/client-auth";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -22,17 +24,12 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Skip while submitting: onIdTokenChanged sets user before provisioning
-  // finishes, and redirecting then lets /api/v1/users/me race the upsert.
-  // The submit handler redirects after provisionUser resolves.
   useEffect(() => {
     if (!loading && user && !submitting) {
       router.replace("/");
     }
   }, [user, loading, submitting, router]);
 
-  // On success, keep `submitting` true so the effect above cannot race the
-  // handler navigation with a redirect to "/"; the page unmounts on replace.
   async function handleSignUp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -41,7 +38,7 @@ export default function SignupPage() {
       await signUpWithEmail(email, password, displayName);
       router.replace("/onboarding");
     } catch (err) {
-      setError(getAuthErrorMessage(err));
+      setError(getAuthErrorMessage(err, "signup"));
       setSubmitting(false);
     }
   }
@@ -51,83 +48,66 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div
-        className={cn(
-          "relative w-full max-w-md space-y-6 rounded-3xl border border-border bg-mogu-surface-elevated p-8 shadow-sm transition-opacity",
-          submitting && "pointer-events-none opacity-60",
-        )}
-      >
-        <div className="space-y-1 text-center">
-          <h1 className="text-2xl font-bold text-foreground">Sign up</h1>
-          <p className="text-sm text-muted-foreground">Create your mogu account</p>
-        </div>
-
-        <form className="space-y-4" onSubmit={(e) => void handleSignUp(e)}>
-          <label className="block space-y-1">
-            <span className="text-sm font-medium text-foreground">
-              Display name
-            </span>
-            <input
-              type="text"
-              required
-              maxLength={100}
-              autoComplete="name"
-              disabled={submitting}
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              className="h-10 w-full rounded-2xl border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
-            />
-          </label>
-          <label className="block space-y-1">
-            <span className="text-sm font-medium text-foreground">Email</span>
-            <input
-              type="email"
-              required
-              autoComplete="email"
-              disabled={submitting}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="h-10 w-full rounded-2xl border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
-            />
-          </label>
-          <label className="block space-y-1">
-            <span className="text-sm font-medium text-foreground">Password</span>
-            <input
-              type="password"
-              required
-              minLength={6}
-              autoComplete="new-password"
-              disabled={submitting}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="h-10 w-full rounded-2xl border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
-            />
-          </label>
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
-          <button
-            type="submit"
-            disabled={submitting}
-            className="flex h-10 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/80 disabled:opacity-50"
-          >
-            {submitting ? (
-              <>
-                <LoaderCircleIcon className="size-4 animate-spin" aria-hidden />
-                アカウント作成中…
-              </>
-            ) : (
-              "Create account"
-            )}
-          </button>
-        </form>
-
+    <AuthFormShell
+      eyebrow="mogu"
+      title="新規登録"
+      description="アカウントを作成して、食の記録をはじめましょう。"
+      submitting={submitting}
+      footer={
         <p className="text-center text-sm text-muted-foreground">
-          Already have an account?{" "}
-          <Link href="/login" className="text-primary hover:underline">
-            Log in
+          すでにアカウントをお持ちの方は{" "}
+          <Link href="/login" className="font-medium text-primary hover:underline">
+            ログイン
           </Link>
         </p>
-      </div>
-    </main>
+      }
+    >
+      <form className="space-y-4" onSubmit={(e) => void handleSignUp(e)}>
+        <AuthFormField
+          label="表示名"
+          type="text"
+          required
+          maxLength={100}
+          autoComplete="name"
+          disabled={submitting}
+          value={displayName}
+          onChange={(event) => setDisplayName(event.target.value)}
+          placeholder="例: まえはら"
+        />
+        <AuthFormField
+          label="メールアドレス"
+          type="email"
+          required
+          autoComplete="email"
+          disabled={submitting}
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+        />
+        <AuthPasswordField
+          label="パスワード"
+          autoComplete="new-password"
+          disabled={submitting}
+          minLength={6}
+          value={password}
+          onChange={setPassword}
+          hint="6文字以上で設定してください"
+        />
+        {error ? <AuthErrorMessage message={error} /> : null}
+        <button
+          type="submit"
+          disabled={submitting}
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80 disabled:opacity-50"
+        >
+          {submitting ? (
+            <>
+              <LoaderCircleIcon className="size-4 animate-spin" aria-hidden />
+              アカウント作成中…
+            </>
+          ) : (
+            "アカウントを作成"
+          )}
+        </button>
+      </form>
+    </AuthFormShell>
   );
 }

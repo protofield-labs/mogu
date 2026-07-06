@@ -5,6 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
+import {
+  AuthDivider,
+  AuthErrorMessage,
+  AuthFormField,
+  AuthFormShell,
+  AuthPasswordField,
+} from "@/components/auth/auth-form";
+import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { AuthFormSkeleton } from "@/components/loading/skeletons";
 import { useAuth } from "@/contexts/auth-context";
 import {
@@ -12,30 +20,6 @@ import {
   signInWithEmail,
   signInWithGoogle,
 } from "@/lib/auth/client-auth";
-import { cn } from "@/lib/utils";
-
-function GoogleIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4">
-      <path
-        fill="#4285F4"
-        d="M23.52 12.27c0-.85-.08-1.67-.22-2.45H12v4.63h6.46a5.52 5.52 0 0 1-2.4 3.62v3h3.88c2.27-2.09 3.58-5.17 3.58-8.8Z"
-      />
-      <path
-        fill="#34A853"
-        d="M12 24c3.24 0 5.96-1.08 7.94-2.92l-3.88-3c-1.07.72-2.45 1.15-4.06 1.15-3.13 0-5.78-2.11-6.72-4.95H1.27v3.1A12 12 0 0 0 12 24Z"
-      />
-      <path
-        fill="#FBBC05"
-        d="M5.28 14.28a7.2 7.2 0 0 1 0-4.56v-3.1H1.27a12 12 0 0 0 0 10.76l4.01-3.1Z"
-      />
-      <path
-        fill="#EA4335"
-        d="M12 4.77c1.76 0 3.35.6 4.6 1.8l3.44-3.45A11.98 11.98 0 0 0 12 0 12 12 0 0 0 1.27 6.62l4.01 3.1C6.22 6.88 8.87 4.77 12 4.77Z"
-      />
-    </svg>
-  );
-}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -44,27 +28,25 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [googleSubmitting, setGoogleSubmitting] = useState(false);
 
-  // Skip while submitting: onIdTokenChanged sets user before provisioning
-  // finishes, and redirecting then lets /api/v1/users/me race the upsert.
-  // The submit handlers redirect after provisionUser resolves.
+  const busy = submitting || googleSubmitting;
+
   useEffect(() => {
-    if (!loading && user && !submitting) {
+    if (!loading && user && !busy) {
       router.replace("/");
     }
-  }, [user, loading, submitting, router]);
+  }, [user, loading, busy, router]);
 
-  // On success, keep `submitting` true so the effect above cannot race the
-  // handler navigation with a redirect to "/"; the page unmounts on replace.
   async function handleGoogleSignIn() {
     setError(null);
-    setSubmitting(true);
+    setGoogleSubmitting(true);
     try {
       await signInWithGoogle();
       router.replace("/onboarding");
     } catch (err) {
-      setError(getAuthErrorMessage(err));
-      setSubmitting(false);
+      setError(getAuthErrorMessage(err, "login"));
+      setGoogleSubmitting(false);
     }
   }
 
@@ -76,7 +58,7 @@ export default function LoginPage() {
       await signInWithEmail(email, password);
       router.replace("/onboarding");
     } catch (err) {
-      setError(getAuthErrorMessage(err));
+      setError(getAuthErrorMessage(err, "login"));
       setSubmitting(false);
     }
   }
@@ -86,85 +68,61 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div
-        className={cn(
-          "relative w-full max-w-md space-y-6 rounded-3xl border border-border bg-mogu-surface-elevated p-8 shadow-sm transition-opacity",
-          submitting && "pointer-events-none opacity-60",
-        )}
-      >
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-foreground">Log in</h1>
-        </div>
-
-        <button
-          type="button"
-          disabled={submitting}
-          onClick={() => void handleGoogleSignIn()}
-          className="flex w-full items-center justify-center gap-3 rounded-2xl border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50"
-        >
-          {submitting ? (
-            <LoaderCircleIcon className="size-4 animate-spin" aria-hidden />
-          ) : (
-            <GoogleIcon />
-          )}
-          {submitting ? "ログイン中…" : "Continue with Google"}
-        </button>
-
-        <div className="relative text-center text-xs text-muted-foreground">
-          <span className="bg-mogu-surface-elevated px-2">or</span>
-          <div className="absolute inset-x-0 top-1/2 -z-10 border-t border-border" />
-        </div>
-
-        <form className="space-y-4" onSubmit={(e) => void handleEmailSignIn(e)}>
-          <label className="block space-y-1">
-            <span className="text-sm font-medium text-foreground">Email</span>
-            <input
-              type="email"
-              required
-              autoComplete="email"
-              disabled={submitting}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="h-10 w-full rounded-2xl border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
-            />
-          </label>
-          <label className="block space-y-1">
-            <span className="text-sm font-medium text-foreground">Password</span>
-            <input
-              type="password"
-              required
-              autoComplete="current-password"
-              disabled={submitting}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="h-10 w-full rounded-2xl border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
-            />
-          </label>
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
-          <button
-            type="submit"
-            disabled={submitting}
-            className="flex h-10 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/80 disabled:opacity-50"
-          >
-            {submitting ? (
-              <>
-                <LoaderCircleIcon className="size-4 animate-spin" aria-hidden />
-                ログイン中…
-              </>
-            ) : (
-              "Log in with Email"
-            )}
-          </button>
-        </form>
-
+    <AuthFormShell
+      eyebrow="mogu"
+      title="ログイン"
+      description="友達の食の記録と、AI の店づけにアクセスします。"
+      submitting={busy}
+      footer={
         <p className="text-center text-sm text-muted-foreground">
-          No account?{" "}
-          <Link href="/signup" className="text-primary hover:underline">
-            Sign up
+          アカウントをお持ちでない方は{" "}
+          <Link href="/signup" className="font-medium text-primary hover:underline">
+            新規登録
           </Link>
         </p>
-      </div>
-    </main>
+      }
+    >
+      <GoogleSignInButton
+        disabled={submitting}
+        loading={googleSubmitting}
+        onClick={() => void handleGoogleSignIn()}
+      />
+
+      <AuthDivider />
+
+      <form className="space-y-4" onSubmit={(e) => void handleEmailSignIn(e)}>
+        <AuthFormField
+          label="メールアドレス"
+          type="email"
+          required
+          autoComplete="email"
+          disabled={busy}
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+        />
+        <AuthPasswordField
+          label="パスワード"
+          autoComplete="current-password"
+          disabled={busy}
+          value={password}
+          onChange={setPassword}
+        />
+        {error ? <AuthErrorMessage message={error} /> : null}
+        <button
+          type="submit"
+          disabled={busy}
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80 disabled:opacity-50"
+        >
+          {submitting ? (
+            <>
+              <LoaderCircleIcon className="size-4 animate-spin" aria-hidden />
+              ログイン中…
+            </>
+          ) : (
+            "メールアドレスでログイン"
+          )}
+        </button>
+      </form>
+    </AuthFormShell>
   );
 }
