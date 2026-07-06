@@ -10,7 +10,6 @@ import { FlagInboxCard } from "@/components/mypage/flag-inbox-card";
 import { MypageNavTiles } from "@/components/mypage/mypage-nav-tiles";
 import { MypageTopBar } from "@/components/mypage/mypage-top-bar";
 import { ProfileHeroCard } from "@/components/mypage/profile-hero-card";
-import { ProfileLogoutRow } from "@/components/mypage/profile-logout-row";
 import {
   createCollection,
   deleteCollection,
@@ -243,7 +242,6 @@ export function MypageView() {
           setMe((current) => (current ? { ...current, ...profile } : current))
         }
       />
-      <ProfileLogoutRow />
 
       <MypageNavTiles
         collectionCount={me.counts.collections}
