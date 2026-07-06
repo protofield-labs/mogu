@@ -73,7 +73,7 @@ function main() {
   assert(
     isRecommendation({
       assertion: "ここがおすすめ",
-      evidence: "Kenの棚に3件",
+      evidence: "Kenのコレクションに3件",
       spot: { id: "s1" },
       alternatives: [],
     }),

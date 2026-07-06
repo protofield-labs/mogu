@@ -145,19 +145,19 @@ export function HomeViewSkeleton({ embedded = false }: { embedded?: boolean }) {
 
 export function MypageViewSkeleton() {
   return (
-    <LoadingShell label="マイページを読み込んでいます" className="gap-5 pb-mogu-screen-y">
+    <LoadingShell label="プロフィールを読み込んでいます" className="gap-5 pb-mogu-screen-y">
       <div className="px-mogu-screen-x pt-4">
         <Skeleton className="h-8 w-36 rounded-lg" />
       </div>
 
-      <Skeleton className="mx-mogu-screen-x h-44 rounded-3xl" />
+      <Skeleton className="mx-mogu-screen-x h-44 rounded-mogu-card" />
 
       <div className="grid grid-cols-2 gap-3 px-mogu-screen-x">
-        <Skeleton className="h-40 rounded-3xl" />
-        <Skeleton className="h-40 rounded-3xl" />
+        <Skeleton className="h-40 rounded-mogu-card" />
+        <Skeleton className="h-40 rounded-mogu-card" />
       </div>
 
-      <Skeleton className="mx-mogu-screen-x h-[4.5rem] rounded-3xl" />
+      <Skeleton className="mx-mogu-screen-x h-[3.25rem] rounded-mogu-card" />
 
       <div className="space-y-3 px-mogu-screen-x pt-2">
         <div className="flex items-center justify-between">
@@ -166,7 +166,7 @@ export function MypageViewSkeleton() {
         </div>
         <div className="grid grid-cols-2 gap-3">
           {Array.from({ length: 4 }).map((_, index) => (
-            <Skeleton key={index} className="h-28 rounded-3xl" />
+            <Skeleton key={index} className="h-28 rounded-mogu-card" />
           ))}
         </div>
       </div>

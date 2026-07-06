@@ -158,7 +158,7 @@ export function SpotForm({
   return (
     <form
       onSubmit={(event) => void handleSubmit(event)}
-      className="space-y-4 rounded-3xl border border-border bg-mogu-surface-elevated p-4"
+      className="space-y-4 rounded-mogu-card border border-border bg-mogu-surface-elevated p-4"
     >
       <h2 className="text-sm font-semibold text-foreground">
         {editingSpot ? "スポットを編集" : "スポットを追加"}

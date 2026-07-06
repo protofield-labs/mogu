@@ -5,12 +5,12 @@ import { Plus, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { MypageViewSkeleton } from "@/components/loading/skeletons";
-import { AccountSettings } from "@/components/mypage/account-settings";
 import { CollectionGrid } from "@/components/mypage/collection-grid";
 import { FlagInboxCard } from "@/components/mypage/flag-inbox-card";
 import { MypageNavTiles } from "@/components/mypage/mypage-nav-tiles";
 import { MypageTopBar } from "@/components/mypage/mypage-top-bar";
 import { ProfileHeroCard } from "@/components/mypage/profile-hero-card";
+import { ProfileLogoutRow } from "@/components/mypage/profile-logout-row";
 import {
   createCollection,
   deleteCollection,
@@ -236,7 +236,14 @@ export function MypageView() {
   return (
     <div className="flex flex-1 flex-col gap-5 pb-mogu-screen-y">
       <MypageTopBar />
-      <ProfileHeroCard me={me} pendingFriendRequests={pendingFriendRequests} />
+      <ProfileHeroCard
+        me={me}
+        pendingFriendRequests={pendingFriendRequests}
+        onProfileUpdated={(profile) =>
+          setMe((current) => (current ? { ...current, ...profile } : current))
+        }
+      />
+      <ProfileLogoutRow />
 
       <MypageNavTiles
         collectionCount={me.counts.collections}
@@ -257,7 +264,7 @@ export function MypageView() {
         <section className="px-mogu-screen-x">
           <Link
             href="/search"
-            className="flex items-center gap-4 rounded-3xl bg-mogu-surface-elevated p-4 shadow-sm transition-shadow hover:shadow-md"
+            className="flex items-center gap-4 rounded-mogu-card bg-mogu-surface-elevated p-4 shadow-sm transition-shadow hover:shadow-md"
           >
             <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-muted to-background">
               <Sparkles className="size-5 text-foreground" aria-hidden />
@@ -273,13 +280,6 @@ export function MypageView() {
           </Link>
         </section>
       ) : null}
-
-      <AccountSettings
-        me={me}
-        onProfileUpdated={(profile) =>
-          setMe((current) => (current ? { ...current, ...profile } : current))
-        }
-      />
 
       <section
         ref={collectionsRef}
@@ -299,7 +299,7 @@ export function MypageView() {
         {showCreateForm ? (
           <form
             onSubmit={(event) => void handleCreate(event)}
-            className="space-y-3 rounded-3xl bg-mogu-surface-elevated p-4 shadow-sm"
+            className="space-y-3 rounded-mogu-card bg-mogu-surface-elevated p-4 shadow-sm"
           >
             <CollectionFormFields form={createForm} onChange={setCreateForm} />
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -321,7 +321,7 @@ export function MypageView() {
           </h2>
           <form
             onSubmit={(event) => void handleSaveEdit(event)}
-            className="space-y-3 rounded-3xl bg-mogu-surface-elevated p-4 shadow-sm"
+            className="space-y-3 rounded-mogu-card bg-mogu-surface-elevated p-4 shadow-sm"
           >
             <CollectionFormFields form={editForm} onChange={setEditForm} />
             {shelfError ? (
