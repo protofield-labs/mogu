@@ -6,5 +6,8 @@ module "storage" {
   location    = var.region
   labels      = local.labels
 
+  # #97: Browser signed-URL PUT from Cloud Run origin requires bucket CORS.
+  cors_origins = [module.cloud_run.uri]
+
   depends_on = [google_project_service.services]
 }
