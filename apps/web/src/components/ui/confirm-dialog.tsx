@@ -43,10 +43,22 @@ export function ConfirmDialog({
     }
   }, [open]);
 
+  function handleCancel() {
+    if (busy) {
+      return;
+    }
+    onCancel();
+  }
+
   return (
     <dialog
       ref={dialogRef}
-      onClose={onCancel}
+      onCancel={(event) => {
+        if (busy) {
+          event.preventDefault();
+        }
+      }}
+      onClose={handleCancel}
       className={cn(
         "fixed inset-0 z-50 m-auto w-[min(calc(100%-2rem),24rem)] max-w-none rounded-2xl border border-border bg-mogu-surface-elevated p-0 shadow-lg backdrop:bg-black/40",
         "open:animate-in open:fade-in-0 open:zoom-in-95",
@@ -58,7 +70,7 @@ export function ConfirmDialog({
           <p className="text-sm text-muted-foreground">{description}</p>
         </div>
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" disabled={busy} onClick={onCancel}>
+          <Button type="button" variant="outline" disabled={busy} onClick={handleCancel}>
             {cancelLabel}
           </Button>
           <Button

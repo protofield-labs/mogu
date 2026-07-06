@@ -25,6 +25,7 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
   const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deleteSpotTarget, setDeleteSpotTarget] = useState<Spot | null>(null);
+  const [deletingSpot, setDeletingSpot] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
   const [prevCollectionId, setPrevCollectionId] = useState(collectionId);
 
@@ -34,6 +35,7 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
     setLoadError(null);
     setDetail(null);
     setEditingSpot(null);
+    setDeleteSpotTarget(null);
   }
 
   useEffect(() => {
@@ -88,6 +90,8 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
     }
 
     const spot = deleteSpotTarget;
+    setDeletingSpot(true);
+    setError(null);
     try {
       await deleteSpot(spot.id);
       setDetail((current) =>
@@ -105,6 +109,8 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
       setDeleteSpotTarget(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "削除に失敗しました");
+    } finally {
+      setDeletingSpot(false);
     }
   }
 
@@ -170,6 +176,7 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
         title="スポットを削除"
         description="このスポットを削除しますか？この操作は元に戻せません。"
         confirmLabel="削除する"
+        busy={deletingSpot}
         onConfirm={() => void handleConfirmDeleteSpot()}
         onCancel={() => setDeleteSpotTarget(null)}
       />
