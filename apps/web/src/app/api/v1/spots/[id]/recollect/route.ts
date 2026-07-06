@@ -1,6 +1,8 @@
-import { z } from "zod";
-
-import { uuidRouteParamsSchema } from "@/lib/api/schemas/common";
+import { parseJsonBody, parseRouteParams } from "@/lib/api/parse-json-body";
+import {
+  recollectBodySchema,
+  uuidRouteParamsSchema,
+} from "@/lib/api/route-schemas";
 import {
   forbiddenResponse,
   notFoundResponse,
@@ -8,10 +10,6 @@ import {
   withAuthRoute,
 } from "@/lib/auth/require-auth";
 import { recollectSpot } from "@/lib/dal/spots";
-
-const recollectBodySchema = z.object({
-  targetCollectionId: z.string().uuid(),
-});
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -21,28 +19,21 @@ export async function POST(
   request: Request,
   { params }: RouteParams,
 ): Promise<Response> {
-  const parsedParams = uuidRouteParamsSchema.safeParse(await params);
-  if (!parsedParams.success) {
+  const route = await parseRouteParams(params, uuidRouteParamsSchema);
+  if (!route.ok) {
     return validationErrorResponse("Invalid spot id");
   }
 
   return withAuthRoute(request, async (req, { uid }) => {
-    let body: unknown;
-    try {
-      body = await req.json();
-    } catch {
-      return validationErrorResponse("Invalid JSON");
-    }
-
-    const parsedBody = recollectBodySchema.safeParse(body);
-    if (!parsedBody.success) {
-      return validationErrorResponse("Invalid request body");
+    const parsed = await parseJsonBody(req, recollectBodySchema);
+    if (!parsed.ok) {
+      return parsed.response;
     }
 
     const result = await recollectSpot(
       uid,
-      parsedParams.data.id,
-      parsedBody.data.targetCollectionId,
+      route.data.id,
+      parsed.data.targetCollectionId,
     );
 
     if (!result.ok) {

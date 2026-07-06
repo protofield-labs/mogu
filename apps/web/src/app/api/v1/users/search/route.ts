@@ -1,18 +1,16 @@
-import {
-  validationErrorResponse,
-  withAuthRoute,
-} from "@/lib/auth/require-auth";
+import { parseSearchParams } from "@/lib/api/parse-json-body";
+import { userSearchQuerySchema } from "@/lib/api/route-schemas";
+import { withAuthRoute } from "@/lib/auth/require-auth";
 import { searchUsers } from "@/lib/dal/users";
 
 export async function GET(request: Request): Promise<Response> {
   return withAuthRoute(request, async (req, { uid }) => {
-    const { searchParams } = new URL(req.url);
-    const query = searchParams.get("q")?.trim() ?? "";
-    if (query.length === 0) {
-      return validationErrorResponse("Query parameter q is required");
+    const query = parseSearchParams(req.url, userSearchQuerySchema);
+    if (!query.ok) {
+      return query.response;
     }
 
-    const users = await searchUsers(uid, query);
+    const users = await searchUsers(uid, query.data.q);
     return Response.json(users);
   });
 }

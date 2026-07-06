@@ -77,38 +77,6 @@ paths:
         default:
           $ref: "#/components/responses/Error"
 
-  /users/me:
-    get:
-      tags: [users]
-      summary: 自分のプロフィール + 統計（/me エイリアス）
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Me"
-        default:
-          $ref: "#/components/responses/Error"
-    patch:
-      tags: [users]
-      summary: プロフィール更新（/me エイリアス）
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UpdateUserProfileRequest"
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/User"
-        default:
-          $ref: "#/components/responses/Error"
-
   /me/badges:
     get:
       tags: [users]
