@@ -15,6 +15,8 @@ type ProfileFormFieldsProps = {
   onChange: (next: ProfileFormValues) => void;
   nameLabel?: string;
   colorLegend?: string;
+  /** Hero card flip edit — fits inside a fixed-height card. */
+  compact?: boolean;
 };
 
 export function ProfileFormFields({
@@ -22,11 +24,19 @@ export function ProfileFormFields({
   onChange,
   nameLabel = "名前",
   colorLegend = "アバターカラー",
+  compact = false,
 }: ProfileFormFieldsProps) {
   return (
     <>
-      <label className="block space-y-2">
-        <span className="text-sm font-medium text-foreground">{nameLabel}</span>
+      <label className={cn("block", compact ? "space-y-1" : "space-y-2")}>
+        <span
+          className={cn(
+            "font-medium text-foreground",
+            compact ? "text-xs" : "text-sm",
+          )}
+        >
+          {nameLabel}
+        </span>
         <input
           type="text"
           required
@@ -36,16 +46,24 @@ export function ProfileFormFields({
           onChange={(event) =>
             onChange({ ...values, displayName: event.target.value })
           }
-          className="h-11 w-full rounded-2xl border border-border bg-background px-4 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          className={cn(
+            "w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+            compact ? "h-9" : "h-11 px-4 rounded-2xl",
+          )}
           placeholder="例: Ken"
         />
       </label>
 
-      <fieldset className="space-y-3">
-        <legend className="text-sm font-medium text-foreground">
+      <fieldset className={compact ? "space-y-1.5" : "space-y-3"}>
+        <legend
+          className={cn(
+            "font-medium text-foreground",
+            compact ? "text-xs" : "text-sm",
+          )}
+        >
           {colorLegend}
         </legend>
-        <div className="grid grid-cols-4 gap-3">
+        <div className={cn("grid", compact ? "grid-cols-8 gap-1" : "grid-cols-4 gap-3")}>
           {ONBOARDING_AVATAR_COLORS.map((color) => {
             const selected = values.avatarColor === color;
             return (
@@ -56,7 +74,10 @@ export function ProfileFormFields({
                 aria-pressed={selected}
                 onClick={() => onChange({ ...values, avatarColor: color })}
                 className={cn(
-                  "flex aspect-square items-center justify-center rounded-2xl border transition-transform",
+                  "flex items-center justify-center border transition-transform",
+                  compact
+                    ? "size-6 rounded-md"
+                    : "aspect-square rounded-2xl",
                   selected
                     ? "border-foreground ring-3 ring-ring/50"
                     : "border-border hover:scale-[1.03]",
@@ -65,7 +86,10 @@ export function ProfileFormFields({
               >
                 {selected ? (
                   <Check
-                    className="size-5 text-white drop-shadow"
+                    className={cn(
+                      "text-white drop-shadow",
+                      compact ? "size-3" : "size-5",
+                    )}
                     aria-hidden
                   />
                 ) : null}
