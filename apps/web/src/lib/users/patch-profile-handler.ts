@@ -1,3 +1,5 @@
+import { Prisma } from "@prisma/client";
+
 import {
   notFoundResponse,
   validationErrorResponse,
@@ -23,15 +25,21 @@ export async function patchProfile(request: Request): Promise<Response> {
       return validationErrorResponse("Invalid request body");
     }
 
-    const user = await updateUserProfile(
-      uid,
-      parsed.data.displayName,
-      normalizeAvatarColor(parsed.data.avatarColor),
-    );
-    if (!user) {
-      return notFoundResponse();
+    try {
+      const user = await updateUserProfile(
+        uid,
+        parsed.data.displayName,
+        normalizeAvatarColor(parsed.data.avatarColor),
+      );
+      return Response.json(user);
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2025"
+      ) {
+        return notFoundResponse();
+      }
+      throw error;
     }
-
-    return Response.json(user);
   });
 }

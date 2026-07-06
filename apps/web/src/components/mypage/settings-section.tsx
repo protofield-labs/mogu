@@ -33,6 +33,10 @@ export function SettingsSection({ me, onProfileUpdated }: SettingsSectionProps) 
     setSaved(false);
     try {
       const updated = await updateMeProfile(form);
+      setForm({
+        displayName: updated.displayName,
+        avatarColor: updated.avatarColor,
+      });
       onProfileUpdated(updated);
       setSaved(true);
     } catch (err) {
