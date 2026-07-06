@@ -95,6 +95,9 @@ jobs:
       - name: Verify feed helpers
         run: pnpm exec tsx scripts/verify-feed-helpers.ts
 
+      - name: Verify home UI helpers
+        run: pnpm exec tsx scripts/verify-home-ui.ts
+
       - name: Build
         run: pnpm build
 

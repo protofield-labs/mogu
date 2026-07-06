@@ -34,6 +34,7 @@ import {
   formatUserBubbleText,
   type ChatEntry,
 } from "@/lib/agent/chat-helpers";
+import { consumePendingRecommendation } from "@/lib/home/pending-recommendation";
 import { RecommendationCard } from "@/components/search/recommendation-card";
 
 function AgentAvatar() {
@@ -122,8 +123,18 @@ export function AgentChat() {
     void (async () => {
       try {
         const id = await createAgentSession();
+        const pending = consumePendingRecommendation();
+        const initialEntries: ChatEntry[] = [createWelcomeEntry()];
+        if (pending) {
+          initialEntries.push(
+            createAgentEntry({
+              text: pending.assertion,
+              recommendation: pending,
+            }),
+          );
+        }
         setSessionId(id);
-        setEntries([createWelcomeEntry()]);
+        setEntries(initialEntries);
       } catch (err) {
         setError(err instanceof Error ? err.message : "セッションの開始に失敗しました");
       } finally {
