@@ -1,11 +1,12 @@
 "use client";
 
 import { apiJson, apiJsonOrNull } from "@/lib/api/browser-client";
-import { meProfileSchema, userSchema } from "@/lib/api/schemas/user";
+import { meProfileSchema } from "@/lib/users/types";
 import type { ProfileBody } from "@/lib/users/profile-schema";
-import { z } from "zod";
+import type { UserProfile } from "@/lib/users/types";
+import { userSchema } from "@/lib/users/types";
 
-export type UserProfile = z.infer<typeof userSchema>;
+export type { UserProfile } from "@/lib/users/types";
 
 /** Profile lookup; null when the user row is not provisioned yet. */
 export async function fetchUsersMe(): Promise<UserProfile | null> {

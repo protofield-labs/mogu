@@ -5,7 +5,7 @@ export type FriendshipPair = {
   userHigh: string;
 };
 
-/** UTF-8 byte order (may differ from PG text `<` for mixed demo-/Firebase ids). */
+/** @internal Verify/seed only — production DAL uses SQL LEAST/GREATEST (#79). */
 export function compareFriendshipUids(a: string, b: string): number {
   return Buffer.compare(Buffer.from(a, "utf8"), Buffer.from(b, "utf8"));
 }
@@ -18,6 +18,8 @@ export function isOrderedFriendshipPair(pair: FriendshipPair): boolean {
 /**
  * Offline pair ordering (byte compare). Do not use for DB writes — use SQL
  * LEAST/GREATEST via resolveFriendshipPairFromDb instead.
+ *
+ * @internal Verify/seed only — not used by production DAL.
  */
 export function normalizeFriendshipPair(a: string, b: string): FriendshipPair {
   if (compareFriendshipUids(a, b) < 0) {

@@ -92,6 +92,9 @@ jobs:
       - name: Verify API route helpers
         run: pnpm exec tsx scripts/verify-api-routes.ts
 
+      - name: Verify dead code cleanup
+        run: pnpm exec tsx scripts/verify-dead-code.ts
+
       - name: Verify agent engine config
         run: pnpm exec tsx scripts/verify-agent-config.ts
 
