@@ -145,32 +145,24 @@ export function HomeViewSkeleton({ embedded = false }: { embedded?: boolean }) {
 
 export function MypageViewSkeleton() {
   return (
-    <LoadingShell label="マイページを読み込んでいます" className="gap-6 pb-mogu-screen-y">
-      <div className="flex items-center justify-between px-mogu-screen-x pt-3">
-        <Skeleton className="h-5 w-24 rounded-lg" />
-        <Skeleton className="size-9 rounded-full" />
+    <LoadingShell label="マイページを読み込んでいます" className="gap-5 pb-mogu-screen-y">
+      <div className="px-mogu-screen-x pt-4">
+        <Skeleton className="h-8 w-36 rounded-lg" />
       </div>
 
-      <div className="flex items-center gap-3 px-mogu-screen-x">
-        <Skeleton className="size-14 rounded-full" />
-        <div className="space-y-2">
-          <Skeleton className="h-5 w-28 rounded-lg" />
-          <Skeleton className="h-4 w-12 rounded-lg" />
-        </div>
+      <Skeleton className="mx-mogu-screen-x h-44 rounded-3xl" />
+
+      <div className="grid grid-cols-2 gap-3 px-mogu-screen-x">
+        <Skeleton className="h-40 rounded-3xl" />
+        <Skeleton className="h-40 rounded-3xl" />
       </div>
 
-      <div className="grid grid-cols-3 gap-2 px-mogu-screen-x">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <Skeleton key={index} className="h-16 rounded-2xl" />
-        ))}
-      </div>
+      <Skeleton className="mx-mogu-screen-x h-[4.5rem] rounded-3xl" />
 
-      <Skeleton className="mx-mogu-screen-x h-24 rounded-3xl" />
-
-      <div className="space-y-3 px-mogu-screen-x">
+      <div className="space-y-3 px-mogu-screen-x pt-2">
         <div className="flex items-center justify-between">
-          <Skeleton className="h-4 w-20 rounded-lg" />
-          <Skeleton className="h-7 w-24 rounded-full" />
+          <Skeleton className="h-6 w-32 rounded-lg" />
+          <Skeleton className="h-7 w-32 rounded-full" />
         </div>
         <div className="grid grid-cols-2 gap-3">
           {Array.from({ length: 4 }).map((_, index) => (

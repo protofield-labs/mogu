@@ -24,7 +24,7 @@ function CollectionTile({
   return (
     <article className="space-y-2">
       <Link href={`/mypage/collections/${collection.id}`} className="block">
-        <div className="relative aspect-square overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-muted to-background">
+        <div className="relative aspect-square overflow-hidden rounded-2xl bg-gradient-to-br from-muted to-background shadow-sm transition-shadow hover:shadow-md">
         {collection.coverUrl ? (
           <div
             className="size-full bg-cover bg-center"
@@ -55,7 +55,7 @@ function CollectionTile({
             <button
               type="button"
               onClick={() => onEdit(collection)}
-              className="inline-flex h-7 flex-1 items-center justify-center gap-1 rounded-xl border border-border bg-mogu-surface-elevated text-xs font-medium"
+              className="inline-flex h-7 flex-1 items-center justify-center gap-1 rounded-xl bg-mogu-surface-elevated text-xs font-medium shadow-sm"
             >
               <Pencil className="size-3" aria-hidden />
               編集
@@ -65,7 +65,7 @@ function CollectionTile({
             <button
               type="button"
               onClick={() => onDelete(collection)}
-              className="inline-flex h-7 flex-1 items-center justify-center gap-1 rounded-xl border border-border bg-mogu-surface-elevated text-xs font-medium text-destructive"
+              className="inline-flex h-7 flex-1 items-center justify-center gap-1 rounded-xl bg-mogu-surface-elevated text-xs font-medium text-destructive shadow-sm"
             >
               <Trash2 className="size-3" aria-hidden />
               削除
@@ -90,10 +90,9 @@ export function CollectionGrid({
 }: CollectionGridProps) {
   return (
     <section className="space-y-4 px-mogu-screen-x">
-      <h2 className="text-sm font-semibold text-foreground">あなたのコレクション</h2>
       {collections.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-border bg-mogu-surface-elevated p-8 text-center text-sm text-muted-foreground">
-          まだコレクションがありません。最初の棚を作ってみましょう。
+          まだコレクションがありません。最初のコレクションを作ってみましょう。
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-3">
