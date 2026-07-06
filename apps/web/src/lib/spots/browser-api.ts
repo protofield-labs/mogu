@@ -2,27 +2,10 @@
 
 import { readApiErrorResponse } from "@/lib/auth/api-error";
 import { authFetch } from "@/lib/auth/auth-fetch";
+import type { SpotDto, SpotRating } from "@/lib/spot/types";
 
-export type SpotRating = "again" | "either" | "no";
-
-export type Spot = {
-  id: string;
-  placeId: string;
-  addedBy: string;
-  collectionId: string;
-  photoUrls: string[];
-  comment: string;
-  rating: SpotRating;
-  structuredTags: {
-    area: string | null;
-    genre: string | null;
-    situation: string | null;
-  };
-  freeTags: string[];
-  savedCount: number;
-  originUserId: string | null;
-  createdAt: string;
-};
+export type { SpotRating };
+export type Spot = SpotDto;
 
 export type CreateSpotInput = {
   placeId: string;

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { withAuthRls } from "@/lib/auth/with-auth-rls";
+import { toSpotDto, type SpotDto } from "@/lib/dal/spot-dto";
 import { countSavedInCircleByPlaceIds } from "@/lib/dal/saved-count";
 
 export type CollectionVisibilityValue = "friends" | "secret";
@@ -18,24 +19,7 @@ export type CollectionDto = {
   updatedAt: string;
 };
 
-export type SpotDto = {
-  id: string;
-  placeId: string;
-  addedBy: string;
-  collectionId: string;
-  photoUrls: string[];
-  comment: string;
-  rating: "again" | "either" | "no";
-  structuredTags: {
-    area: string | null;
-    genre: string | null;
-    situation: string | null;
-  };
-  freeTags: string[];
-  savedCount: number;
-  originUserId: string | null;
-  createdAt: string;
-};
+export type { SpotDto };
 
 export type CollectionDetailDto = CollectionDto & {
   spots: SpotDto[];
@@ -79,44 +63,6 @@ function toCollectionDto(collection: {
     spotCount: collection._count?.spots ?? 0,
     createdAt: collection.createdAt.toISOString(),
     updatedAt: collection.updatedAt.toISOString(),
-  };
-}
-
-function toSpotDto(
-  spot: {
-    id: string;
-    placeId: string;
-    addedBy: string;
-    collectionId: string;
-    photoUrls: string[];
-    comment: string;
-    rating: "again" | "either" | "no";
-    tagArea: string | null;
-    tagGenre: string | null;
-    tagSituation: string | null;
-    freeTags: string[];
-    originUserId: string | null;
-    createdAt: Date;
-  },
-  savedCount: number,
-): SpotDto {
-  return {
-    id: spot.id,
-    placeId: spot.placeId,
-    addedBy: spot.addedBy,
-    collectionId: spot.collectionId,
-    photoUrls: spot.photoUrls,
-    comment: spot.comment,
-    rating: spot.rating,
-    structuredTags: {
-      area: spot.tagArea,
-      genre: spot.tagGenre,
-      situation: spot.tagSituation,
-    },
-    freeTags: spot.freeTags,
-    savedCount,
-    originUserId: spot.originUserId,
-    createdAt: spot.createdAt.toISOString(),
   };
 }
 
