@@ -7,10 +7,10 @@ import { z } from "zod";
 
 export type UserProfile = z.infer<typeof userSchema>;
 
-/** Onboarding profile lookup; null when the user row is not provisioned yet. */
+/** Profile lookup; null when the user row is not provisioned yet. */
 export async function fetchUsersMe(): Promise<UserProfile | null> {
   const profile = await apiJsonOrNull(
-    "/api/v1/users/me",
+    "/api/v1/me",
     meProfileSchema,
     "プロフィールを読み込めませんでした",
     { emptyStatuses: [404] },

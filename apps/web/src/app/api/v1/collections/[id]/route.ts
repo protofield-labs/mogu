@@ -1,5 +1,6 @@
 import { updateCollectionBodySchema } from "@/lib/api/schemas/collection";
-import { uuidRouteParamsSchema } from "@/lib/api/schemas/common";
+import { parseJsonBody, parseRouteParams } from "@/lib/api/parse-json-body";
+import { uuidRouteParamsSchema } from "@/lib/api/route-schemas";
 import {
   forbiddenResponse,
   notFoundResponse,
@@ -25,22 +26,17 @@ type RouteParams = {
   params: Promise<{ id: string }>;
 };
 
-async function parseId(params: RouteParams["params"]): Promise<string | null> {
-  const parsed = uuidRouteParamsSchema.safeParse(await params);
-  return parsed.success ? parsed.data.id : null;
-}
-
 export async function GET(
   request: Request,
   { params }: RouteParams,
 ): Promise<Response> {
-  const id = await parseId(params);
-  if (!id) {
+  const route = await parseRouteParams(params, uuidRouteParamsSchema);
+  if (!route.ok) {
     return validationErrorResponse("Invalid collection id");
   }
 
   return withAuthRoute(request, async (_req, { uid }) => {
-    const collection = await getCollectionDetail(uid, id);
+    const collection = await getCollectionDetail(uid, route.data.id);
     if (!collection) {
       return notFoundResponse("Collection not found");
     }
@@ -53,22 +49,15 @@ export async function PATCH(
   request: Request,
   { params }: RouteParams,
 ): Promise<Response> {
-  const id = await parseId(params);
-  if (!id) {
+  const route = await parseRouteParams(params, uuidRouteParamsSchema);
+  if (!route.ok) {
     return validationErrorResponse("Invalid collection id");
   }
 
   return withAuthRoute(request, async (req, { uid }) => {
-    let body: unknown;
-    try {
-      body = await req.json();
-    } catch {
-      return validationErrorResponse("Invalid JSON");
-    }
-
-    const parsed = updateCollectionBodySchema.safeParse(body);
-    if (!parsed.success) {
-      return validationErrorResponse("Invalid request body");
+    const parsed = await parseJsonBody(req, updateCollectionBodySchema);
+    if (!parsed.ok) {
+      return parsed.response;
     }
 
     if (
@@ -78,7 +67,7 @@ export async function PATCH(
       return validationErrorResponse("Invalid coverUrl");
     }
 
-    const result = await updateCollection(uid, id, parsed.data);
+    const result = await updateCollection(uid, route.data.id, parsed.data);
     if (!result.ok) {
       return result.reason === "forbidden"
         ? forbiddenResponse("Only the owner can update this collection")
@@ -93,13 +82,13 @@ export async function DELETE(
   request: Request,
   { params }: RouteParams,
 ): Promise<Response> {
-  const id = await parseId(params);
-  if (!id) {
+  const route = await parseRouteParams(params, uuidRouteParamsSchema);
+  if (!route.ok) {
     return validationErrorResponse("Invalid collection id");
   }
 
   return withAuthRoute(request, async (_req, { uid }) => {
-    const result = await deleteCollection(uid, id);
+    const result = await deleteCollection(uid, route.data.id);
     if (!result.ok) {
       return result.reason === "forbidden"
         ? forbiddenResponse("Only the owner can delete this collection")

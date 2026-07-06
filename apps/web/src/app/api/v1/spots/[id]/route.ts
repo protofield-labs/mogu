@@ -1,4 +1,5 @@
-import { uuidRouteParamsSchema } from "@/lib/api/schemas/common";
+import { parseJsonBody, parseRouteParams } from "@/lib/api/parse-json-body";
+import { uuidRouteParamsSchema } from "@/lib/api/route-schemas";
 import {
   forbiddenResponse,
   notFoundResponse,
@@ -28,29 +29,22 @@ export async function PATCH(
   request: Request,
   { params }: RouteParams,
 ): Promise<Response> {
-  const parsedParams = uuidRouteParamsSchema.safeParse(await params);
-  if (!parsedParams.success) {
+  const route = await parseRouteParams(params, uuidRouteParamsSchema);
+  if (!route.ok) {
     return validationErrorResponse("Invalid spot id");
   }
 
   return withAuthRoute(request, async (req, { uid }) => {
-    let body: unknown;
-    try {
-      body = await req.json();
-    } catch {
-      return validationErrorResponse("Invalid JSON");
+    const parsed = await parseJsonBody(req, updateSpotBodySchema);
+    if (!parsed.ok) {
+      return parsed.response;
     }
 
-    const parsedBody = updateSpotBodySchema.safeParse(body);
-    if (!parsedBody.success) {
-      return validationErrorResponse("Invalid request body");
-    }
-
-    if (!validateSpotPhotoUrls(parsedBody.data.photoUrls, uid)) {
+    if (!validateSpotPhotoUrls(parsed.data.photoUrls, uid)) {
       return validationErrorResponse("Invalid photoUrls");
     }
 
-    const result = await updateSpot(uid, parsedParams.data.id, parsedBody.data);
+    const result = await updateSpot(uid, route.data.id, parsed.data);
     if (!result.ok) {
       return result.reason === "forbidden"
         ? forbiddenResponse("Cannot update this spot")
@@ -65,13 +59,13 @@ export async function DELETE(
   request: Request,
   { params }: RouteParams,
 ): Promise<Response> {
-  const parsedParams = uuidRouteParamsSchema.safeParse(await params);
-  if (!parsedParams.success) {
+  const route = await parseRouteParams(params, uuidRouteParamsSchema);
+  if (!route.ok) {
     return validationErrorResponse("Invalid spot id");
   }
 
   return withAuthRoute(request, async (_req, { uid }) => {
-    const result = await deleteSpot(uid, parsedParams.data.id);
+    const result = await deleteSpot(uid, route.data.id);
     if (!result.ok) {
       return result.reason === "forbidden"
         ? forbiddenResponse("Cannot delete this spot")

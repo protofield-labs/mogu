@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { parseJsonBody, parseSearchParams } from "@/lib/api/parse-json-body";
+import { friendRequestsQuerySchema } from "@/lib/api/route-schemas";
 import {
   conflictResponse,
   notFoundResponse,
@@ -14,29 +16,21 @@ const friendRequestBodySchema = z.object({
 
 export async function GET(request: Request): Promise<Response> {
   return withAuthRoute(request, async (req, { uid }) => {
-    const { searchParams } = new URL(req.url);
-    const box = searchParams.get("box");
-    if (box !== "in" && box !== "out") {
-      return validationErrorResponse("Query parameter box must be in or out");
+    const query = parseSearchParams(req.url, friendRequestsQuerySchema);
+    if (!query.ok) {
+      return query.response;
     }
 
-    const requests = await listFriendRequests(uid, box);
+    const requests = await listFriendRequests(uid, query.data.box);
     return Response.json(requests);
   });
 }
 
 export async function POST(request: Request): Promise<Response> {
   return withAuthRoute(request, async (req, { uid }) => {
-    let body: unknown;
-    try {
-      body = await req.json();
-    } catch {
-      return validationErrorResponse("Invalid JSON");
-    }
-
-    const parsed = friendRequestBodySchema.safeParse(body);
-    if (!parsed.success) {
-      return validationErrorResponse("Invalid request body");
+    const parsed = await parseJsonBody(req, friendRequestBodySchema);
+    if (!parsed.ok) {
+      return parsed.response;
     }
 
     const result = await sendFriendRequest(uid, parsed.data.toUserId);

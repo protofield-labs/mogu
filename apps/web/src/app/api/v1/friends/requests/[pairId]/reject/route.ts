@@ -1,3 +1,5 @@
+import { parseRouteParams } from "@/lib/api/parse-json-body";
+import { pairIdRouteParamsSchema } from "@/lib/api/route-schemas";
 import {
   conflictResponse,
   forbiddenResponse,
@@ -17,10 +19,13 @@ export async function POST(
   request: Request,
   { params }: RouteParams,
 ): Promise<Response> {
-  const { pairId } = await params;
+  const route = await parseRouteParams(params, pairIdRouteParamsSchema);
+  if (!route.ok) {
+    return validationErrorResponse("Invalid pair id");
+  }
 
   return withAuthRoute(request, async (_request, { uid }) => {
-    const result = await rejectFriendRequest(uid, pairId);
+    const result = await rejectFriendRequest(uid, route.data.pairId);
     if (!result.ok) {
       if (result.reason === "invalid_pair_id") {
         return validationErrorResponse("Invalid pair id");

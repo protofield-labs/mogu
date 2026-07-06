@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { parseJsonBody } from "@/lib/api/parse-json-body";
 import { sendAgentMessage } from "@/lib/agent/message-client";
 import {
   AgentEngineNotConfiguredError,
@@ -36,16 +37,9 @@ export async function POST(
       return validationErrorResponse("Invalid session id");
     }
 
-    let body: unknown;
-    try {
-      body = await req.json();
-    } catch {
-      return validationErrorResponse("Invalid JSON");
-    }
-
-    const parsed = messageBodySchema.safeParse(body);
-    if (!parsed.success) {
-      return validationErrorResponse("Invalid request body");
+    const parsed = await parseJsonBody(req, messageBodySchema);
+    if (!parsed.ok) {
+      return parsed.response;
     }
 
     try {
@@ -57,18 +51,14 @@ export async function POST(
       });
       return Response.json(agentMessage);
     } catch (error) {
-      if (error instanceof AgentEngineNotConfiguredError) {
-        return apiErrorResponse(
-          "internal",
-          "Agent Engine is not configured",
-          503,
-        );
-      }
       if (error instanceof AgentSessionNotFoundError) {
         return notFoundResponse("Agent session not found");
       }
       if (error instanceof AgentSessionForbiddenError) {
-        return forbiddenResponse("Agent session forbidden");
+        return forbiddenResponse("Agent session access denied");
+      }
+      if (error instanceof AgentEngineNotConfiguredError) {
+        return apiErrorResponse("internal", error.message, 503);
       }
       if (error instanceof AgentSessionError) {
         return apiErrorResponse("internal", error.message, 502);

@@ -1,9 +1,10 @@
+import { parseJsonBody } from "@/lib/api/parse-json-body";
+import { signedUploadBodySchema } from "@/lib/api/schemas/uploads";
 import {
   apiErrorResponse,
   validationErrorResponse,
   withAuthRoute,
 } from "@/lib/auth/require-auth";
-import { signedUploadBodySchema } from "@/lib/api/schemas/uploads";
 import {
   createSignedUploadUrl,
   StorageNotConfiguredError,
@@ -11,21 +12,14 @@ import {
 
 export async function POST(request: Request): Promise<Response> {
   return withAuthRoute(request, async (req, { uid }) => {
-    let body: unknown;
-    try {
-      body = await req.json();
-    } catch {
-      return validationErrorResponse("Invalid JSON");
-    }
-
-    const parsed = signedUploadBodySchema.safeParse(body);
-    if (!parsed.success) {
-      return validationErrorResponse("Invalid request body");
+    const parsed = await parseJsonBody(req, signedUploadBodySchema);
+    if (!parsed.ok) {
+      return parsed.response;
     }
 
     try {
-      const result = await createSignedUploadUrl(uid, parsed.data.contentType);
-      return Response.json(result);
+      const signed = await createSignedUploadUrl(uid, parsed.data.contentType);
+      return Response.json(signed);
     } catch (error) {
       if (error instanceof StorageNotConfiguredError) {
         return apiErrorResponse("internal", error.message, 503);

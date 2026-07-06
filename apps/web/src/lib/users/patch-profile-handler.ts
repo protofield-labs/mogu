@@ -1,8 +1,8 @@
 import { Prisma } from "@prisma/client";
 
+import { parseJsonBody } from "@/lib/api/parse-json-body";
 import {
   notFoundResponse,
-  validationErrorResponse,
   withAuthRoute,
 } from "@/lib/auth/require-auth";
 import { updateUserProfile } from "@/lib/dal/users";
@@ -13,16 +13,9 @@ import {
 
 export async function patchProfile(request: Request): Promise<Response> {
   return withAuthRoute(request, async (req, { uid }) => {
-    let body: unknown;
-    try {
-      body = await req.json();
-    } catch {
-      return validationErrorResponse("Invalid JSON");
-    }
-
-    const parsed = profileBodySchema.safeParse(body);
-    if (!parsed.success) {
-      return validationErrorResponse("Invalid request body");
+    const parsed = await parseJsonBody(req, profileBodySchema);
+    if (!parsed.ok) {
+      return parsed.response;
     }
 
     try {

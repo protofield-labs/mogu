@@ -89,6 +89,9 @@ jobs:
       - name: Verify browser API client
         run: pnpm exec tsx scripts/verify-browser-client.ts
 
+      - name: Verify API route helpers
+        run: pnpm exec tsx scripts/verify-api-routes.ts
+
       - name: Verify agent engine config
         run: pnpm exec tsx scripts/verify-agent-config.ts
 

@@ -234,7 +234,7 @@ Handlers. Admin SDK uses ADC on Cloud Run (no service account keys).
 
 - `/login` — Google (`signInWithPopup`) + Email/Password; links to `/signup`
 - `/signup` — Email/Password with display name; provisions `users` on success
-- `/` — protected by client `AuthGate`; shows profile from `GET /api/v1/users/me`
+- `/` — protected by client `AuthGate`; shows profile from `GET /api/v1/me`
 - Header includes **Log out**; unauthenticated access to `/` redirects to `/login`
 
 After sign-in, the client calls `POST /api/v1/users/provision` (idempotent) before
@@ -291,7 +291,7 @@ Set `FIREBASE_AUTH_EMULATOR_HOST` (server) and
 1. Copy `apps/web/.env.example` → `apps/web/.env` (emulator + `DATABASE_URL`)
 2. Start Auth Emulator and `pnpm dev` (see above)
 3. Open http://localhost:3000 → redirects to `/login`
-4. Sign up (Email or Google) → home shows display name from `/api/v1/users/me`
+4. Sign up (Email or Google) → home shows display name from `/api/v1/me`
 5. Log out → sign in again → same uid, no duplicate `users` row
 6. Direct visit to `/` while logged out → `/login`
 
@@ -300,7 +300,7 @@ Set `FIREBASE_AUTH_EMULATOR_HOST` (server) and
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/api/v1/users/provision` | Idempotent user row create (`displayName`) |
-| GET | `/api/v1/users/me` | Current user's row (404 if not provisioned) |
+| GET | `/api/v1/me` | Current user's profile + counts (404 if not provisioned) |
 
 Public: `/api/health/*` only. Client helpers: `authFetch()`, `useAuth()` in
 `apps/web/src/lib/auth/` and `apps/web/src/contexts/auth-context.tsx`.

@@ -95,4 +95,10 @@ assert(
   "onboarding gate no longer calls authFetch directly",
 );
 
+const usersBrowserApi = readSource("lib/users/browser-api.ts");
+assert(
+  usersBrowserApi.includes('"/api/v1/me"'),
+  "users browser-api uses /api/v1/me",
+);
+
 console.log("PASS: browser API client unification verified");
