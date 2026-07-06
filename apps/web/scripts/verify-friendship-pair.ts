@@ -2,6 +2,8 @@
  * Friendship pair ordering verification (#79).
  * Run via: pnpm exec tsx scripts/verify-friendship-pair.ts
  */
+import { assert } from "./test-helpers/assert";
+
 import { PrismaClient } from "@prisma/client";
 
 import {
@@ -13,12 +15,6 @@ import {
 } from "../src/lib/friendship/pair";
 
 const prisma = new PrismaClient();
-
-function assert(condition: boolean, message: string): void {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
 
 const UID_REPORTED = "GBguwTEai5c8DPCdbQEVu6VOXRI3";
 

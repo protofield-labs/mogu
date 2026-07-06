@@ -2,14 +2,10 @@
  * PWA manifest verification (#87 Definition of Done).
  * Run via: pnpm exec tsx scripts/verify-pwa-manifest.ts
  */
+import { assert } from "./test-helpers/assert";
+
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-
-function assert(condition: boolean, message: string): void {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
 
 function main() {
   const publicDir = join(process.cwd(), "public");

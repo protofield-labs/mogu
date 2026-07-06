@@ -2,17 +2,13 @@
  * SpotDto unification + depth>=2 originUserId mask (#109).
  * Run via: pnpm exec tsx scripts/verify-spot-dto.ts
  */
+import { assert } from "./test-helpers/assert";
+
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { toSpotDto } from "../src/lib/spot/to-spot-dto";
 import type { SpotRow } from "../src/lib/spot/types";
-
-function assert(condition: boolean, message: string): void {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
 
 const root = join(process.cwd(), "src");
 

@@ -2,6 +2,8 @@
  * Home UI helpers verification (#54 Definition of Done).
  * Run via: pnpm exec tsx scripts/verify-home-ui.ts
  */
+import { assert } from "./test-helpers/assert";
+
 import {
   friendHasUnreadFeed,
   getLastReadFeedAt,
@@ -18,12 +20,6 @@ import {
   formatViaLabel,
 } from "../src/lib/home/feed-labels";
 import { recollectFeedSpot } from "../src/lib/home/recollect-spot";
-
-function assert(condition: boolean, message: string): void {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
 
 const friends = [
   { id: "f-ken", displayName: "Ken", avatarColor: "#336699" },

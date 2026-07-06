@@ -1,6 +1,6 @@
 /**
  * RLS verification for users table (#28 Definition of Done).
- * Run via: DATABASE_URL=... ./scripts/verify-users-rls.sh
+ * Run via: DATABASE_URL=... pnpm exec tsx scripts/verify-users-rls.ts
  *
  * All mutations run inside a single transaction and are rolled back;
  * the expected-failure INSERT runs in its own transaction because a
@@ -8,111 +8,80 @@
  */
 import { PrismaClient } from "@prisma/client";
 
+import {
+  RollbackError,
+  createRlsHarness,
+  runVerifyScript,
+} from "./test-helpers/rls-harness";
+
 const prisma = new PrismaClient();
+const { withRls, upsertUser, runInRollbackTransaction } =
+  createRlsHarness(prisma);
 
 const UID_A = "rls-test-user-a";
 const UID_B = "rls-test-user-b";
 
-type Tx = Omit<
-  PrismaClient,
-  "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends"
->;
-
-class Rollback extends Error {
-  constructor() {
-    super("rollback");
-  }
-}
-
-/** Transaction-local set_config; subsequent calls in the same tx overwrite it. */
-async function withRls<T>(
-  tx: Tx,
-  uid: string,
-  fn: (scoped: Tx) => Promise<T>,
-): Promise<T> {
-  await tx.$executeRaw`SELECT set_config('app.current_user_id', ${uid}, true)`;
-  return fn(tx);
-}
-
 async function verifyPublicSelectAndSelfMutations() {
-  try {
-    await prisma.$transaction(async (tx) => {
-      for (const [uid, name] of [
-        [UID_A, "RLS Test A"],
-        [UID_B, "RLS Test B"],
-      ] as const) {
-        await withRls(tx, uid, (scoped) =>
-          scoped.user.upsert({
-            where: { firebaseUid: uid },
-            create: { firebaseUid: uid, displayName: name },
-            update: { displayName: name },
-          }),
-        );
-      }
+  await runInRollbackTransaction(async (tx) => {
+    await upsertUser(tx, UID_A, "RLS Test A");
+    await upsertUser(tx, UID_B, "RLS Test B");
 
-      const visibleAsA = await withRls(tx, UID_A, (scoped) =>
-        scoped.user.findMany({
-          where: { firebaseUid: { in: [UID_A, UID_B] } },
-          select: {
-            firebaseUid: true,
-            displayName: true,
-            avatarColor: true,
-          },
-          orderBy: { firebaseUid: "asc" },
-        }),
+    const visibleAsA = await withRls(tx, UID_A, (scoped) =>
+      scoped.user.findMany({
+        where: { firebaseUid: { in: [UID_A, UID_B] } },
+        select: {
+          firebaseUid: true,
+          displayName: true,
+          avatarColor: true,
+        },
+        orderBy: { firebaseUid: "asc" },
+      }),
+    );
+    if (visibleAsA.length !== 2) {
+      throw new Error(
+        `Expected UID_A to see both users under public SELECT, got: ${JSON.stringify(visibleAsA)}`,
       );
-      if (visibleAsA.length !== 2) {
-        throw new Error(
-          `Expected UID_A to see both users under public SELECT, got: ${JSON.stringify(visibleAsA)}`,
-        );
-      }
-      const userB = visibleAsA.find((row) => row.firebaseUid === UID_B);
-      if (!userB || userB.displayName !== "RLS Test B") {
-        throw new Error(
-          `Expected UID_A to read UID_B displayName, got: ${JSON.stringify(userB)}`,
-        );
-      }
-      if (userB.avatarColor !== "#888888") {
-        throw new Error(
-          `Expected default avatarColor '#888888', got: ${userB.avatarColor}`,
-        );
-      }
-
-      await withRls(tx, UID_A, (scoped) =>
-        scoped.user.update({
-          where: { firebaseUid: UID_A },
-          data: { displayName: "RLS Test A Updated" },
-        }),
-      );
-
-      const crossUpdate = await withRls(tx, UID_A, (scoped) =>
-        scoped.user.updateMany({
-          where: { firebaseUid: UID_B },
-          data: { displayName: "Should not apply" },
-        }),
-      );
-      if (crossUpdate.count !== 0) {
-        throw new Error(
-          `Expected UPDATE of foreign row to affect 0 rows, got ${crossUpdate.count}`,
-        );
-      }
-
-      const crossDelete = await withRls(tx, UID_A, (scoped) =>
-        scoped.user.deleteMany({ where: { firebaseUid: UID_B } }),
-      );
-      if (crossDelete.count !== 0) {
-        throw new Error(
-          `Expected DELETE of foreign row to affect 0 rows, got ${crossDelete.count}`,
-        );
-      }
-
-      throw new Rollback();
-    });
-  } catch (error) {
-    if (!(error instanceof Rollback)) {
-      throw error;
     }
-  }
+    const userB = visibleAsA.find((row) => row.firebaseUid === UID_B);
+    if (!userB || userB.displayName !== "RLS Test B") {
+      throw new Error(
+        `Expected UID_A to read UID_B displayName, got: ${JSON.stringify(userB)}`,
+      );
+    }
+    if (userB.avatarColor !== "#888888") {
+      throw new Error(
+        `Expected default avatarColor '#888888', got: ${userB.avatarColor}`,
+      );
+    }
+
+    await withRls(tx, UID_A, (scoped) =>
+      scoped.user.update({
+        where: { firebaseUid: UID_A },
+        data: { displayName: "RLS Test A Updated" },
+      }),
+    );
+
+    const crossUpdate = await withRls(tx, UID_A, (scoped) =>
+      scoped.user.updateMany({
+        where: { firebaseUid: UID_B },
+        data: { displayName: "Should not apply" },
+      }),
+    );
+    if (crossUpdate.count !== 0) {
+      throw new Error(
+        `Expected UPDATE of foreign row to affect 0 rows, got ${crossUpdate.count}`,
+      );
+    }
+
+    const crossDelete = await withRls(tx, UID_A, (scoped) =>
+      scoped.user.deleteMany({ where: { firebaseUid: UID_B } }),
+    );
+    if (crossDelete.count !== 0) {
+      throw new Error(
+        `Expected DELETE of foreign row to affect 0 rows, got ${crossDelete.count}`,
+      );
+    }
+  });
 }
 
 async function verifyForeignInsertBlocked() {
@@ -127,11 +96,10 @@ async function verifyForeignInsertBlocked() {
           },
         }),
       );
-      // If the INSERT unexpectedly succeeds, roll it back before failing.
-      throw new Rollback();
+      throw new RollbackError();
     });
   } catch (error) {
-    if (error instanceof Rollback) {
+    if (error instanceof RollbackError) {
       // INSERT unexpectedly succeeded; fall through to the failure below.
     } else {
       const message = error instanceof Error ? error.message : String(error);
@@ -154,11 +122,4 @@ async function main() {
   console.log("PASS: users RLS public SELECT + self INSERT/UPDATE verified");
 }
 
-main()
-  .catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+runVerifyScript(main, prisma);

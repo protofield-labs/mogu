@@ -2,6 +2,8 @@
  * API route helpers verification (#111).
  * Run via: pnpm exec tsx scripts/verify-api-routes.ts
  */
+import { assert } from "./test-helpers/assert";
+
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -14,12 +16,6 @@ import {
   provisionBodySchema,
   userSearchQuerySchema,
 } from "../src/lib/api/route-schemas";
-
-function assert(condition: boolean, message: string): void {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
 
 const root = join(process.cwd(), "src");
 

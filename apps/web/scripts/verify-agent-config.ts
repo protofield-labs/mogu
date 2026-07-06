@@ -2,16 +2,12 @@
  * Agent Engine config verification (#43 Definition of Done).
  * Run via: pnpm exec tsx scripts/verify-agent-config.ts
  */
+import { assert } from "./test-helpers/assert";
+
 import {
   parseSessionId,
   readAgentEngineConfigFromEnv,
 } from "../src/lib/agent/session-id";
-
-function assert(condition: boolean, message: string): void {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
 
 function main() {
   assert(

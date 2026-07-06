@@ -2,16 +2,12 @@
  * Design token verification (#90 Definition of Done).
  * Run via: pnpm exec tsx scripts/verify-design-tokens.ts
  */
+import { assert } from "./test-helpers/assert";
+
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { showRecollectSuccessToast } from "../src/lib/ui/recollect-toast";
-
-function assert(condition: boolean, message: string): void {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
 
 function main() {
   const globalsCss = readFileSync(
