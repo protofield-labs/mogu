@@ -1,49 +1,27 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 
 import { AppShell } from "@/components/app-shell";
-import { BADGES_UPDATED_EVENT } from "@/lib/mypage/badge-events";
-import { fetchMeBadges } from "@/lib/mypage/browser-api";
-import { shouldShowMypageTabBadge } from "@/lib/mypage/stats-row";
+import {
+  MeBadgesProvider,
+  useMeBadges,
+} from "@/lib/mypage/use-me-badges";
 
 type ProtectedAppShellProps = {
   children: ReactNode;
 };
 
 export function ProtectedAppShell({ children }: ProtectedAppShellProps) {
-  const pathname = usePathname();
-  const [showMypageBadge, setShowMypageBadge] = useState(false);
+  return (
+    <MeBadgesProvider>
+      <ProtectedAppShellInner>{children}</ProtectedAppShellInner>
+    </MeBadgesProvider>
+  );
+}
 
-  useEffect(() => {
-    let cancelled = false;
+function ProtectedAppShellInner({ children }: ProtectedAppShellProps) {
+  const { showBadge } = useMeBadges();
 
-    async function loadBadges() {
-      try {
-        const badges = await fetchMeBadges();
-        if (!cancelled) {
-          setShowMypageBadge(shouldShowMypageTabBadge(badges));
-        }
-      } catch {
-        if (!cancelled) {
-          setShowMypageBadge(false);
-        }
-      }
-    }
-
-    void loadBadges();
-
-    const handleBadgesUpdated = () => {
-      void loadBadges();
-    };
-    window.addEventListener(BADGES_UPDATED_EVENT, handleBadgesUpdated);
-
-    return () => {
-      cancelled = true;
-      window.removeEventListener(BADGES_UPDATED_EVENT, handleBadgesUpdated);
-    };
-  }, [pathname]);
-
-  return <AppShell showMypageBadge={showMypageBadge}>{children}</AppShell>;
+  return <AppShell showMypageBadge={showBadge}>{children}</AppShell>;
 }

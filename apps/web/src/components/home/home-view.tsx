@@ -6,6 +6,7 @@ import { AvatarRow } from "@/components/home/avatar-row";
 import { FeedCompactRow } from "@/components/home/feed-compact-row";
 import { FeedHeroCard } from "@/components/home/feed-hero-card";
 import { HomeEmptyState } from "@/components/home/home-empty-state";
+import { HomeNotificationButton } from "@/components/home/home-notification-button";
 import { RecommendationCompactRow } from "@/components/home/recommendation-compact-row";
 import { RecommendationEmptyRow } from "@/components/home/recommendation-empty-row";
 import { HomeViewSkeleton } from "@/components/loading/skeletons";
@@ -180,6 +181,7 @@ export function HomeView() {
     <div className="flex min-h-0 flex-1 flex-col gap-5 py-mogu-screen-y">
       <header className="flex items-center justify-between px-mogu-screen-x">
         <h1 className="text-base font-semibold text-foreground">mogu</h1>
+        <HomeNotificationButton />
       </header>
 
       <AvatarRow
