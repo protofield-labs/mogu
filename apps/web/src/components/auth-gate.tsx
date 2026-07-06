@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
+import { AppShellSkeleton } from "@/components/loading/skeletons";
 import { useAuth } from "@/contexts/auth-context";
 
 export function AuthGate({ children }: { children: ReactNode }) {
@@ -19,11 +20,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }, [user, loading, router]);
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center text-gray-600">
-        Loading…
-      </div>
-    );
+    return <AppShellSkeleton label="認証状態を確認しています" />;
   }
 
   if (!user) {

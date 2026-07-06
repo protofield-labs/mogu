@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
+import { AppShellSkeleton } from "@/components/loading/skeletons";
 import { authFetch } from "@/lib/auth/auth-fetch";
 import { isOnboardingComplete } from "@/lib/user-profile";
 
@@ -69,9 +70,13 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
     return children;
   }
 
-  return (
-    <div className="flex min-h-dvh items-center justify-center bg-background px-6 text-center text-sm text-muted-foreground">
-      {status === "error" ? error : "プロフィールを確認しています…"}
-    </div>
-  );
+  if (status === "error") {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-background px-6 text-center text-sm text-destructive">
+        {error}
+      </div>
+    );
+  }
+
+  return <AppShellSkeleton label="プロフィールを確認しています" />;
 }

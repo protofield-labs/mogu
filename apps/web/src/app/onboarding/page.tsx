@@ -1,9 +1,10 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { Check, LoaderCircleIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState, type FormEvent } from "react";
 
+import { OnboardingFormSkeleton } from "@/components/loading/skeletons";
 import { useAuth } from "@/contexts/auth-context";
 import { parseApiErrorBody } from "@/lib/auth/api-error";
 import { authFetch } from "@/lib/auth/auth-fetch";
@@ -140,11 +141,7 @@ function OnboardingContent() {
   }
 
   if (loading || !user || loadingProfile) {
-    return (
-      <main className="flex min-h-dvh items-center justify-center bg-background px-6 text-sm text-muted-foreground">
-        プロフィールを準備しています…
-      </main>
-    );
+    return <OnboardingFormSkeleton />;
   }
 
   return (
@@ -217,9 +214,16 @@ function OnboardingContent() {
             <button
               type="submit"
               disabled={submitting}
-              className="h-11 w-full rounded-2xl bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80 disabled:opacity-50"
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80 disabled:opacity-50"
             >
-              {submitting ? "保存しています…" : "mogu を始める"}
+              {submitting ? (
+                <>
+                  <LoaderCircleIcon className="size-4 animate-spin" aria-hidden />
+                  保存しています…
+                </>
+              ) : (
+                "mogu を始める"
+              )}
             </button>
           </form>
         </div>
@@ -230,13 +234,7 @@ function OnboardingContent() {
 
 export default function OnboardingPage() {
   return (
-    <Suspense
-      fallback={
-        <main className="flex min-h-dvh items-center justify-center bg-background px-6 text-sm text-muted-foreground">
-          プロフィールを準備しています…
-        </main>
-      }
-    >
+    <Suspense fallback={<OnboardingFormSkeleton />}>
       <OnboardingContent />
     </Suspense>
   );

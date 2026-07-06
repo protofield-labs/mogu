@@ -98,9 +98,6 @@ jobs:
       - name: Verify home UI helpers
         run: pnpm exec tsx scripts/verify-home-ui.ts
 
-      - name: Verify friendship pair ordering
-        run: pnpm exec tsx scripts/verify-friendship-pair.ts
-
       - name: Build
         run: pnpm build
 
@@ -113,6 +110,9 @@ jobs:
 
       - name: Apply migrations
         run: pnpm db:migrate
+
+      - name: Verify friendship pair ordering
+        run: pnpm exec tsx scripts/verify-friendship-pair.ts
 
       - name: Seed demo data
         run: pnpm db:seed

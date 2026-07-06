@@ -35,6 +35,7 @@ import {
   type ChatEntry,
 } from "@/lib/agent/chat-helpers";
 import { consumePendingRecommendation } from "@/lib/home/pending-recommendation";
+import { AgentChatSkeleton } from "@/components/loading/skeletons";
 import { RecommendationCard } from "@/components/search/recommendation-card";
 
 function AgentAvatar() {
@@ -236,10 +237,7 @@ export function AgentChat() {
             <MessageScrollerContent>
               {loading ? (
                 <MessageScrollerItem>
-                  <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
-                    <LoaderCircleIcon className="size-4 animate-spin" />
-                    セッションを準備中…
-                  </div>
+                  <AgentChatSkeleton />
                 </MessageScrollerItem>
               ) : null}
 

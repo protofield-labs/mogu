@@ -77,24 +77,39 @@ async function verifyMatchesPostgresLeastGreatest() {
     ["rls-friends-user-a", "rls-friends-user-b"],
   ];
 
-  for (const [a, b] of samples) {
-    const rows = await prisma.$queryRaw<
-      { user_low: string; user_high: string }[]
-    >`
-      SELECT LEAST(${a}::text, ${b}::text) AS user_low,
-             GREATEST(${a}::text, ${b}::text) AS user_high
-    `;
-    const pg = rows[0];
-    const normalized = normalizeFriendshipPair(a, b);
-    assert(pg !== undefined, "postgres row");
-    assert(
-      pg.user_low === normalized.userLow,
-      `user_low mismatch for ${a}/${b}: pg=${pg.user_low} js=${normalized.userLow}`,
-    );
-    assert(
-      pg.user_high === normalized.userHigh,
-      `user_high mismatch for ${a}/${b}`,
-    );
+  try {
+    for (const [a, b] of samples) {
+      const rows = await prisma.$queryRaw<
+        { user_low: string; user_high: string }[]
+      >`
+        SELECT LEAST(${a}::text, ${b}::text) AS user_low,
+               GREATEST(${a}::text, ${b}::text) AS user_high
+      `;
+      const pg = rows[0];
+      const normalized = normalizeFriendshipPair(a, b);
+      assert(pg !== undefined, "postgres row");
+      assert(
+        pg.user_low === normalized.userLow,
+        `user_low mismatch for ${a}/${b}: pg=${pg.user_low} js=${normalized.userLow}`,
+      );
+      assert(
+        pg.user_high === normalized.userHigh,
+        `user_high mismatch for ${a}/${b}`,
+      );
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (
+      message.includes("Authentication failed") ||
+      message.includes("Can't reach database server") ||
+      message.includes("ECONNREFUSED")
+    ) {
+      console.log(
+        "SKIP: Postgres unavailable (LEAST/GREATEST cross-check)",
+      );
+      return;
+    }
+    throw error;
   }
 }
 

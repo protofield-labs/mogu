@@ -3,6 +3,7 @@
 import { Plus } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 
+import { MypageViewSkeleton } from "@/components/loading/skeletons";
 import { CollectionGrid } from "@/components/mypage/collection-grid";
 import { FlagInboxCard } from "@/components/mypage/flag-inbox-card";
 import { MypageTopBar } from "@/components/mypage/mypage-top-bar";
@@ -216,11 +217,7 @@ export function MypageView() {
   }
 
   if (loading) {
-    return (
-      <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-        マイページを読み込んでいます…
-      </div>
-    );
+    return <MypageViewSkeleton />;
   }
 
   if (!me) {
