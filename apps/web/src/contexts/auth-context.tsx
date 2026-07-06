@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
   createContext,
   useCallback,
@@ -39,6 +40,7 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
   const firebaseConfigured = isFirebaseConfigured();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(firebaseConfigured);
@@ -69,7 +71,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearPendingRecommendation();
     clearLastReadFeedAt();
     await signOut(getFirebaseAuth());
-  }, []);
+    router.replace("/login");
+  }, [router]);
 
   const value = useMemo(
     () => ({ user, loading, getIdToken, logout }),

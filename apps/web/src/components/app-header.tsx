@@ -8,18 +8,18 @@ export function AppHeader() {
   const { user, logout } = useAuth();
 
   return (
-    <header className="flex items-center justify-between border-b border-gray-200 px-6 py-3">
-      <Link href="/" className="font-semibold text-gray-900">
+    <header className="flex items-center justify-between border-b border-border px-mogu-screen-x py-3">
+      <Link href="/" className="font-semibold text-foreground">
         mogu
       </Link>
-      <div className="flex items-center gap-4 text-sm text-gray-600">
-        {user?.email ? <span>{user.email}</span> : null}
+      <div className="flex items-center gap-3 text-sm text-muted-foreground">
+        {user?.email ? <span className="max-w-40 truncate">{user.email}</span> : null}
         <button
           type="button"
           onClick={() => void logout()}
-          className="text-blue-600 hover:underline"
+          className="font-medium text-foreground hover:underline"
         >
-          Log out
+          ログアウト
         </button>
       </div>
     </header>
