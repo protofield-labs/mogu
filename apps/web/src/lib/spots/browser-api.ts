@@ -1,6 +1,6 @@
 "use client";
 
-import { parseApiErrorBody } from "@/lib/auth/api-error";
+import { readApiErrorResponse } from "@/lib/auth/api-error";
 import { authFetch } from "@/lib/auth/auth-fetch";
 
 export type SpotRating = "again" | "either" | "no";
@@ -49,11 +49,6 @@ export type UpdateSpotInput = {
   photoUrls?: string[];
 };
 
-async function readApiError(response: Response, fallback: string): Promise<Error> {
-  const body = await parseApiErrorBody(response);
-  return new Error(body?.error.message ?? fallback);
-}
-
 export async function createSpot(
   collectionId: string,
   input: CreateSpotInput,
@@ -64,7 +59,7 @@ export async function createSpot(
     body: JSON.stringify(input),
   });
   if (!response.ok) {
-    throw await readApiError(response, "スポットを追加できませんでした");
+    throw await readApiErrorResponse(response, "スポットを追加できませんでした");
   }
   return (await response.json()) as Spot;
 }
@@ -76,7 +71,7 @@ export async function updateSpot(id: string, input: UpdateSpotInput): Promise<Sp
     body: JSON.stringify(input),
   });
   if (!response.ok) {
-    throw await readApiError(response, "スポットを更新できませんでした");
+    throw await readApiErrorResponse(response, "スポットを更新できませんでした");
   }
   return (await response.json()) as Spot;
 }
@@ -84,6 +79,6 @@ export async function updateSpot(id: string, input: UpdateSpotInput): Promise<Sp
 export async function deleteSpot(id: string): Promise<void> {
   const response = await authFetch(`/api/v1/spots/${id}`, { method: "DELETE" });
   if (!response.ok) {
-    throw await readApiError(response, "スポットを削除できませんでした");
+    throw await readApiErrorResponse(response, "スポットを削除できませんでした");
   }
 }

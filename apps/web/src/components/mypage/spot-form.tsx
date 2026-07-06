@@ -6,6 +6,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { AuthImage } from "@/components/mypage/auth-image";
 import { PhotoUploadField } from "@/components/mypage/photo-upload-field";
 import { searchPlaces, type PlaceSearchResult } from "@/lib/places/browser-api";
+import { formatRatingChip, formatSavedCountBadge } from "@/lib/home/feed-labels";
 import {
   createSpot,
   deleteSpot,
@@ -350,7 +351,9 @@ export function SpotList({ spots, onEdit, onDelete }: SpotListProps) {
                 {spot.comment || spot.placeId}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                {spot.rating} ・ 輪{spot.savedCount}人
+                {[formatRatingChip(spot.rating), formatSavedCountBadge(spot.savedCount)]
+                  .filter(Boolean)
+                  .join(" ・ ")}
               </p>
             </div>
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { parseApiErrorBody } from "@/lib/auth/api-error";
+import { readApiErrorResponse } from "@/lib/auth/api-error";
 import { authFetch } from "@/lib/auth/auth-fetch";
 
 import { parseSseBuffer } from "./chat-helpers";
@@ -12,16 +12,11 @@ import type {
   PlaceDTO,
 } from "./types";
 
-async function readApiError(response: Response, fallback: string): Promise<Error> {
-  const body = await parseApiErrorBody(response);
-  return new Error(body?.error.message ?? fallback);
-}
-
 /** Create a Vertex agent session (#43). */
 export async function createAgentSession(): Promise<string> {
   const response = await authFetch("/api/v1/agent/sessions", { method: "POST" });
   if (!response.ok) {
-    throw await readApiError(response, "Failed to create agent session");
+    throw await readApiErrorResponse(response, "エージェントセッションを作成できませんでした");
   }
   const data = (await response.json()) as CreateAgentSessionResponse;
   return data.sessionId;
@@ -41,7 +36,7 @@ export async function sendAgentMessage(
     },
   );
   if (!response.ok) {
-    throw await readApiError(response, "Failed to send message");
+    throw await readApiErrorResponse(response, "メッセージを送信できませんでした");
   }
   return (await response.json()) as AgentMessage;
 }
@@ -96,7 +91,7 @@ export async function connectAgentEvents(
     { signal },
   );
   if (!response.ok) {
-    throw await readApiError(response, "Failed to open event stream");
+    throw await readApiErrorResponse(response, "イベントストリームを開けませんでした");
   }
   if (!response.body) {
     throw new Error("Event stream returned empty body");

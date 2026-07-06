@@ -4,6 +4,7 @@ import { Lock, Pencil, Sparkles, Trash2 } from "lucide-react";
 import Link from "next/link";
 
 import type { Collection } from "@/lib/collections/browser-api";
+import { formatCollectionVisibility } from "@/lib/labels/collection-labels";
 import { cn } from "@/lib/utils";
 
 function collectionInitials(name: string): string {
@@ -40,13 +41,13 @@ function CollectionTile({
         )}
         {isSecret ? (
           <span className="absolute right-2 top-2 rounded-full bg-background/90 p-1.5 text-foreground shadow-sm">
-            <Lock className="size-3.5" aria-label="secret コレクション" />
+            <Lock className="size-3.5" aria-label="自分だけのコレクション" />
           </span>
         ) : null}
         </div>
       </Link>
       <p className="text-center text-xs text-muted-foreground">
-        {isSecret ? "secret ・ " : ""}
+        {isSecret ? `${formatCollectionVisibility("secret")} ・ ` : ""}
         {collection.spotCount}軒
       </p>
       {onEdit || onDelete ? (

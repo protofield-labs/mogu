@@ -1,13 +1,8 @@
 "use client";
 
-import { parseApiErrorBody } from "@/lib/auth/api-error";
+import { readApiErrorResponse } from "@/lib/auth/api-error";
 import { authFetch } from "@/lib/auth/auth-fetch";
 import type { FeedPage, Recommendation } from "@/lib/home/types";
-
-async function readApiError(response: Response, fallback: string): Promise<Error> {
-  const body = await parseApiErrorBody(response);
-  return new Error(body?.error.message ?? fallback);
-}
 
 export async function fetchFeedPage(cursor?: string | null): Promise<FeedPage> {
   const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
@@ -16,7 +11,7 @@ export async function fetchFeedPage(cursor?: string | null): Promise<FeedPage> {
     throw new Error("フィードのページング情報が不正です");
   }
   if (!response.ok) {
-    throw await readApiError(response, "フィードを読み込めませんでした");
+    throw await readApiErrorResponse(response, "フィードを読み込めませんでした");
   }
   return (await response.json()) as FeedPage;
 }
@@ -27,7 +22,7 @@ export async function fetchHomeRecommendation(): Promise<Recommendation | null> 
     return null;
   }
   if (!response.ok) {
-    throw await readApiError(response, "一推しを読み込めませんでした");
+    throw await readApiErrorResponse(response, "一推しを読み込めませんでした");
   }
   return (await response.json()) as Recommendation;
 }

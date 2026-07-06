@@ -97,10 +97,10 @@ function main() {
 
   assert(
     formatFriendRequestError(
-      new Error("Friend request already exists"),
+      new Error("すでに申請済みです"),
       "fallback",
     ) === "すでに申請済みです",
-    "conflict copy",
+    "localized error passthrough",
   );
   const duplicates = findDuplicateDisplayNames([
     { id: "1", displayName: "dev", avatarColor: "#2563EB" },

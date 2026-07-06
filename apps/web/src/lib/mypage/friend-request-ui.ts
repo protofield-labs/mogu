@@ -14,22 +14,12 @@ const AVATAR_COLOR_LABELS: Record<string, string> = {
   "#65A30D": "ライム",
 };
 
-/** Map API errors to user-facing Japanese (#84). */
+/** Pass through localized Error.message from readApiErrorResponse (#89). */
 export function formatFriendRequestError(error: unknown, fallback: string): string {
-  if (!(error instanceof Error)) {
-    return fallback;
+  if (error instanceof Error && error.message) {
+    return error.message;
   }
-  const message = error.message;
-  if (message.includes("Friend request already exists")) {
-    return "すでに申請済みです";
-  }
-  if (message.includes("Cannot send a friend request to yourself")) {
-    return "自分自身には申請できません";
-  }
-  if (message.includes("User not found")) {
-    return "ユーザーが見つかりません";
-  }
-  return message || fallback;
+  return fallback;
 }
 
 /** displayName values that appear more than once in the same list (#94). */

@@ -51,6 +51,45 @@ export function internalServerErrorResponse(
   return apiErrorResponse("internal", message, 500);
 }
 
+const API_ERROR_CODE_MESSAGES: Record<ApiErrorCode, string> = {
+  unauthorized: "ログインが必要です",
+  forbidden: "この操作は許可されていません",
+  not_found: "対象が見つかりません",
+  conflict: "操作できませんでした。内容を確認してください",
+  validation: "入力内容に問題があります",
+  internal: "サーバーエラーが発生しました。時間をおいて再度お試しください",
+};
+
+/** Known server messages mapped to Japanese (API still returns English). */
+const API_ERROR_DETAIL_MESSAGES: Record<string, string> = {
+  "Invalid request body": "入力内容に問題があります",
+  "Invalid JSON": "入力内容に問題があります",
+  "Cannot send a friend request to yourself": "自分自身には申請できません",
+  "Friend request already exists": "すでに申請済みです",
+  "Friend request is not pending": "この申請はすでに処理済みです",
+  "User not found": "ユーザーが見つかりません",
+  "Agent Engine is not configured":
+    "エージェントが準備中です。しばらくしてから再度お試しください",
+};
+
+/** Map OpenAPI ErrorBody to user-facing Japanese (#89). */
+export function formatApiErrorMessage(
+  body: ApiErrorBody | null,
+  fallback: string,
+): string {
+  if (!body) {
+    return fallback;
+  }
+
+  const { code, message } = body.error;
+  const detail = API_ERROR_DETAIL_MESSAGES[message];
+  if (detail) {
+    return detail;
+  }
+
+  return API_ERROR_CODE_MESSAGES[code] ?? fallback;
+}
+
 /** Parse JSON body for tests and client error handling. */
 export async function parseApiErrorBody(
   response: Response,
@@ -70,4 +109,13 @@ export async function parseApiErrorBody(
   } catch {
     return null;
   }
+}
+
+/** Build a localized Error from a failed API response. */
+export async function readApiErrorResponse(
+  response: Response,
+  fallback: string,
+): Promise<Error> {
+  const body = await parseApiErrorBody(response);
+  return new Error(formatApiErrorMessage(body, fallback));
 }
