@@ -2,6 +2,7 @@ import { parseJsonBody } from "@/lib/api/parse-json-body";
 import { signedUploadBodySchema } from "@/lib/api/schemas/uploads";
 import {
   apiErrorResponse,
+  validationErrorResponse,
   withAuthRoute,
 } from "@/lib/auth/require-auth";
 import {
@@ -22,6 +23,9 @@ export async function POST(request: Request): Promise<Response> {
     } catch (error) {
       if (error instanceof StorageNotConfiguredError) {
         return apiErrorResponse("internal", error.message, 503);
+      }
+      if (error instanceof Error && error.message === "Unsupported content type") {
+        return validationErrorResponse("Unsupported content type");
       }
       throw error;
     }

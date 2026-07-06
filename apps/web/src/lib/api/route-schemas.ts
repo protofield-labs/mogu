@@ -3,7 +3,7 @@ import { z } from "zod";
 export { uuidRouteParamsSchema } from "@/lib/api/schemas/common";
 
 export const pairIdRouteParamsSchema = z.object({
-  pairId: z.string().uuid(),
+  pairId: z.string().trim().min(1).max(512),
 });
 
 export const feedQuerySchema = z.object({

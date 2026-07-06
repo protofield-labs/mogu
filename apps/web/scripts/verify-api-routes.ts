@@ -5,6 +5,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { encodeFriendshipPairId } from "../src/lib/friendship/pair";
 import {
   collectionsListQuerySchema,
   feedQuerySchema,
@@ -62,7 +63,16 @@ assert(
   "parseJsonBody helper exists",
 );
 
-assert(pairIdRouteParamsSchema.safeParse({ pairId: "not-a-uuid" }).success === false, "pairId uuid validation");
+assert(pairIdRouteParamsSchema.safeParse({ pairId: "" }).success === false, "pairId rejects empty");
+assert(
+  pairIdRouteParamsSchema.safeParse({
+    pairId: encodeFriendshipPairId({
+      userLow: "11111111-1111-4111-8111-111111111111",
+      userHigh: "22222222-2222-4222-8222-222222222222",
+    }),
+  }).success,
+  "pairId accepts encoded friendship pair key",
+);
 assert(feedQuerySchema.safeParse({}).success, "feed query allows empty");
 assert(collectionsListQuerySchema.safeParse({ ownerId: "me" }).success, "collections ownerId query");
 assert(userSearchQuerySchema.safeParse({ q: "Ken" }).success, "user search query");
