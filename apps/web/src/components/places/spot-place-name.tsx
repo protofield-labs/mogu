@@ -6,23 +6,26 @@ type SpotPlaceNameProps = {
   placeId: string;
   fallback?: string;
   className?: string;
-  loadingClassName?: string;
+  /** When set, skips an internal Places fetch (use parent `usePlace` result). */
+  placeName?: string | null;
+  loading?: boolean;
 };
 
 export function SpotPlaceName({
   placeId,
   fallback = "スポット",
   className,
-  loadingClassName,
+  placeName: externalPlaceName,
+  loading: externalLoading,
 }: SpotPlaceNameProps) {
-  const { placeName, loading } = usePlace(placeId);
+  const internal = usePlace(placeId, externalPlaceName === undefined);
+  const placeName =
+    externalPlaceName !== undefined ? externalPlaceName : internal.placeName;
+  const loading =
+    externalLoading !== undefined ? externalLoading : internal.loading;
 
   if (loading && !placeName) {
-    return (
-      <span className={loadingClassName ?? "text-muted-foreground"}>
-        読み込み中…
-      </span>
-    );
+    return <span className={className}>{fallback}</span>;
   }
 
   return <span className={className}>{placeName ?? fallback}</span>;

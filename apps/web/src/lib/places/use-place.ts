@@ -17,12 +17,12 @@ type PlaceState = {
 };
 
 /** Resolve place display fields at render time (guardrail 7). */
-export function usePlace(placeId: string): UsePlaceResult {
-  const enabled = placeId.length > 0;
+export function usePlace(placeId: string, enabled = true): UsePlaceResult {
+  const active = enabled && placeId.length > 0;
   const [state, setState] = useState<PlaceState>({ placeId: "", place: null });
 
   useEffect(() => {
-    if (!enabled) {
+    if (!active) {
       return;
     }
 
@@ -35,13 +35,13 @@ export function usePlace(placeId: string): UsePlaceResult {
     return () => {
       cancelled = true;
     };
-  }, [enabled, placeId]);
+  }, [active, placeId]);
 
-  const isCurrent = enabled && state.placeId === placeId;
+  const isCurrent = active && state.placeId === placeId;
 
   return {
     place: isCurrent ? state.place : null,
     placeName: isCurrent ? (state.place?.name ?? null) : null,
-    loading: enabled && !isCurrent,
+    loading: active && !isCurrent,
   };
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { XIcon } from "lucide-react";
 
 import { UserAvatar } from "@/components/home/user-avatar";
@@ -11,32 +11,38 @@ import {
   googleMapsPlaceUrl,
   openNowLabel,
 } from "@/lib/agent/chat-helpers";
+import type { PlaceDTO } from "@/lib/agent/types";
 import {
   formatRatingChip,
   formatSpotTagChips,
   formatViaLabel,
 } from "@/lib/home/feed-labels";
-import { recollectFeedSpot } from "@/lib/home/recollect-spot";
 import type { FeedItem } from "@/lib/home/types";
-import { usePlace } from "@/lib/places/use-place";
 
 type FeedSpotDetailSheetProps = {
-  item: FeedItem | null;
+  item: FeedItem;
+  place: PlaceDTO | null;
+  placeName: string | null;
   open: boolean;
   onClose: () => void;
+  saved: boolean;
+  busy: boolean;
+  error: string | null;
+  onSave: () => void;
 };
 
 export function FeedSpotDetailSheet({
   item,
+  place,
+  placeName,
   open,
   onClose,
+  saved,
+  busy,
+  error,
+  onSave,
 }: FeedSpotDetailSheetProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const [saved, setSaved] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const placeId = item?.spot.placeId ?? "";
-  const { place, placeName } = usePlace(placeId);
   const openNowLabelText = openNowLabel(place?.openNow);
 
   useEffect(() => {
@@ -52,25 +58,10 @@ export function FeedSpotDetailSheet({
     }
   }, [open]);
 
-  if (!item) {
-    return null;
-  }
-
   const { spot, actor } = item;
   const tagChips = formatSpotTagChips(spot);
   const title = placeName ?? (spot.comment || item.collectionName);
-
-  async function handleSave() {
-    setBusy(true);
-    setError(null);
-    const result = await recollectFeedSpot(spot.id);
-    setBusy(false);
-    if (result.ok) {
-      setSaved(true);
-    } else {
-      setError(result.error);
-    }
-  }
+  const showComment = Boolean(spot.comment && placeName);
 
   return (
     <dialog
@@ -123,7 +114,7 @@ export function FeedSpotDetailSheet({
             </p>
           ) : null}
 
-          {spot.comment ? (
+          {showComment ? (
             <p className="mt-3 text-sm text-foreground">{spot.comment}</p>
           ) : null}
 
@@ -155,7 +146,7 @@ export function FeedSpotDetailSheet({
               variant="secondary"
               size="sm"
               disabled={busy || saved}
-              onClick={() => void handleSave()}
+              onClick={onSave}
             >
               {saved ? "保存済み" : "保存"}
             </Button>
