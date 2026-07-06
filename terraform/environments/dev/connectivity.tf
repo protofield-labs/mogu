@@ -46,6 +46,25 @@ resource "google_project_iam_member" "web_vertex_ai_user" {
   member  = "serviceAccount:${google_service_account.web.email}"
 }
 
+# #80: GCS signed upload URLs (getSignedUrl → signBlob) and media proxy reads.
+resource "google_storage_bucket_iam_member" "web_app_object_creator" {
+  bucket = module.storage.bucket_name
+  role   = "roles/storage.objectCreator"
+  member = "serviceAccount:${google_service_account.web.email}"
+}
+
+resource "google_storage_bucket_iam_member" "web_app_object_viewer" {
+  bucket = module.storage.bucket_name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.web.email}"
+}
+
+resource "google_service_account_iam_member" "web_sign_blob" {
+  service_account_id = google_service_account.web.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:${google_service_account.web.email}"
+}
+
 # GitHub Actions: push images and deploy new revisions to Cloud Run.
 resource "google_project_iam_member" "github_actions_artifact_registry_writer" {
   project = var.project_id
