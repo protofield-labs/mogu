@@ -89,7 +89,7 @@ export function ProfileHeroCard({
       <div className="[perspective:1000px]">
         <div
           className={cn(
-            "relative min-h-[13rem] transition-transform duration-500 [transform-style:preserve-3d] motion-reduce:transition-none",
+            "relative h-[13rem] w-full transition-transform duration-500 [transform-style:preserve-3d] motion-reduce:transition-none",
             editing && "[transform:rotateY(180deg)]",
           )}
         >
@@ -114,7 +114,7 @@ export function ProfileHeroCard({
               }
             }}
             className={cn(
-              "flex w-full cursor-pointer items-stretch gap-5 rounded-mogu-card bg-mogu-surface-elevated p-5 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [backface-visibility:hidden]",
+              "absolute inset-0 flex cursor-pointer items-stretch gap-5 overflow-hidden rounded-mogu-card bg-mogu-surface-elevated p-5 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [backface-visibility:hidden]",
               editing && "pointer-events-none",
             )}
           >
@@ -183,46 +183,53 @@ export function ProfileHeroCard({
             id={editPanelId}
             inert={!editing}
             className={cn(
-              "absolute inset-0 rounded-mogu-card bg-mogu-surface-elevated p-4 shadow-sm [backface-visibility:hidden] [transform:rotateY(180deg)]",
+              "absolute inset-0 overflow-hidden rounded-mogu-card bg-mogu-surface-elevated shadow-sm [backface-visibility:hidden] [transform:rotateY(180deg)]",
               !editing && "pointer-events-none",
             )}
           >
             <form
               onSubmit={(event) => void handleSubmit(event)}
-              className="flex h-full flex-col gap-3"
+              className="flex h-full flex-col gap-2 overflow-hidden p-3"
             >
-              <ProfileFormFields
-                values={form}
-                onChange={(next) => {
-                  setForm(next);
-                  setSaved(false);
-                }}
-                colorLegend="アバターの色"
-              />
+              <div className="min-h-0 flex-1 space-y-2 overflow-hidden">
+                <ProfileFormFields
+                  compact
+                  values={form}
+                  onChange={(next) => {
+                    setForm(next);
+                    setSaved(false);
+                  }}
+                  colorLegend="アバターの色"
+                />
+              </div>
 
               {error ? (
-                <p className="text-sm text-destructive" role="alert">
+                <p className="shrink-0 truncate text-xs text-destructive" role="alert">
                   {error}
                 </p>
               ) : null}
               {saved ? (
-                <p className="text-sm text-muted-foreground">保存しました</p>
+                <p className="shrink-0 text-xs text-muted-foreground">保存しました</p>
               ) : null}
 
-              <div className="mt-auto flex gap-2">
+              <div className="flex shrink-0 gap-2 pt-0.5">
                 <Button
                   type="button"
                   variant="outline"
                   disabled={busy}
                   onClick={handleCancelEdit}
-                  className="h-10 flex-1 rounded-xl"
+                  className="h-9 flex-1 rounded-lg text-sm"
                 >
                   戻る
                 </Button>
-                <Button type="submit" disabled={busy} className="h-10 flex-1 rounded-xl">
+                <Button
+                  type="submit"
+                  disabled={busy}
+                  className="h-9 flex-1 rounded-lg text-sm"
+                >
                   {busy ? (
                     <>
-                      <LoaderCircleIcon className="size-4 animate-spin" aria-hidden />
+                      <LoaderCircleIcon className="size-3.5 animate-spin" aria-hidden />
                       保存中…
                     </>
                   ) : (
