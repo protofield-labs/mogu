@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { AvatarRow } from "@/components/home/avatar-row";
@@ -9,6 +7,7 @@ import { FeedCompactRow } from "@/components/home/feed-compact-row";
 import { FeedHeroCard } from "@/components/home/feed-hero-card";
 import { HomeEmptyState } from "@/components/home/home-empty-state";
 import { RecommendationCompactRow } from "@/components/home/recommendation-compact-row";
+import { RecommendationEmptyRow } from "@/components/home/recommendation-empty-row";
 import { HomeViewSkeleton } from "@/components/loading/skeletons";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -208,13 +207,7 @@ export function HomeView() {
           className="mx-mogu-screen-x h-14 rounded-2xl"
         />
       ) : (
-        <Link
-          href="/search"
-          className="mx-mogu-screen-x flex items-center justify-between rounded-2xl border border-dashed border-border bg-mogu-surface-elevated px-4 py-3 text-sm text-foreground"
-        >
-          <span>今夜どこ行く？ 検索で断言を見る</span>
-          <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
-        </Link>
+        <RecommendationEmptyRow ownSpotCount={me.counts.spots} />
       )}
 
       {solo && feedItems.length === 0 ? (

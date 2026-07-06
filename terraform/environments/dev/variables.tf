@@ -54,6 +54,12 @@ variable "app_image" {
   default     = "us-docker.pkg.dev/cloudrun/container/hello"
 }
 
+variable "migrate_image" {
+  description = "Container image for Cloud Run Jobs (migrate, daily-reco). Defaults to Artifact Registry migrate:latest."
+  type        = string
+  default     = null
+}
+
 variable "max_instances" {
   description = "Maximum Cloud Run instances."
   type        = number

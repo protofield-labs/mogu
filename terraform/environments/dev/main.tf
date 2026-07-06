@@ -33,6 +33,7 @@ resource "google_project_service" "services" {
     "places.googleapis.com",
     "aiplatform.googleapis.com",
     "apikeys.googleapis.com",
+    "cloudscheduler.googleapis.com",
   ])
 
   project = var.project_id

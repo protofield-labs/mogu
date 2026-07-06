@@ -72,3 +72,13 @@ output "maps_grounding_engine_resource_name" {
   description = "Full resource name of the Maps Grounding Reasoning Engine (#43)."
   value       = try(google_vertex_ai_reasoning_engine.maps_grounding[0].id, null)
 }
+
+output "daily_reco_job_name" {
+  description = "Cloud Run Job name for the nightly daily recommendation batch (#91)."
+  value       = try(module.daily_reco_job[0].name, null)
+}
+
+output "daily_reco_scheduler_name" {
+  description = "Cloud Scheduler job name for the nightly daily recommendation batch (#91)."
+  value       = try(google_cloud_scheduler_job.daily_reco[0].name, null)
+}
