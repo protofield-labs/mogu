@@ -83,6 +83,9 @@ jobs:
       - name: Verify PWA manifest
         run: pnpm exec tsx scripts/verify-pwa-manifest.ts
 
+      - name: Verify spot DTO unification
+        run: pnpm exec tsx scripts/verify-spot-dto.ts
+
       - name: Verify agent engine config
         run: pnpm exec tsx scripts/verify-agent-config.ts
 

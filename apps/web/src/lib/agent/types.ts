@@ -1,18 +1,7 @@
+import type { SpotDto } from "@/lib/spot/types";
+
 /** OpenAPI Spot (subset used by agent UI). */
-export type Spot = {
-  id: string;
-  placeId: string;
-  addedBy: string;
-  collectionId: string;
-  photoUrls: string[];
-  comment: string;
-  rating: "again" | "either" | "no";
-  structuredTags: Record<string, unknown>;
-  freeTags: string[];
-  savedCount: number;
-  originUserId: string | null;
-  createdAt: string;
-};
+export type Spot = SpotDto;
 
 /** OpenAPI Recommendation (#55 assertion card). */
 export type Recommendation = {

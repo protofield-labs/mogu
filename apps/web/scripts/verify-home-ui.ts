@@ -40,7 +40,7 @@ const feedItems = [
       photoUrls: [],
       comment: "great",
       rating: "again" as const,
-      structuredTags: {},
+      structuredTags: { area: null, genre: null, situation: null },
       freeTags: [],
       savedCount: 3,
       originUserId: null,
@@ -59,7 +59,7 @@ const feedItems = [
       photoUrls: [],
       comment: "nice",
       rating: "either" as const,
-      structuredTags: {},
+      structuredTags: { area: null, genre: null, situation: null },
       freeTags: [],
       savedCount: 1,
       originUserId: null,
@@ -104,7 +104,7 @@ function main() {
   assert(
     formatSpotTagChips({
       ...feedItems[0]!.spot,
-      structuredTags: { area: "恵比寿", genre: "イタリアン" },
+      structuredTags: { area: "恵比寿", genre: "イタリアン", situation: null },
       freeTags: ["静か"],
     }).join(",") === "恵比寿,イタリアン,静か",
     "spot tag chips",
