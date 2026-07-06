@@ -21,13 +21,27 @@ const notoSansJp = Noto_Sans_JP({
 
 export const metadata: Metadata = {
   title: "mogu",
-  description: "mogu web app running on Cloud Run",
+  description: "友達とお気に入りの店を共有する",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "mogu",
+    statusBarStyle: "default",
+  },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: "#C96B45",
 };
 
 export default function RootLayout({
