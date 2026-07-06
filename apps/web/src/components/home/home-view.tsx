@@ -10,6 +10,7 @@ import { RecommendationCompactRow } from "@/components/home/recommendation-compa
 import { RecommendationEmptyRow } from "@/components/home/recommendation-empty-row";
 import { HomeViewSkeleton } from "@/components/loading/skeletons";
 import { Button } from "@/components/ui/button";
+import { LoadErrorState } from "@/components/ui/load-error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchFeedPage, fetchHomeRecommendation } from "@/lib/home/browser-api";
 import {
@@ -67,6 +68,7 @@ export function HomeView() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
   const feedViewedRef = useRef(false);
 
   useEffect(() => {
@@ -114,7 +116,7 @@ export function HomeView() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadToken]);
 
   useEffect(() => {
     return () => {
@@ -151,17 +153,19 @@ export function HomeView() {
     }
   }
 
+  function handleRetryInitialLoad() {
+    setLoading(true);
+    setError(null);
+    setReloadToken((current) => current + 1);
+  }
+
   if (loading) {
     return <HomeViewSkeleton embedded />;
   }
 
   if (error && !me) {
     return (
-      <div className="flex flex-1 items-center justify-center px-mogu-screen-x py-mogu-screen-y">
-        <p className="text-sm text-destructive" role="alert">
-          {error}
-        </p>
-      </div>
+      <LoadErrorState message={error} onRetry={handleRetryInitialLoad} />
     );
   }
 
@@ -187,19 +191,12 @@ export function HomeView() {
       {recommendation.status === "ready" && recommendation.value ? (
         <RecommendationCompactRow recommendation={recommendation.value} />
       ) : recommendation.status === "error" ? (
-        <div className="mx-mogu-screen-x flex items-center justify-between rounded-2xl border border-border bg-mogu-surface-elevated px-4 py-3">
-          <span className="text-sm text-muted-foreground">
-            一推しを読み込めませんでした
-          </span>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => void handleRetryRecommendation()}
-          >
-            再読み込み
-          </Button>
-        </div>
+        <LoadErrorState
+          variant="inline"
+          className="mx-mogu-screen-x"
+          message="一推しを読み込めませんでした"
+          onRetry={() => void handleRetryRecommendation()}
+        />
       ) : recommendation.status === "loading" ? (
         <Skeleton
           aria-busy="true"
@@ -251,9 +248,13 @@ export function HomeView() {
       )}
 
       {error ? (
-        <p className="px-mogu-screen-x text-sm text-destructive" role="alert">
-          {error}
-        </p>
+        <LoadErrorState
+          variant="inline"
+          className="mx-mogu-screen-x"
+          message={error}
+          onRetry={() => void handleLoadMore()}
+          retrying={loadingMore}
+        />
       ) : null}
     </div>
   );

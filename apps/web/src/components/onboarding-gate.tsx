@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { AppShellSkeleton } from "@/components/loading/skeletons";
+import { LoadErrorState } from "@/components/ui/load-error-state";
 import { authFetch } from "@/lib/auth/auth-fetch";
 import { isOnboardingComplete } from "@/lib/user-profile";
 
@@ -25,6 +26,7 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,7 +66,7 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [pathname, router]);
+  }, [pathname, router, reloadToken]);
 
   if (status === "ready") {
     return children;
@@ -72,9 +74,11 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
 
   if (status === "error") {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-background px-6 text-center text-sm text-destructive">
-        {error}
-      </div>
+      <LoadErrorState
+        className="min-h-dvh"
+        message={error ?? "プロフィールを読み込めませんでした"}
+        onRetry={() => setReloadToken((current) => current + 1)}
+      />
     );
   }
 

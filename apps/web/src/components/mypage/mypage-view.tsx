@@ -5,6 +5,7 @@ import { Plus, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { MypageViewSkeleton } from "@/components/loading/skeletons";
+import { LoadErrorState } from "@/components/ui/load-error-state";
 import { CollectionGrid } from "@/components/mypage/collection-grid";
 import { FlagInboxCard } from "@/components/mypage/flag-inbox-card";
 import { MypageNavTiles } from "@/components/mypage/mypage-nav-tiles";
@@ -56,6 +57,7 @@ export function MypageView() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
   const [shelfError, setShelfError] = useState<string | null>(null);
   const collectionsRef = useRef<HTMLElement>(null);
 
@@ -118,7 +120,7 @@ export function MypageView() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadToken]);
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -220,15 +222,22 @@ export function MypageView() {
     }
   }
 
+  function handleRetryLoad() {
+    setLoading(true);
+    setError(null);
+    setReloadToken((current) => current + 1);
+  }
+
   if (loading) {
     return <MypageViewSkeleton />;
   }
 
   if (!me) {
     return (
-      <div className="flex flex-1 items-center justify-center px-mogu-screen-x text-sm text-destructive">
-        {error ?? "プロフィールを表示できませんでした"}
-      </div>
+      <LoadErrorState
+        message={error ?? "プロフィールを表示できませんでした"}
+        onRetry={handleRetryLoad}
+      />
     );
   }
 

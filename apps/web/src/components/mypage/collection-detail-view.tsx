@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { CollectionDetailSkeleton } from "@/components/loading/skeletons";
+import { LoadErrorState } from "@/components/ui/load-error-state";
 import { SpotForm, SpotList } from "@/components/mypage/spot-form";
 import {
   getCollectionDetail,
@@ -20,7 +21,18 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
   const [detail, setDetail] = useState<CollectionDetail | null>(null);
   const [editingSpot, setEditingSpot] = useState<Spot | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
+  const [prevCollectionId, setPrevCollectionId] = useState(collectionId);
+
+  if (collectionId !== prevCollectionId) {
+    setPrevCollectionId(collectionId);
+    setLoading(true);
+    setLoadError(null);
+    setDetail(null);
+    setEditingSpot(null);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -33,7 +45,9 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "読み込みに失敗しました");
+          setLoadError(
+            err instanceof Error ? err.message : "読み込みに失敗しました",
+          );
         }
       } finally {
         if (!cancelled) {
@@ -46,7 +60,7 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
     return () => {
       cancelled = true;
     };
-  }, [collectionId]);
+  }, [collectionId, reloadToken]);
 
   function handleSpotSaved(spot: Spot) {
     setDetail((current) => {
@@ -89,15 +103,22 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
     }
   }
 
+  function handleRetryLoad() {
+    setLoading(true);
+    setLoadError(null);
+    setReloadToken((current) => current + 1);
+  }
+
   if (loading) {
     return <CollectionDetailSkeleton />;
   }
 
   if (!detail) {
     return (
-      <div className="flex flex-1 items-center justify-center px-mogu-screen-x text-sm text-destructive">
-        {error ?? "コレクションを表示できませんでした"}
-      </div>
+      <LoadErrorState
+        message={loadError ?? "コレクションを表示できませんでした"}
+        onRetry={handleRetryLoad}
+      />
     );
   }
 
