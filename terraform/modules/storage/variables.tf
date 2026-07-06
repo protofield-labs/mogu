@@ -24,3 +24,9 @@ variable "labels" {
   type        = map(string)
   default     = {}
 }
+
+variable "cors_origins" {
+  description = "Browser origins allowed for direct GCS uploads (signed URL PUT). Empty disables CORS."
+  type        = list(string)
+  default     = []
+}
