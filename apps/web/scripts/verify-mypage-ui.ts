@@ -16,6 +16,12 @@ import {
   shouldShowFriendRequestBadge,
   shouldShowMypageTabBadge,
 } from "../src/lib/mypage/stats-row";
+import {
+  findDuplicateDisplayNames,
+  formatAvatarColorLabel,
+  formatFriendRequestError,
+  isIncomingPending,
+} from "../src/lib/mypage/friend-request-ui";
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {
@@ -77,6 +83,22 @@ function main() {
     !shouldShowMypageTabBadge({ pendingFriendRequests: 0, unreadFlags: 0 }),
     "no tab badge when clear",
   );
+
+  assert(
+    formatFriendRequestError(
+      new Error("Friend request already exists"),
+      "fallback",
+    ) === "すでに申請済みです",
+    "conflict copy",
+  );
+  const duplicates = findDuplicateDisplayNames([
+    { id: "1", displayName: "dev", avatarColor: "#2563EB" },
+    { id: "2", displayName: "dev", avatarColor: "#DC2626" },
+    { id: "3", displayName: "Ken", avatarColor: "#059669" },
+  ]);
+  assert(duplicates.has("dev") && !duplicates.has("Ken"), "duplicate names");
+  assert(formatAvatarColorLabel("#2563EB") === "ブルー", "avatar color label");
+  assert(isIncomingPending("u1", new Set(["u1"])), "incoming pending");
 
   console.log("PASS: mypage UI helpers verified");
 }

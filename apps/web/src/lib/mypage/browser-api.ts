@@ -98,6 +98,14 @@ export async function fetchIncomingFriendRequests(): Promise<FriendRequest[]> {
   return (await response.json()) as FriendRequest[];
 }
 
+export async function fetchOutgoingFriendRequests(): Promise<FriendRequest[]> {
+  const response = await authFetch("/api/v1/friends/requests?box=out");
+  if (!response.ok) {
+    throw await readApiError(response, "送信済み申請を読み込めませんでした");
+  }
+  return (await response.json()) as FriendRequest[];
+}
+
 export async function searchUsers(query: string): Promise<FriendUser[]> {
   const response = await authFetch(
     `/api/v1/users/search?q=${encodeURIComponent(query)}`,
@@ -126,5 +134,15 @@ export async function acceptFriendRequest(pairId: string): Promise<void> {
   );
   if (!response.ok) {
     throw await readApiError(response, "友達申請を承認できませんでした");
+  }
+}
+
+export async function rejectFriendRequest(pairId: string): Promise<void> {
+  const response = await authFetch(
+    `/api/v1/friends/requests/${encodeURIComponent(pairId)}/reject`,
+    { method: "POST" },
+  );
+  if (!response.ok) {
+    throw await readApiError(response, "友達申請を拒否できませんでした");
   }
 }
