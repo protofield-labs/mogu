@@ -105,6 +105,7 @@ export function HomeViewSkeleton({ embedded = false }: { embedded?: boolean }) {
     <LoadingShell label="ホームを読み込んでいます" className="gap-5 py-mogu-screen-y">
       <header className="flex items-center justify-between px-mogu-screen-x">
         <Skeleton className="h-5 w-12 rounded-lg" />
+        <Skeleton className="size-9 rounded-full" />
       </header>
 
       <div className="flex gap-3 overflow-hidden px-mogu-screen-x">

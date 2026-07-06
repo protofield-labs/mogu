@@ -13,6 +13,7 @@ import {
 } from "../src/lib/mypage/flag-inbox";
 import {
   formatStatsRow,
+  getNotificationHref,
   shouldShowFriendRequestBadge,
   shouldShowMypageTabBadge,
 } from "../src/lib/mypage/stats-row";
@@ -82,6 +83,16 @@ function main() {
   assert(
     !shouldShowMypageTabBadge({ pendingFriendRequests: 0, unreadFlags: 0 }),
     "no tab badge when clear",
+  );
+  assert(
+    getNotificationHref({ pendingFriendRequests: 2, unreadFlags: 1 }) ===
+      "/mypage/friends",
+    "bell links to friends when requests pending",
+  );
+  assert(
+    getNotificationHref({ pendingFriendRequests: 0, unreadFlags: 3 }) ===
+      "/mypage",
+    "bell links to mypage for flag inbox when no requests",
   );
 
   assert(
