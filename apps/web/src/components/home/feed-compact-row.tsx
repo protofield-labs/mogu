@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { formatViaLabel } from "@/lib/home/feed-labels";
 import { recollectFeedSpot } from "@/lib/home/recollect-spot";
 import type { FeedItem } from "@/lib/home/types";
+import { showRecollectSuccessToast } from "@/lib/ui/recollect-toast";
 import { usePlace } from "@/lib/places/use-place";
 
 type FeedCompactRowProps = {
@@ -31,6 +32,7 @@ export function FeedCompactRow({ item }: FeedCompactRowProps) {
     setBusy(false);
     if (result.ok) {
       setSaved(true);
+      showRecollectSuccessToast(result.collectionName);
     } else {
       setError(result.error);
     }
@@ -43,7 +45,7 @@ export function FeedCompactRow({ item }: FeedCompactRowProps) {
 
   return (
     <>
-      <article className="flex items-center gap-3 rounded-2xl border border-border bg-mogu-surface-elevated p-3">
+      <article className="mogu-elevated flex items-center gap-3 rounded-2xl border border-border p-3">
         <button
           type="button"
           className="flex min-w-0 flex-1 items-center gap-3 text-left"

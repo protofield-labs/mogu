@@ -15,6 +15,7 @@ import {
 import type { Recommendation, Spot } from "@/lib/agent/types";
 import { listMyCollections } from "@/lib/collections/browser-api";
 import { usePlace } from "@/lib/places/use-place";
+import { showRecollectSuccessToast } from "@/lib/ui/recollect-toast";
 
 type RecommendationCardProps = {
   recommendation: Recommendation;
@@ -44,7 +45,11 @@ function SpotSummary({ spot, compact = false }: { spot: Spot; compact?: boolean 
 type CollectionsState =
   | { status: "loading" }
   | { status: "error" }
-  | { status: "ready"; targetCollectionId: string | null };
+  | {
+      status: "ready";
+      targetCollectionId: string | null;
+      targetCollectionName: string | null;
+    };
 
 export function RecommendationCard({ recommendation }: RecommendationCardProps) {
   const { spot, assertion, evidence, alternatives } = recommendation;
@@ -64,6 +69,7 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
           setCollections({
             status: "ready",
             targetCollectionId: result[0]?.id ?? null,
+            targetCollectionName: result[0]?.name ?? null,
           });
         }
       })
@@ -81,15 +87,28 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
   const hasNoCollection =
     collections.status === "ready" && collections.targetCollectionId === null;
 
-  async function resolveTargetCollectionId(): Promise<string | null> {
+  async function resolveTargetCollection(): Promise<{
+    id: string;
+    name: string;
+  } | null> {
     if (collections.status === "ready") {
-      return collections.targetCollectionId;
+      if (!collections.targetCollectionId || !collections.targetCollectionName) {
+        return null;
+      }
+      return {
+        id: collections.targetCollectionId,
+        name: collections.targetCollectionName,
+      };
     }
     try {
       const result = await listMyCollections();
-      const targetCollectionId = result[0]?.id ?? null;
-      setCollections({ status: "ready", targetCollectionId });
-      return targetCollectionId;
+      const target = result[0] ?? null;
+      setCollections({
+        status: "ready",
+        targetCollectionId: target?.id ?? null,
+        targetCollectionName: target?.name ?? null,
+      });
+      return target ? { id: target.id, name: target.name } : null;
     } catch {
       setCollections({ status: "error" });
       return null;
@@ -100,8 +119,8 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
     setRecollecting(true);
     setRecollectError(null);
     try {
-      const targetCollectionId = await resolveTargetCollectionId();
-      if (!targetCollectionId) {
+      const target = await resolveTargetCollection();
+      if (!target) {
         setRecollectError(
           collections.status === "error"
             ? "コレクションを読み込めませんでした。もう一度お試しください"
@@ -110,9 +129,10 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
         return;
       }
 
-      const ok = await recollectSpot(spot.id, targetCollectionId);
+      const ok = await recollectSpot(spot.id, target.id);
       if (ok) {
         setRecollected(true);
+        showRecollectSuccessToast(target.name);
       } else {
         setRecollectError("リコレクションに失敗しました");
       }
@@ -122,7 +142,7 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
   }
 
   return (
-    <div className="mt-2 w-full max-w-full rounded-xl border border-border bg-mogu-surface-elevated p-mogu-screen-x py-3">
+    <div className="mogu-elevated mt-2 w-full max-w-full rounded-xl border border-border p-mogu-screen-x py-3">
       {spot.photoUrls[0] ? (
         <AuthImage
           objectUrl={spot.photoUrls[0]}

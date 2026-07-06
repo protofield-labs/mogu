@@ -26,7 +26,7 @@ export function RecommendationCompactRow({
     <button
       type="button"
       onClick={handleOpenSearch}
-      className="mx-mogu-screen-x flex w-[calc(100%-2*var(--mogu-spacing-screen-x))] items-center gap-3 rounded-2xl border border-border bg-mogu-surface-elevated p-3 text-left transition-colors hover:bg-muted/40"
+      className="mogu-elevated mx-mogu-screen-x flex w-[calc(100%-2*var(--mogu-spacing-screen-x))] items-center gap-3 rounded-2xl border border-border p-3 text-left transition-colors hover:bg-muted/40"
     >
       {photo ? (
         <AuthImage

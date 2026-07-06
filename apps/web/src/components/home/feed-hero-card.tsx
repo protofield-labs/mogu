@@ -14,6 +14,7 @@ import {
 } from "@/lib/home/feed-labels";
 import { recollectFeedSpot } from "@/lib/home/recollect-spot";
 import type { FeedItem } from "@/lib/home/types";
+import { showRecollectSuccessToast } from "@/lib/ui/recollect-toast";
 import { usePlace } from "@/lib/places/use-place";
 
 type FeedHeroCardProps = {
@@ -36,6 +37,7 @@ export function FeedHeroCard({ item }: FeedHeroCardProps) {
     setBusy(false);
     if (result.ok) {
       setSaved(true);
+      showRecollectSuccessToast(result.collectionName);
     } else {
       setError(result.error);
     }
@@ -48,7 +50,7 @@ export function FeedHeroCard({ item }: FeedHeroCardProps) {
 
   return (
     <>
-      <article className="overflow-hidden rounded-2xl border border-border bg-mogu-surface-elevated">
+      <article className="mogu-elevated overflow-hidden rounded-2xl border border-border">
         <div className="relative">
           {item.spot.photoUrls.length > 0 ? (
             <div className="flex snap-x snap-mandatory overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

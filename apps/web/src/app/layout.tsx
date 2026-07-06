@@ -1,10 +1,23 @@
 import type { Metadata, Viewport } from "next";
+import { Geist, Noto_Sans_JP } from "next/font/google";
+
 import { AppProviders } from "@/components/app-providers";
-import "./globals.css";
-import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 
-const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
+import "./globals.css";
+
+const geist = Geist({
+  subsets: ["latin"],
+  variable: "--font-geist",
+  display: "swap",
+});
+
+const notoSansJp = Noto_Sans_JP({
+  weight: ["400", "500", "600", "700"],
+  preload: false,
+  display: "swap",
+  variable: "--font-noto-sans-jp",
+});
 
 export const metadata: Metadata = {
   title: "mogu",
@@ -23,7 +36,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ja" className={cn("font-sans", geist.variable)}>
+    <html
+      lang="ja"
+      className={cn(geist.variable, notoSansJp.variable, "font-sans")}
+    >
       <body className="antialiased">
         <AppProviders>{children}</AppProviders>
       </body>

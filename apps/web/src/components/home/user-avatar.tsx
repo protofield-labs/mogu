@@ -25,7 +25,7 @@ export function UserAvatar({
         "flex shrink-0 items-center justify-center rounded-full font-semibold text-white",
         sizeClass,
         showNewRing
-          ? "ring-2 ring-mogu-avatar-ring-new ring-offset-2 ring-offset-background"
+          ? "ring-2 ring-mogu-avatar-ring-new ring-offset-2 ring-offset-background motion-safe:animate-pulse"
           : "ring-1 ring-mogu-avatar-ring-idle",
         className,
       )}
