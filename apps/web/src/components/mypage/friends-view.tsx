@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { FriendsViewSkeleton } from "@/components/loading/skeletons";
 import { Button } from "@/components/ui/button";
+import { LoadErrorState } from "@/components/ui/load-error-state";
 import { notifyBadgesUpdated } from "@/lib/mypage/badge-events";
 import {
   acceptFriendRequest,
@@ -70,6 +71,8 @@ export function FriendsView() {
   const [searching, setSearching] = useState(false);
   const [friendCount, setFriendCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
   const [busyPairId, setBusyPairId] = useState<string | null>(null);
   const [busyRequestAction, setBusyRequestAction] = useState<RequestAction | null>(
     null,
@@ -123,7 +126,9 @@ export function FriendsView() {
         await loadFriendsData();
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "読み込みに失敗しました");
+          setLoadError(
+            err instanceof Error ? err.message : "読み込みに失敗しました",
+          );
         }
       } finally {
         if (!cancelled) {
@@ -136,7 +141,7 @@ export function FriendsView() {
     return () => {
       cancelled = true;
     };
-  }, [loadFriendsData]);
+  }, [loadFriendsData, reloadToken]);
 
   useEffect(() => {
     const query = searchQuery.trim();
@@ -287,8 +292,20 @@ export function FriendsView() {
     );
   }
 
+  function handleRetryLoad() {
+    setLoading(true);
+    setLoadError(null);
+    setReloadToken((current) => current + 1);
+  }
+
   if (loading) {
     return <FriendsViewSkeleton />;
+  }
+
+  if (loadError) {
+    return (
+      <LoadErrorState message={loadError} onRetry={handleRetryLoad} />
+    );
   }
 
   const trimmedQuery = searchQuery.trim();
