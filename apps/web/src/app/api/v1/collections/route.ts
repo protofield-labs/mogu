@@ -1,5 +1,6 @@
-import { z } from "zod";
-
+import {
+  createCollectionBodySchema,
+} from "@/lib/api/schemas/collection";
 import {
   validationErrorResponse,
   withAuthRoute,
@@ -8,15 +9,6 @@ import {
   createCollection,
   listCollections,
 } from "@/lib/dal/collections";
-
-const collectionVisibilitySchema = z.enum(["friends", "secret"]);
-
-const createCollectionBodySchema = z.object({
-  name: z.string().trim().min(1).max(80),
-  description: z.string().trim().max(240).optional(),
-  visibility: collectionVisibilitySchema,
-  theme: z.string().trim().max(80).optional(),
-});
 
 function resolveOwnerId(request: Request, uid: string): string {
   const { searchParams } = new URL(request.url);

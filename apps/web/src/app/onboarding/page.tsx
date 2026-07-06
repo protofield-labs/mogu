@@ -10,22 +10,12 @@ import {
   type ProfileFormValues,
 } from "@/components/profile/profile-form-fields";
 import { useAuth } from "@/contexts/auth-context";
-import { formatApiErrorMessage, parseApiErrorBody } from "@/lib/auth/api-error";
-import { authFetch } from "@/lib/auth/auth-fetch";
 import {
   DEFAULT_AVATAR_COLOR,
   ONBOARDING_AVATAR_COLORS,
   isOnboardingComplete,
 } from "@/lib/user-profile";
-
-type MeResponse = {
-  user?: Profile;
-};
-
-type Profile = {
-  displayName: string;
-  avatarColor: string;
-};
+import { createUserProfile, fetchUsersMe } from "@/lib/users/browser-api";
 
 function safeNextPath(value: string | null): string {
   if (!value || !value.startsWith("/") || value.startsWith("//")) {
@@ -36,10 +26,6 @@ function safeNextPath(value: string | null): string {
 
 function fallbackDisplayName(user: NonNullable<ReturnType<typeof useAuth>["user"]>) {
   return user.displayName ?? user.email?.split("@")[0] ?? "";
-}
-
-function unwrapProfile(data: MeResponse | Profile): Profile {
-  return "user" in data && data.user ? data.user : (data as Profile);
 }
 
 function OnboardingContent() {
@@ -80,8 +66,8 @@ function OnboardingContent() {
       setError(null);
 
       try {
-        const response = await authFetch("/api/v1/users/me");
-        if (response.status === 404) {
+        const profile = await fetchUsersMe();
+        if (!profile) {
           if (!cancelled) {
             setForm((current) => ({
               ...current,
@@ -90,15 +76,7 @@ function OnboardingContent() {
           }
           return;
         }
-        if (!response.ok) {
-          const body = await parseApiErrorBody(response);
-          throw new Error(
-            formatApiErrorMessage(body, "プロフィールを読み込めませんでした"),
-          );
-        }
 
-        const data = (await response.json()) as MeResponse | Profile;
-        const profile = unwrapProfile(data);
         if (isOnboardingComplete(profile)) {
           router.replace(nextPath);
           return;
@@ -136,19 +114,7 @@ function OnboardingContent() {
     setSubmitting(true);
 
     try {
-      const response = await authFetch("/api/v1/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-
-      if (!response.ok) {
-        const body = await parseApiErrorBody(response);
-        throw new Error(
-          formatApiErrorMessage(body, "プロフィールを保存できませんでした"),
-        );
-      }
-
+      await createUserProfile(form);
       router.replace(nextPath);
     } catch (err) {
       setError(err instanceof Error ? err.message : "プロフィールを保存できませんでした");

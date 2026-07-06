@@ -1,27 +1,26 @@
 "use client";
 
-import { readApiErrorResponse } from "@/lib/auth/api-error";
-import { authFetch } from "@/lib/auth/auth-fetch";
+import { apiJson } from "@/lib/api/browser-client";
+import { signedUploadResponseSchema } from "@/lib/api/schemas/uploads";
+import { z } from "zod";
 
-export type SignedUploadResponse = {
-  uploadUrl: string;
-  objectUrl: string;
-  objectPath: string;
-  contentType: string;
-};
+export type SignedUploadResponse = z.infer<typeof signedUploadResponseSchema>;
 
 export async function requestSignedUploadUrl(
   contentType: string,
 ): Promise<SignedUploadResponse> {
-  const response = await authFetch("/api/v1/uploads/signed-url", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contentType }),
-  });
-  if (!response.ok) {
-    throw await readApiErrorResponse(response, "アップロード URL を取得できませんでした");
-  }
-  return (await response.json()) as SignedUploadResponse;
+  return apiJson(
+    "/api/v1/uploads/signed-url",
+    signedUploadResponseSchema,
+    "アップロード URL を取得できませんでした",
+    {
+      init: {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contentType }),
+      },
+    },
+  );
 }
 
 const EXTENSION_CONTENT_TYPES: Record<string, string> = {

@@ -3,7 +3,7 @@ import {
   validationErrorResponse,
   withAuthRoute,
 } from "@/lib/auth/require-auth";
-import { signedUploadBodySchema } from "@/lib/spots/schemas";
+import { signedUploadBodySchema } from "@/lib/api/schemas/uploads";
 import {
   createSignedUploadUrl,
   StorageNotConfiguredError,

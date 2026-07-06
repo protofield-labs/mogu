@@ -1,0 +1,33 @@
+import { z } from "zod";
+
+import { recommendationSchema } from "@/lib/api/schemas/home";
+
+export const createAgentSessionResponseSchema = z.object({
+  sessionId: z.string(),
+});
+
+export const agentMessageSchema = z.object({
+  role: z.literal("agent"),
+  text: z.string(),
+  thinking: z.array(z.string()).optional(),
+  recommendation: recommendationSchema.optional(),
+  quickReplies: z.array(z.string()).optional(),
+});
+
+export const placeDtoSchema = z.object({
+  placeId: z.string(),
+  name: z.string(),
+  address: z.string(),
+  photos: z.array(
+    z.object({
+      url: z.string(),
+      authorAttributions: z.array(
+        z.object({
+          name: z.string(),
+          uri: z.string(),
+        }),
+      ),
+    }),
+  ),
+  openNow: z.boolean().optional(),
+});

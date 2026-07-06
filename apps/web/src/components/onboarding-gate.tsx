@@ -5,21 +5,8 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { AppShellSkeleton } from "@/components/loading/skeletons";
 import { LoadErrorState } from "@/components/ui/load-error-state";
-import { authFetch } from "@/lib/auth/auth-fetch";
 import { isOnboardingComplete } from "@/lib/user-profile";
-
-type MeResponse = {
-  user?: Profile;
-};
-
-type Profile = {
-  displayName: string;
-  avatarColor: string;
-};
-
-function unwrapProfile(data: MeResponse | Profile): Profile {
-  return "user" in data && data.user ? data.user : (data as Profile);
-}
+import { fetchUsersMe } from "@/lib/users/browser-api";
 
 export function OnboardingGate({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -36,17 +23,12 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
       setError(null);
 
       try {
-        const response = await authFetch("/api/v1/users/me");
-        if (response.status === 404) {
+        const profile = await fetchUsersMe();
+        if (!profile) {
           router.replace(`/onboarding?next=${encodeURIComponent(pathname)}`);
           return;
         }
-        if (!response.ok) {
-          throw new Error(`プロフィールを読み込めませんでした (${response.status})`);
-        }
-
-        const data = (await response.json()) as MeResponse | Profile;
-        if (!isOnboardingComplete(unwrapProfile(data))) {
+        if (!isOnboardingComplete(profile)) {
           router.replace(`/onboarding?next=${encodeURIComponent(pathname)}`);
           return;
         }

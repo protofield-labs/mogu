@@ -1,7 +1,7 @@
 "use client";
 
-import { readApiErrorResponse } from "@/lib/auth/api-error";
-import { authFetch } from "@/lib/auth/auth-fetch";
+import { apiJson, apiVoid } from "@/lib/api/browser-client";
+import { spotSchema } from "@/lib/api/schemas/spot";
 import type { SpotDto, SpotRating } from "@/lib/spot/types";
 
 export type { SpotRating };
@@ -36,32 +36,32 @@ export async function createSpot(
   collectionId: string,
   input: CreateSpotInput,
 ): Promise<Spot> {
-  const response = await authFetch(`/api/v1/collections/${collectionId}/spots`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
-  });
-  if (!response.ok) {
-    throw await readApiErrorResponse(response, "スポットを追加できませんでした");
-  }
-  return (await response.json()) as Spot;
+  return apiJson(
+    `/api/v1/collections/${collectionId}/spots`,
+    spotSchema,
+    "スポットを追加できませんでした",
+    {
+      init: {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      },
+    },
+  );
 }
 
 export async function updateSpot(id: string, input: UpdateSpotInput): Promise<Spot> {
-  const response = await authFetch(`/api/v1/spots/${id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
+  return apiJson(`/api/v1/spots/${id}`, spotSchema, "スポットを更新できませんでした", {
+    init: {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    },
   });
-  if (!response.ok) {
-    throw await readApiErrorResponse(response, "スポットを更新できませんでした");
-  }
-  return (await response.json()) as Spot;
 }
 
 export async function deleteSpot(id: string): Promise<void> {
-  const response = await authFetch(`/api/v1/spots/${id}`, { method: "DELETE" });
-  if (!response.ok) {
-    throw await readApiErrorResponse(response, "スポットを削除できませんでした");
-  }
+  await apiVoid(`/api/v1/spots/${id}`, "スポットを削除できませんでした", {
+    method: "DELETE",
+  });
 }

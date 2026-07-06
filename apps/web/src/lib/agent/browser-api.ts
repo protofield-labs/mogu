@@ -1,5 +1,14 @@
 "use client";
 
+import {
+  apiJson,
+  parseApiJson,
+} from "@/lib/api/browser-client";
+import {
+  agentMessageSchema,
+  createAgentSessionResponseSchema,
+  placeDtoSchema,
+} from "@/lib/api/schemas/agent";
 import { readApiErrorResponse } from "@/lib/auth/api-error";
 import { authFetch } from "@/lib/auth/auth-fetch";
 
@@ -8,17 +17,17 @@ import type {
   AgentEvent,
   AgentMessage,
   AgentMessageRequest,
-  CreateAgentSessionResponse,
   PlaceDTO,
 } from "./types";
 
 /** Create a Vertex agent session (#43). */
 export async function createAgentSession(): Promise<string> {
-  const response = await authFetch("/api/v1/agent/sessions", { method: "POST" });
-  if (!response.ok) {
-    throw await readApiErrorResponse(response, "エージェントセッションを作成できませんでした");
-  }
-  const data = (await response.json()) as CreateAgentSessionResponse;
+  const data = await apiJson(
+    "/api/v1/agent/sessions",
+    createAgentSessionResponseSchema,
+    "エージェントセッションを作成できませんでした",
+    { init: { method: "POST" } },
+  );
   return data.sessionId;
 }
 
@@ -27,18 +36,18 @@ export async function sendAgentMessage(
   sessionId: string,
   body: AgentMessageRequest,
 ): Promise<AgentMessage> {
-  const response = await authFetch(
+  return apiJson(
     `/api/v1/agent/sessions/${sessionId}/messages`,
+    agentMessageSchema,
+    "メッセージを送信できませんでした",
     {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      init: {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
     },
   );
-  if (!response.ok) {
-    throw await readApiErrorResponse(response, "メッセージを送信できませんでした");
-  }
-  return (await response.json()) as AgentMessage;
 }
 
 async function readAgentEventStream(
@@ -94,11 +103,9 @@ export async function connectAgentEvents(
     throw await readApiErrorResponse(response, "イベントストリームを開けませんでした");
   }
   if (!response.body) {
-    throw new Error("Event stream returned empty body");
+    throw new Error("イベントストリームの応答が空です");
   }
 
-  // Thinking events are best-effort; swallow abort/network errors so the
-  // per-turn abort() in the chat UI never surfaces an unhandled rejection.
   readAgentEventStream(response.body, onEvent, signal).catch(() => {});
 }
 
@@ -108,7 +115,7 @@ export async function fetchPlace(placeId: string): Promise<PlaceDTO | null> {
   if (!response.ok) {
     return null;
   }
-  return (await response.json()) as PlaceDTO;
+  return parseApiJson(response, placeDtoSchema, "店舗情報を読み込めませんでした");
 }
 
 /** Save a spot to the viewer's collection (#40). */
