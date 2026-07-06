@@ -52,6 +52,27 @@ function AgentAvatar() {
   );
 }
 
+function TypingIndicator() {
+  return (
+    <Message align="start">
+      <AgentAvatar />
+      <MessageContent>
+        <BubbleGroup>
+          <Bubble variant="outline" align="start">
+            <BubbleContent aria-live="polite" aria-label="考え中">
+              <span className="flex items-center gap-1 py-1">
+                <span className="size-2 rounded-full bg-muted-foreground/60 motion-safe:animate-bounce [animation-delay:-0.3s]" />
+                <span className="size-2 rounded-full bg-muted-foreground/60 motion-safe:animate-bounce [animation-delay:-0.15s]" />
+                <span className="size-2 rounded-full bg-muted-foreground/60 motion-safe:animate-bounce" />
+              </span>
+            </BubbleContent>
+          </Bubble>
+        </BubbleGroup>
+      </MessageContent>
+    </Message>
+  );
+}
+
 function UserBubble({ entry }: { entry: Extract<ChatEntry, { kind: "user" }> }) {
   return (
     <Message align="end">
@@ -325,6 +346,16 @@ export function AgentChat() {
                 </MessageScrollerItem>
               ) : null}
 
+              {sending ? (
+                <MessageScrollerItem
+                  scrollAnchor={thinkingMessages.length === 0}
+                >
+                  <MessageGroup>
+                    <TypingIndicator />
+                  </MessageGroup>
+                </MessageScrollerItem>
+              ) : null}
+
               {sessionStatus === "error" && initError ? (
                 <MessageScrollerItem>
                   <div
@@ -387,7 +418,7 @@ export function AgentChat() {
               }
             }}
             placeholder="メッセージを入力..."
-            className="max-h-32 min-h-10 flex-1 resize-none rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
+            className="max-h-32 min-h-10 flex-1 resize-none rounded-2xl border border-border bg-mogu-surface-elevated px-4 py-2.5 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
           />
           <Button
             type="submit"
