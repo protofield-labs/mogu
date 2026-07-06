@@ -1,6 +1,6 @@
 "use client";
 
-import { parseApiErrorBody } from "@/lib/auth/api-error";
+import { readApiErrorResponse } from "@/lib/auth/api-error";
 import { authFetch } from "@/lib/auth/auth-fetch";
 
 export type SignedUploadResponse = {
@@ -9,11 +9,6 @@ export type SignedUploadResponse = {
   objectPath: string;
   contentType: string;
 };
-
-async function readApiError(response: Response, fallback: string): Promise<Error> {
-  const body = await parseApiErrorBody(response);
-  return new Error(body?.error.message ?? fallback);
-}
 
 export async function requestSignedUploadUrl(
   contentType: string,
@@ -24,7 +19,7 @@ export async function requestSignedUploadUrl(
     body: JSON.stringify({ contentType }),
   });
   if (!response.ok) {
-    throw await readApiError(response, "アップロード URL を取得できませんでした");
+    throw await readApiErrorResponse(response, "アップロード URL を取得できませんでした");
   }
   return (await response.json()) as SignedUploadResponse;
 }

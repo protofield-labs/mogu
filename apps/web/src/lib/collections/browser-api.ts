@@ -1,6 +1,6 @@
 "use client";
 
-import { parseApiErrorBody } from "@/lib/auth/api-error";
+import { readApiErrorResponse } from "@/lib/auth/api-error";
 import { authFetch } from "@/lib/auth/auth-fetch";
 import type { Spot } from "@/lib/spots/browser-api";
 
@@ -38,15 +38,10 @@ export type CollectionDetail = Collection & {
   spots: Spot[];
 };
 
-async function readApiError(response: Response, fallback: string): Promise<Error> {
-  const body = await parseApiErrorBody(response);
-  return new Error(body?.error.message ?? fallback);
-}
-
 export async function getCollectionDetail(id: string): Promise<CollectionDetail> {
   const response = await authFetch(`/api/v1/collections/${id}`);
   if (!response.ok) {
-    throw await readApiError(response, "コレクションを読み込めませんでした");
+    throw await readApiErrorResponse(response, "コレクションを読み込めませんでした");
   }
   return (await response.json()) as CollectionDetail;
 }
@@ -54,7 +49,7 @@ export async function getCollectionDetail(id: string): Promise<CollectionDetail>
 export async function listMyCollections(): Promise<Collection[]> {
   const response = await authFetch("/api/v1/collections?ownerId=me");
   if (!response.ok) {
-    throw await readApiError(response, "コレクションを読み込めませんでした");
+    throw await readApiErrorResponse(response, "コレクションを読み込めませんでした");
   }
   return (await response.json()) as Collection[];
 }
@@ -68,7 +63,7 @@ export async function createCollection(
     body: JSON.stringify(input),
   });
   if (!response.ok) {
-    throw await readApiError(response, "コレクションを作成できませんでした");
+    throw await readApiErrorResponse(response, "コレクションを作成できませんでした");
   }
   return (await response.json()) as Collection;
 }
@@ -83,7 +78,7 @@ export async function updateCollection(
     body: JSON.stringify(input),
   });
   if (!response.ok) {
-    throw await readApiError(response, "コレクションを更新できませんでした");
+    throw await readApiErrorResponse(response, "コレクションを更新できませんでした");
   }
   return (await response.json()) as Collection;
 }
@@ -93,6 +88,6 @@ export async function deleteCollection(id: string): Promise<void> {
     method: "DELETE",
   });
   if (!response.ok) {
-    throw await readApiError(response, "コレクションを削除できませんでした");
+    throw await readApiErrorResponse(response, "コレクションを削除できませんでした");
   }
 }

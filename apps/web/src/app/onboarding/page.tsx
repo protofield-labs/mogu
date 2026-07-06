@@ -10,7 +10,7 @@ import {
   type ProfileFormValues,
 } from "@/components/profile/profile-form-fields";
 import { useAuth } from "@/contexts/auth-context";
-import { parseApiErrorBody } from "@/lib/auth/api-error";
+import { formatApiErrorMessage, parseApiErrorBody } from "@/lib/auth/api-error";
 import { authFetch } from "@/lib/auth/auth-fetch";
 import {
   DEFAULT_AVATAR_COLOR,
@@ -92,7 +92,9 @@ function OnboardingContent() {
         }
         if (!response.ok) {
           const body = await parseApiErrorBody(response);
-          throw new Error(body?.error.message ?? "プロフィールを読み込めませんでした");
+          throw new Error(
+            formatApiErrorMessage(body, "プロフィールを読み込めませんでした"),
+          );
         }
 
         const data = (await response.json()) as MeResponse | Profile;
@@ -142,7 +144,9 @@ function OnboardingContent() {
 
       if (!response.ok) {
         const body = await parseApiErrorBody(response);
-        throw new Error(body?.error.message ?? "プロフィールを保存できませんでした");
+        throw new Error(
+          formatApiErrorMessage(body, "プロフィールを保存できませんでした"),
+        );
       }
 
       router.replace(nextPath);

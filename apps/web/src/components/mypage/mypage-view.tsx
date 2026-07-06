@@ -19,6 +19,7 @@ import {
   type Collection,
   type CollectionVisibility,
 } from "@/lib/collections/browser-api";
+import { formatCollectionVisibility } from "@/lib/labels/collection-labels";
 import { notifyBadgesUpdated } from "@/lib/mypage/badge-events";
 import {
   fetchFlagNotifications,
@@ -414,8 +415,8 @@ function CollectionFormFields({
             }
             className="h-10 w-full rounded-2xl border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           >
-            <option value="friends">friends</option>
-            <option value="secret">secret</option>
+            <option value="friends">{formatCollectionVisibility("friends")}</option>
+            <option value="secret">{formatCollectionVisibility("secret")}</option>
           </select>
         </label>
         <label className="block space-y-1.5">
