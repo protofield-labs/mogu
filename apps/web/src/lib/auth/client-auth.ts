@@ -10,13 +10,16 @@ import {
 } from "firebase/auth";
 
 import { getFirebaseAuth } from "./firebase-client";
+import { formatFirebaseAuthError } from "./firebase-auth-errors";
 import { provisionUser } from "./provision";
 
-function getAuthErrorMessage(error: unknown): string {
-  if (error instanceof Error && error.message) {
-    return error.message;
-  }
-  return "Authentication failed";
+export type AuthErrorContext = "login" | "signup";
+
+function getAuthErrorMessage(
+  error: unknown,
+  context: AuthErrorContext = "login",
+): string {
+  return formatFirebaseAuthError(error, context);
 }
 
 export async function signInWithGoogle(): Promise<User> {

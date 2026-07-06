@@ -43,24 +43,27 @@ export function AppShellSkeleton({ label = "読み込み中" }: { label?: string
 /** Login / signup session check — mirrors auth card layout. */
 export function AuthFormSkeleton({ label = "認証状態を確認しています" }: { label?: string }) {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div
-        aria-busy="true"
-        aria-label={label}
-        className="w-full max-w-md space-y-6 rounded-3xl border border-border bg-mogu-surface-elevated p-8 shadow-sm"
-      >
-        <div className="flex flex-col items-center gap-2">
-          <Skeleton className="h-8 w-32 rounded-xl" />
-          <Skeleton className="h-4 w-48 rounded-lg" />
+    <main className="flex min-h-dvh justify-center bg-background">
+      <div className="flex min-h-dvh w-full max-w-mogu-shell flex-col justify-center px-mogu-screen-x py-10">
+        <div
+          aria-busy="true"
+          aria-label={label}
+          className="space-y-6 rounded-3xl border border-border bg-mogu-surface-elevated p-6 shadow-sm sm:p-8"
+        >
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-12 rounded-lg" />
+            <Skeleton className="h-8 w-32 rounded-xl" />
+            <Skeleton className="h-4 w-full max-w-xs rounded-lg" />
+          </div>
+          <Skeleton className="h-11 w-full rounded-2xl" />
+          <Skeleton className="h-3 w-12 mx-auto rounded-full" />
+          <div className="space-y-4">
+            <Skeleton className="h-11 w-full rounded-2xl" />
+            <Skeleton className="h-11 w-full rounded-2xl" />
+            <Skeleton className="h-11 w-full rounded-2xl" />
+          </div>
+          <Skeleton className="mx-auto h-4 w-48 rounded-lg" />
         </div>
-        <Skeleton className="h-10 w-full rounded-2xl" />
-        <Skeleton className="h-3 w-8 mx-auto rounded-full" />
-        <div className="space-y-4">
-          <Skeleton className="h-16 w-full rounded-2xl" />
-          <Skeleton className="h-16 w-full rounded-2xl" />
-          <Skeleton className="h-10 w-full rounded-2xl" />
-        </div>
-        <Skeleton className="mx-auto h-4 w-40 rounded-lg" />
       </div>
     </main>
   );
