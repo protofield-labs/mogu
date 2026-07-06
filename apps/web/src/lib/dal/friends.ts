@@ -66,6 +66,23 @@ async function resolvePairFromDb(
   return pair;
 }
 
+/** Decode pairId then canonicalize with PostgreSQL LEAST/GREATEST. */
+async function resolveCanonicalPairFromPairId(
+  tx: PrismaTransaction,
+  pairId: string,
+): Promise<FriendshipPair | null> {
+  const decoded = decodeFriendshipPairId(pairId);
+  if (!decoded) {
+    return null;
+  }
+
+  try {
+    return await resolvePairFromDb(tx, decoded.userLow, decoded.userHigh);
+  } catch {
+    return null;
+  }
+}
+
 function toFriendRequestDto(row: FriendshipWithUsers): FriendRequestDto {
   const fromUser = toUserDto(row.requestedByUser);
   const toUser =
@@ -167,12 +184,13 @@ export async function acceptFriendRequest(
   uid: string,
   pairId: string,
 ): Promise<ResolveFriendRequestResult> {
-  const pair = decodeFriendshipPairId(pairId);
-  if (!pair) {
-    return { ok: false, reason: "invalid_pair_id" };
-  }
-
   const result = await withAuthRls(uid, async (tx) => {
+    const pair = await resolveCanonicalPairFromPairId(tx, pairId);
+    if (!pair) {
+      return { ok: false as const, reason: "invalid_pair_id" as const };
+    }
+    const canonicalPairId = encodeFriendshipPairId(pair);
+
     const friendship = await tx.friendship.findUnique({
       where: { userLow_userHigh: pair },
     });
@@ -185,7 +203,7 @@ export async function acceptFriendRequest(
     if (friendship.status === "accepted") {
       return {
         ok: true as const,
-        request: { pairId, status: "accepted" as const },
+        request: { pairId: canonicalPairId, status: "accepted" as const },
       };
     }
 
@@ -202,7 +220,7 @@ export async function acceptFriendRequest(
 
     return {
       ok: true as const,
-      request: { pairId, status: accepted.status },
+      request: { pairId: canonicalPairId, status: accepted.status },
     };
   });
 
@@ -213,12 +231,12 @@ export async function rejectFriendRequest(
   uid: string,
   pairId: string,
 ): Promise<RejectFriendRequestResult> {
-  const pair = decodeFriendshipPairId(pairId);
-  if (!pair) {
-    return { ok: false, reason: "invalid_pair_id" };
-  }
-
   const result = await withAuthRls(uid, async (tx) => {
+    const pair = await resolveCanonicalPairFromPairId(tx, pairId);
+    if (!pair) {
+      return { ok: false as const, reason: "invalid_pair_id" as const };
+    }
+
     const friendship = await tx.friendship.findUnique({
       where: { userLow_userHigh: pair },
     });

@@ -124,10 +124,67 @@ async function verifyPostgresLeastGreatest() {
   }
 }
 
+async function verifySwappedPairIdCanonicalizes() {
+  if (!process.env.DATABASE_URL) {
+    console.log("SKIP: DATABASE_URL not set (swapped pairId canonicalization)");
+    return;
+  }
+
+  const a = UID_REPORTED;
+  const b = "demo-ken";
+
+  try {
+    const canonicalRows = await prisma.$queryRaw<
+      { user_low: string; user_high: string }[]
+    >`
+      SELECT LEAST(${a}::text, ${b}::text) AS user_low,
+             GREATEST(${a}::text, ${b}::text) AS user_high
+    `;
+    const canonical = canonicalRows[0];
+    assert(canonical !== undefined, "canonical row");
+
+    const swappedPairId = encodeFriendshipPairId({
+      userLow: canonical.user_high,
+      userHigh: canonical.user_low,
+    });
+    const decoded = decodeFriendshipPairId(swappedPairId);
+    assert(decoded !== null, "swapped pairId decodes");
+
+    const reCanonicalRows = await prisma.$queryRaw<
+      { user_low: string; user_high: string }[]
+    >`
+      SELECT LEAST(${decoded!.userLow}::text, ${decoded!.userHigh}::text) AS user_low,
+             GREATEST(${decoded!.userLow}::text, ${decoded!.userHigh}::text) AS user_high
+    `;
+    const reCanonical = reCanonicalRows[0];
+    assert(reCanonical !== undefined, "re-canonical row");
+    assert(
+      reCanonical.user_low === canonical.user_low,
+      "swapped pairId re-canonicalizes user_low",
+    );
+    assert(
+      reCanonical.user_high === canonical.user_high,
+      "swapped pairId re-canonicalizes user_high",
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (
+      message.includes("Authentication failed") ||
+      message.includes("Can't reach database server") ||
+      message.includes("ECONNREFUSED")
+    ) {
+      console.log("SKIP: Postgres unavailable (swapped pairId canonicalization)");
+      return;
+    }
+    throw error;
+  }
+}
+
 async function main() {
   verifyByteOrdering();
   verifyPairIdRoundTrip();
   await verifyPostgresLeastGreatest();
+  await verifySwappedPairIdCanonicalizes();
   console.log("PASS: friendship pair verification");
 }
 
