@@ -28,4 +28,10 @@ echo "==> verify-flags-rls (weekly summary + read, #38)"
 echo "==> verify-spots-rls (owned collection CRUD, #34)"
 "${ROOT}/scripts/verify-spots-rls.sh"
 
+echo "==> verify-feed-rls (chronological feed, #39)"
+"${ROOT}/scripts/verify-feed-rls.sh"
+
+echo "==> verify-recommendations-rls (daily_recommendations, #42)"
+"${ROOT}/scripts/verify-recommendations-rls.sh"
+
 echo "PASS: guardrail verifications completed"
