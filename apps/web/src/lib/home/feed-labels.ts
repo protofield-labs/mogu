@@ -20,3 +20,17 @@ export function formatSavedCountBadge(savedCount: number): string | null {
   }
   return `輪で${savedCount}人`;
 }
+
+type StructuredTags = {
+  area?: string | null;
+  genre?: string | null;
+  situation?: string | null;
+};
+
+export function formatSpotTagChips(spot: Spot): string[] {
+  const structured = spot.structuredTags as StructuredTags;
+  const structuredTags = [structured.area, structured.genre, structured.situation].filter(
+    (value): value is string => typeof value === "string" && value.length > 0,
+  );
+  return [...structuredTags, ...spot.freeTags];
+}

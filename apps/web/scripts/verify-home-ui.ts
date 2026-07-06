@@ -14,6 +14,7 @@ import {
 import {
   formatRatingChip,
   formatSavedCountBadge,
+  formatSpotTagChips,
   formatViaLabel,
 } from "../src/lib/home/feed-labels";
 import { recollectFeedSpot } from "../src/lib/home/recollect-spot";
@@ -100,6 +101,14 @@ function main() {
   assert(formatViaLabel("Ken") === "via Ken", "via label");
   assert(formatSavedCountBadge(3) === "輪で3人", "saved badge");
   assert(formatSavedCountBadge(0) === null, "hide zero saved badge");
+  assert(
+    formatSpotTagChips({
+      ...feedItems[0]!.spot,
+      structuredTags: { area: "恵比寿", genre: "イタリアン" },
+      freeTags: ["静か"],
+    }).join(",") === "恵比寿,イタリアン,静か",
+    "spot tag chips",
+  );
   assert(shouldShowSoloEmptyState(0), "solo when no friends");
   assert(!shouldShowSoloEmptyState(2), "not solo with friends");
 
