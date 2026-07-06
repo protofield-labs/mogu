@@ -146,8 +146,9 @@ export function HomeViewSkeleton({ embedded = false }: { embedded?: boolean }) {
 export function MypageViewSkeleton() {
   return (
     <LoadingShell label="プロフィールを読み込んでいます" className="gap-5 pb-mogu-screen-y">
-      <div className="px-mogu-screen-x pt-4">
+      <div className="flex items-center justify-between px-mogu-screen-x pt-4">
         <Skeleton className="h-8 w-36 rounded-lg" />
+        <Skeleton className="size-10 rounded-full" />
       </div>
 
       <Skeleton className="mx-mogu-screen-x h-44 rounded-mogu-card" />
@@ -156,8 +157,6 @@ export function MypageViewSkeleton() {
         <Skeleton className="h-40 rounded-mogu-card" />
         <Skeleton className="h-40 rounded-mogu-card" />
       </div>
-
-      <Skeleton className="mx-mogu-screen-x h-[3.25rem] rounded-mogu-card" />
 
       <div className="space-y-3 px-mogu-screen-x pt-2">
         <div className="flex items-center justify-between">

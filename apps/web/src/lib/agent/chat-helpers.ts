@@ -7,6 +7,30 @@ export const AGENT_OPENING_MESSAGE =
 export const AGENT_FOOTER_CAPTION =
   "自分と友達のコレクションを参照して答えます";
 
+const AGENT_ENGINE_NOT_CONFIGURED = "Agent Engine is not configured";
+
+/** Map API / network errors to user-facing Japanese (#83). */
+export function formatAgentUserError(error: unknown, fallback: string): string {
+  if (!(error instanceof Error)) {
+    return fallback;
+  }
+  const message = error.message;
+  if (message.includes(AGENT_ENGINE_NOT_CONFIGURED)) {
+    return "エージェントが準備中です。しばらくしてから再度お試しください";
+  }
+  if (message === "Failed to fetch" || message.includes("NetworkError")) {
+    return "通信に失敗しました。接続を確認してください";
+  }
+  if (
+    message.startsWith("Failed to create agent session") ||
+    message.startsWith("Failed to send message") ||
+    message.startsWith("Failed to open event stream")
+  ) {
+    return fallback;
+  }
+  return message;
+}
+
 export type ChatEntry =
   | { id: string; kind: "user"; text: string; chips?: string[] }
   | { id: string; kind: "agent"; text: string; recommendation?: Recommendation; quickReplies?: string[] };

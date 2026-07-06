@@ -31,12 +31,18 @@ import {
   createAgentEntry,
   createUserEntry,
   createWelcomeEntry,
+  formatAgentUserError,
   formatUserBubbleText,
   type ChatEntry,
 } from "@/lib/agent/chat-helpers";
-import { consumePendingRecommendation } from "@/lib/home/pending-recommendation";
+import {
+  consumePendingRecommendation,
+} from "@/lib/home/pending-recommendation";
+import type { Recommendation } from "@/lib/agent/types";
 import { AgentChatSkeleton } from "@/components/loading/skeletons";
 import { RecommendationCard } from "@/components/search/recommendation-card";
+
+type SessionStatus = "loading" | "ready" | "error";
 
 function AgentAvatar() {
   return (
@@ -105,47 +111,88 @@ function AgentBubble({
 }
 
 export function AgentChat() {
+  const [sessionStatus, setSessionStatus] = useState<SessionStatus>("loading");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [entries, setEntries] = useState<ChatEntry[]>([]);
   const [thinkingMessages, setThinkingMessages] = useState<string[]>([]);
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [initError, setInitError] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const initRef = useRef(false);
+  const [retryingSession, setRetryingSession] = useState(false);
+  const pendingRecommendationRef = useRef<Recommendation | null | undefined>(
+    undefined,
+  );
   const sendingRef = useRef(false);
+  const mountInitStartedRef = useRef(false);
+  const connectGenerationRef = useRef(0);
+
+  async function connectAgentChatSession({ isRetry = false } = {}) {
+    const generation = ++connectGenerationRef.current;
+
+    if (isRetry) {
+      setSessionStatus("loading");
+      setInitError(null);
+      setSendError(null);
+    }
+
+    if (pendingRecommendationRef.current === undefined) {
+      pendingRecommendationRef.current = consumePendingRecommendation();
+    }
+
+    try {
+      const id = await createAgentSession();
+      if (generation !== connectGenerationRef.current) {
+        return;
+      }
+      const initialEntries: ChatEntry[] = [createWelcomeEntry()];
+      const pending = pendingRecommendationRef.current;
+      if (pending) {
+        initialEntries.push(
+          createAgentEntry({
+            text: pending.assertion,
+            recommendation: pending,
+          }),
+        );
+        pendingRecommendationRef.current = null;
+      }
+      setSessionId(id);
+      setEntries(initialEntries);
+      setSessionStatus("ready");
+    } catch (err) {
+      if (generation !== connectGenerationRef.current) {
+        return;
+      }
+      setSessionId(null);
+      setInitError(
+        formatAgentUserError(err, "セッションの開始に失敗しました"),
+      );
+      setEntries([createWelcomeEntry()]);
+      setSessionStatus("error");
+    }
+  }
 
   useEffect(() => {
-    if (initRef.current) {
+    if (mountInitStartedRef.current) {
       return;
     }
-    initRef.current = true;
-
-    // Consume before any await: a failed session create must not leave the
-    // stashed recommendation behind for the next visitor on a shared device.
-    const pending = consumePendingRecommendation();
-
-    void (async () => {
-      try {
-        const id = await createAgentSession();
-        const initialEntries: ChatEntry[] = [createWelcomeEntry()];
-        if (pending) {
-          initialEntries.push(
-            createAgentEntry({
-              text: pending.assertion,
-              recommendation: pending,
-            }),
-          );
-        }
-        setSessionId(id);
-        setEntries(initialEntries);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "セッションの開始に失敗しました");
-      } finally {
-        setLoading(false);
-      }
-    })();
+    mountInitStartedRef.current = true;
+    queueMicrotask(() => {
+      void connectAgentChatSession();
+    });
   }, []);
+
+  async function handleRetrySession() {
+    if (retryingSession) {
+      return;
+    }
+    setRetryingSession(true);
+    try {
+      await connectAgentChatSession({ isRetry: true });
+    } finally {
+      setRetryingSession(false);
+    }
+  }
 
   const sendMessage = useCallback(
     async (text: string, chips?: string[]) => {
@@ -159,7 +206,7 @@ export function AgentChat() {
 
       sendingRef.current = true;
       setSending(true);
-      setError(null);
+      setSendError(null);
       setThinkingMessages([]);
       const userEntry = createUserEntry(trimmed, chips);
       setEntries((prev) => [...prev, userEntry]);
@@ -198,10 +245,11 @@ export function AgentChat() {
           }),
         ]);
       } catch (err) {
-        // Roll back the optimistic user bubble and restore the draft for retry.
         setEntries((prev) => prev.filter((entry) => entry.id !== userEntry.id));
         setInput(trimmed);
-        setError(err instanceof Error ? err.message : "メッセージの送信に失敗しました");
+        setSendError(
+          formatAgentUserError(err, "メッセージの送信に失敗しました"),
+        );
       } finally {
         abort.abort();
         setThinkingMessages([]);
@@ -221,6 +269,11 @@ export function AgentChat() {
     void sendMessage(chip);
   }
 
+  const inputDisabled =
+    sessionStatus !== "ready" || sending || retryingSession || !sessionId;
+  const showInitialSkeleton =
+    sessionStatus === "loading" && entries.length === 0 && !retryingSession;
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <header className="flex shrink-0 items-center justify-between border-b border-border px-mogu-screen-x py-3">
@@ -235,7 +288,7 @@ export function AgentChat() {
           <MessageScroller className="min-h-0 flex-1">
           <MessageScrollerViewport className="px-mogu-screen-x py-mogu-screen-y">
             <MessageScrollerContent>
-              {loading ? (
+              {showInitialSkeleton ? (
                 <MessageScrollerItem>
                   <AgentChatSkeleton />
                 </MessageScrollerItem>
@@ -250,7 +303,7 @@ export function AgentChat() {
                       <AgentBubble
                         entry={entry}
                         onChipSelect={handleChipSelect}
-                        disabled={sending}
+                        disabled={inputDisabled}
                       />
                     )}
                   </MessageGroup>
@@ -272,10 +325,41 @@ export function AgentChat() {
                 </MessageScrollerItem>
               ) : null}
 
-              {error ? (
+              {sessionStatus === "error" && initError ? (
+                <MessageScrollerItem>
+                  <div
+                    className="flex flex-col gap-3 rounded-2xl border border-border bg-mogu-surface-elevated px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                    role="alert"
+                  >
+                    <p className="text-sm text-destructive">{initError}</p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={retryingSession}
+                      onClick={() => void handleRetrySession()}
+                      className="shrink-0"
+                    >
+                      {retryingSession ? (
+                        <>
+                          <LoaderCircleIcon
+                            className="size-4 animate-spin"
+                            aria-hidden
+                          />
+                          接続中…
+                        </>
+                      ) : (
+                        "再接続"
+                      )}
+                    </Button>
+                  </div>
+                </MessageScrollerItem>
+              ) : null}
+
+              {sendError ? (
                 <MessageScrollerItem>
                   <p className="text-sm text-destructive" role="alert">
-                    {error}
+                    {sendError}
                   </p>
                 </MessageScrollerItem>
               ) : null}
@@ -294,7 +378,7 @@ export function AgentChat() {
             id="agent-message-input"
             rows={1}
             value={input}
-            disabled={loading || sending || !sessionId}
+            disabled={inputDisabled}
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
@@ -309,7 +393,7 @@ export function AgentChat() {
             type="submit"
             size="icon"
             className="size-10 shrink-0 rounded-full"
-            disabled={loading || sending || !sessionId || !input.trim()}
+            disabled={inputDisabled || !input.trim()}
             aria-label="送信"
           >
             <SparklesIcon className="size-4" />
