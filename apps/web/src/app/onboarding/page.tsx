@@ -1,18 +1,22 @@
 "use client";
 
-import { Check, LoaderCircleIcon } from "lucide-react";
+import { LoaderCircleIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState, type FormEvent } from "react";
 
 import { OnboardingFormSkeleton } from "@/components/loading/skeletons";
+import {
+  ProfileFormFields,
+  type ProfileFormValues,
+} from "@/components/profile/profile-form-fields";
 import { useAuth } from "@/contexts/auth-context";
 import { parseApiErrorBody } from "@/lib/auth/api-error";
 import { authFetch } from "@/lib/auth/auth-fetch";
 import {
+  DEFAULT_AVATAR_COLOR,
   ONBOARDING_AVATAR_COLORS,
   isOnboardingComplete,
 } from "@/lib/user-profile";
-import { cn } from "@/lib/utils";
 
 type MeResponse = {
   user?: Profile;
@@ -46,10 +50,10 @@ function OnboardingContent() {
     () => safeNextPath(searchParams.get("next")),
     [searchParams],
   );
-  const [displayName, setDisplayName] = useState("");
-  const [avatarColor, setAvatarColor] = useState<string>(
-    ONBOARDING_AVATAR_COLORS[0],
-  );
+  const [form, setForm] = useState<ProfileFormValues>({
+    displayName: "",
+    avatarColor: ONBOARDING_AVATAR_COLORS[0],
+  });
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,7 +83,10 @@ function OnboardingContent() {
         const response = await authFetch("/api/v1/users/me");
         if (response.status === 404) {
           if (!cancelled) {
-            setDisplayName(fallbackDisplayName(currentUser));
+            setForm((current) => ({
+              ...current,
+              displayName: fallbackDisplayName(currentUser),
+            }));
           }
           return;
         }
@@ -96,7 +103,13 @@ function OnboardingContent() {
         }
 
         if (!cancelled) {
-          setDisplayName(profile.displayName);
+          setForm({
+            displayName: profile.displayName,
+            avatarColor:
+              profile.avatarColor !== DEFAULT_AVATAR_COLOR
+                ? profile.avatarColor
+                : ONBOARDING_AVATAR_COLORS[0],
+          });
         }
       } catch (err) {
         if (!cancelled) {
@@ -124,7 +137,7 @@ function OnboardingContent() {
       const response = await authFetch("/api/v1/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ displayName, avatarColor }),
+        body: JSON.stringify(form),
       });
 
       if (!response.ok) {
@@ -161,53 +174,7 @@ function OnboardingContent() {
           </div>
 
           <form className="mt-6 space-y-6" onSubmit={(e) => void handleSubmit(e)}>
-            <label className="block space-y-2">
-              <span className="text-sm font-medium text-foreground">名前</span>
-              <input
-                type="text"
-                required
-                maxLength={100}
-                autoComplete="name"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="h-11 w-full rounded-2xl border border-border bg-background px-4 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                placeholder="例: Ken"
-              />
-            </label>
-
-            <fieldset className="space-y-3">
-              <legend className="text-sm font-medium text-foreground">
-                アバターカラー
-              </legend>
-              <div className="grid grid-cols-4 gap-3">
-                {ONBOARDING_AVATAR_COLORS.map((color) => {
-                  const selected = avatarColor === color;
-                  return (
-                    <button
-                      key={color}
-                      type="button"
-                      aria-label={`${color} を選択`}
-                      aria-pressed={selected}
-                      onClick={() => setAvatarColor(color)}
-                      className={cn(
-                        "flex aspect-square items-center justify-center rounded-2xl border transition-transform",
-                        selected
-                          ? "border-foreground ring-3 ring-ring/50"
-                          : "border-border hover:scale-[1.03]",
-                      )}
-                      style={{ backgroundColor: color }}
-                    >
-                      {selected ? (
-                        <Check
-                          className="size-5 text-white drop-shadow"
-                          aria-hidden
-                        />
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-            </fieldset>
+            <ProfileFormFields values={form} onChange={setForm} />
 
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
 

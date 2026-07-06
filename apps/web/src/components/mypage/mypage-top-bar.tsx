@@ -2,6 +2,7 @@
 
 import { LogOut } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth-context";
 
 export function MypageTopBar() {
@@ -12,14 +13,16 @@ export function MypageTopBar() {
       <span className="text-lg font-semibold tracking-tight text-foreground">
         mogu
       </span>
-      <button
+      <Button
         type="button"
+        variant="ghost"
+        size="icon-sm"
+        aria-label="ログアウト"
         onClick={() => void logout()}
-        className="inline-flex items-center gap-1.5 rounded-full border border-border bg-mogu-surface-elevated px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+        className="text-muted-foreground hover:text-foreground"
       >
-        <LogOut className="size-3.5" aria-hidden />
-        ログアウト
-      </button>
+        <LogOut className="size-4" aria-hidden />
+      </Button>
     </header>
   );
 }

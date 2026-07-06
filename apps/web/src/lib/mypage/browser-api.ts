@@ -24,6 +24,24 @@ export async function fetchMe(): Promise<MeProfile> {
   return (await response.json()) as MeProfile;
 }
 
+export async function updateMeProfile(body: {
+  displayName: string;
+  avatarColor: string;
+}): Promise<Pick<MeProfile, "id" | "displayName" | "avatarColor">> {
+  const response = await authFetch("/api/v1/me", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw await readApiError(response, "プロフィールを保存できませんでした");
+  }
+  return (await response.json()) as Pick<
+    MeProfile,
+    "id" | "displayName" | "avatarColor"
+  >;
+}
+
 export async function fetchMeBadges(): Promise<MeBadges> {
   const response = await authFetch("/api/v1/me/badges");
   if (!response.ok) {
