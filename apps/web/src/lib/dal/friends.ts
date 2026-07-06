@@ -1,12 +1,14 @@
 import "server-only";
 
 import { withAuthRls } from "@/lib/auth/with-auth-rls";
+import type { PrismaTransaction } from "@/lib/db/prisma";
 import { toUserDto, userSelect, type UserDto } from "@/lib/dal/users";
-
-type FriendshipPair = {
-  userLow: string;
-  userHigh: string;
-};
+import {
+  decodeFriendshipPairId,
+  encodeFriendshipPairId,
+  isOrderedFriendshipPair,
+  type FriendshipPair,
+} from "@/lib/friendship/pair";
 
 type FriendshipWithUsers = {
   userLow: string;
@@ -45,33 +47,24 @@ export type RejectFriendRequestResult =
       reason: "invalid_pair_id" | "not_found" | "forbidden" | "conflict";
     };
 
-function normalizePair(a: string, b: string): FriendshipPair {
-  return a < b ? { userLow: a, userHigh: b } : { userLow: b, userHigh: a };
-}
-
-export function encodePairId(pair: FriendshipPair): string {
-  return Buffer.from(JSON.stringify([pair.userLow, pair.userHigh]), "utf8")
-    .toString("base64url");
-}
-
-export function decodePairId(pairId: string): FriendshipPair | null {
-  try {
-    const value = JSON.parse(
-      Buffer.from(pairId, "base64url").toString("utf8"),
-    );
-    if (
-      Array.isArray(value) &&
-      value.length === 2 &&
-      typeof value[0] === "string" &&
-      typeof value[1] === "string" &&
-      value[0] < value[1]
-    ) {
-      return { userLow: value[0], userHigh: value[1] };
-    }
-    return null;
-  } catch {
-    return null;
+async function resolvePairFromDb(
+  tx: PrismaTransaction,
+  a: string,
+  b: string,
+): Promise<FriendshipPair> {
+  const rows = await tx.$queryRaw<{ user_low: string; user_high: string }[]>`
+    SELECT LEAST(${a}::text, ${b}::text) AS user_low,
+           GREATEST(${a}::text, ${b}::text) AS user_high
+  `;
+  const row = rows[0];
+  if (!row) {
+    throw new Error("Failed to resolve friendship pair");
   }
+  const pair = { userLow: row.user_low, userHigh: row.user_high };
+  if (!isOrderedFriendshipPair(pair)) {
+    throw new Error("Friendship pair must have distinct ordered user ids");
+  }
+  return pair;
 }
 
 function toFriendRequestDto(row: FriendshipWithUsers): FriendRequestDto {
@@ -82,7 +75,10 @@ function toFriendRequestDto(row: FriendshipWithUsers): FriendRequestDto {
       : toUserDto(row.userLowUser);
 
   return {
-    pairId: encodePairId(row),
+    pairId: encodeFriendshipPairId({
+      userLow: row.userLow,
+      userHigh: row.userHigh,
+    }),
     from: fromUser,
     to: toUser,
     status: row.status,
@@ -104,8 +100,9 @@ export async function sendFriendRequest(
     return { ok: false, reason: "self" };
   }
 
-  const pair = normalizePair(uid, toUserId);
   const result = await withAuthRls(uid, async (tx) => {
+    const pair = await resolvePairFromDb(tx, uid, toUserId);
+
     const targetUser = await tx.user.findUnique({
       where: { firebaseUid: toUserId },
       select: { firebaseUid: true },
@@ -137,7 +134,7 @@ export async function sendFriendRequest(
     return {
       ok: true as const,
       request: {
-        pairId: encodePairId(pair),
+        pairId: encodeFriendshipPairId(pair),
         status: friendship.status,
       },
     };
@@ -171,7 +168,7 @@ export async function acceptFriendRequest(
   uid: string,
   pairId: string,
 ): Promise<ResolveFriendRequestResult> {
-  const pair = decodePairId(pairId);
+  const pair = decodeFriendshipPairId(pairId);
   if (!pair) {
     return { ok: false, reason: "invalid_pair_id" };
   }
@@ -217,7 +214,7 @@ export async function rejectFriendRequest(
   uid: string,
   pairId: string,
 ): Promise<RejectFriendRequestResult> {
-  const pair = decodePairId(pairId);
+  const pair = decodeFriendshipPairId(pairId);
   if (!pair) {
     return { ok: false, reason: "invalid_pair_id" };
   }

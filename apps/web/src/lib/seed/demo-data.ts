@@ -1,5 +1,7 @@
 /** Demo seed constants (#46). Fixed IDs for idempotent re-seeding. */
 
+import { normalizeFriendshipPair } from "@/lib/friendship/pair";
+
 export type DemoUserDef = {
   uid: string;
   displayName: string;
@@ -62,7 +64,7 @@ export function friendshipPair(a: string, b: string): {
   userLow: string;
   userHigh: string;
 } {
-  return a < b ? { userLow: a, userHigh: b } : { userLow: b, userHigh: a };
+  return normalizeFriendshipPair(a, b);
 }
 
 export function demoUserIds(viewerUid: string): string[] {

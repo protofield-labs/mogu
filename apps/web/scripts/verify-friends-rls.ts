@@ -6,6 +6,8 @@
  */
 import { PrismaClient } from "@prisma/client";
 
+import { normalizeFriendshipPair } from "../src/lib/friendship/pair";
+
 const prisma = new PrismaClient();
 
 const UID_A = "rls-friends-user-a";
@@ -33,7 +35,7 @@ async function withRls<T>(
 }
 
 function friendshipPair(a: string, b: string) {
-  return a < b ? { userLow: a, userHigh: b } : { userLow: b, userHigh: a };
+  return normalizeFriendshipPair(a, b);
 }
 
 async function upsertUser(tx: Tx, uid: string, displayName: string) {
@@ -191,11 +193,42 @@ async function verifyFriendRequestRejectDelete() {
   }
 }
 
+const UID_FIREBASE_LIKE = "GBguwTEai5c8DPCdbQEVu6VOXRI3";
+const UID_FIREBASE_LIKE_B = "ZZZZZZZZZZZZZZZZZZZZZZZZZZZZ";
+
+async function verifyFirebaseUidPairInsert() {
+  try {
+    await prisma.$transaction(async (tx) => {
+      await upsertUser(tx, UID_FIREBASE_LIKE, "Firebase Like A");
+      await upsertUser(tx, UID_FIREBASE_LIKE_B, "Firebase Like B");
+
+      const pair = friendshipPair(UID_FIREBASE_LIKE, UID_FIREBASE_LIKE_B);
+      await withRls(tx, UID_FIREBASE_LIKE, (scoped) =>
+        scoped.friendship.create({
+          data: {
+            ...pair,
+            status: "pending",
+            requestedBy: UID_FIREBASE_LIKE,
+          },
+        }),
+      );
+
+      throw new Rollback();
+    });
+  } catch (error) {
+    if (!(error instanceof Rollback)) {
+      throw error;
+    }
+  }
+}
+
 async function main() {
   await verifyFriendshipRlsBoundary();
   console.log("PASS: friends RLS pending/accepted boundary verified");
   await verifyFriendRequestRejectDelete();
   console.log("PASS: friends RLS reject delete verified");
+  await verifyFirebaseUidPairInsert();
+  console.log("PASS: friends CHECK constraint with Firebase-like UIDs");
 }
 
 main()
