@@ -6,9 +6,10 @@ repository-wide `AGENTS.md`; when more specific, these win.
 This is maintenance mode: infrastructure is real and changes are risky.
 The human steers, the agent executes.
 
-## Approval and Safety
+## Apply and Safety
 
-- `terraform apply` requires explicit human approval every time.
+- After `scripts/plan.sh`, the agent may run `terraform apply` in the target
+  root module directory. Do not add `terraform apply` to CI workflows.
 - Do not run `terraform destroy`.
 - Do not run `terraform state` commands.
 - Do not run `terraform force-unlock`.
