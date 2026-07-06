@@ -25,10 +25,12 @@ module "daily_reco_job" {
   service_account_email = google_service_account.web.email
   labels                = local.labels
 
+  # DB_PASSWORD may contain URI-breaking characters (random_password with
+  # special = true), so it is percent-encoded before building DATABASE_URL.
   command = [
     "sh",
     "-c",
-    "export DATABASE_URL=postgresql://${var.db_user}:$${DB_PASSWORD}@${module.cloud_sql.private_ip_address}:5432/${var.db_name}?sslmode=require && pnpm exec tsx scripts/generate-daily-recommendations.ts",
+    "export DATABASE_URL=\"postgresql://${var.db_user}:$(node -e 'process.stdout.write(encodeURIComponent(process.env.DB_PASSWORD))')@${module.cloud_sql.private_ip_address}:5432/${var.db_name}?sslmode=require\" && pnpm exec tsx scripts/generate-daily-recommendations.ts",
   ]
 
   env        = local.daily_reco_job_env
