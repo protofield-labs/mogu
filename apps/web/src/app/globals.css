@@ -62,12 +62,12 @@
     /* shadcn neutral base, tuned to mogu warm surface */
     --background: oklch(0.965 0.006 95);
     --foreground: oklch(0.205 0.012 95);
-    --card: oklch(1 0 0);
+    --card: oklch(0.995 0.004 95);
     --card-foreground: oklch(0.205 0.012 95);
-    --popover: oklch(1 0 0);
+    --popover: oklch(0.995 0.004 95);
     --popover-foreground: oklch(0.205 0.012 95);
-    --primary: oklch(0.205 0.012 95);
-    --primary-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.62 0.14 45);
+    --primary-foreground: oklch(0.985 0.002 95);
     --secondary: oklch(0.955 0.008 95);
     --secondary-foreground: oklch(0.205 0.012 95);
     --muted: oklch(0.955 0.008 95);
@@ -77,7 +77,7 @@
     --destructive: oklch(0.577 0.245 27.325);
     --border: oklch(0.905 0.008 95);
     --input: oklch(0.905 0.008 95);
-    --ring: oklch(0.708 0.015 95);
+    --ring: oklch(0.62 0.14 45 / 0.35);
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
     --chart-3: oklch(0.439 0 0);
@@ -86,7 +86,7 @@
     --radius: 0.75rem;
     --sidebar: oklch(0.985 0.004 95);
     --sidebar-foreground: oklch(0.205 0.012 95);
-    --sidebar-primary: oklch(0.205 0.012 95);
+    --sidebar-primary: oklch(0.62 0.14 45);
     --sidebar-primary-foreground: oklch(0.985 0 0);
     --sidebar-accent: oklch(0.955 0.008 95);
     --sidebar-accent-foreground: oklch(0.205 0.012 95);
@@ -105,6 +105,8 @@
     --mogu-tab-bar-height: 3.5rem;
     --mogu-shell-max-width: 28rem;
     --mogu-radius-card: 1rem;
+    --font-sans: var(--font-noto-sans-jp), var(--font-geist), ui-sans-serif, system-ui,
+      sans-serif;
 }
 
 .dark {
@@ -151,4 +153,10 @@
   html {
     @apply font-sans;
     }
+}
+
+@layer utilities {
+  .mogu-elevated {
+    @apply bg-mogu-surface-elevated shadow-sm;
+  }
 }

@@ -77,6 +77,9 @@ jobs:
       - name: Verify API error labels
         run: pnpm exec tsx scripts/verify-api-error-labels.ts
 
+      - name: Verify design tokens
+        run: pnpm exec tsx scripts/verify-design-tokens.ts
+
       - name: Verify agent engine config
         run: pnpm exec tsx scripts/verify-agent-config.ts
 
