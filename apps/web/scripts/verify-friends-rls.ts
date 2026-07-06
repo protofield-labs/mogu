@@ -6,8 +6,6 @@
  */
 import { PrismaClient } from "@prisma/client";
 
-import { normalizeFriendshipPair } from "../src/lib/friendship/pair";
-
 const prisma = new PrismaClient();
 
 const UID_A = "rls-friends-user-a";
@@ -34,8 +32,16 @@ async function withRls<T>(
   return fn(tx);
 }
 
-function friendshipPair(a: string, b: string) {
-  return normalizeFriendshipPair(a, b);
+async function resolveFriendshipPair(tx: Tx, a: string, b: string) {
+  const rows = await tx.$queryRaw<{ user_low: string; user_high: string }[]>`
+    SELECT LEAST(${a}::text, ${b}::text) AS user_low,
+           GREATEST(${a}::text, ${b}::text) AS user_high
+  `;
+  const row = rows[0];
+  if (!row || row.user_low === row.user_high) {
+    throw new Error(`Invalid friendship pair: ${a} / ${b}`);
+  }
+  return { userLow: row.user_low, userHigh: row.user_high };
 }
 
 async function upsertUser(tx: Tx, uid: string, displayName: string) {
@@ -72,7 +78,7 @@ async function verifyFriendshipRlsBoundary() {
         throw new Error("Friend collection was visible before acceptance");
       }
 
-      const pair = friendshipPair(UID_A, UID_B);
+      const pair = await resolveFriendshipPair(tx, UID_A, UID_B);
       await withRls(tx, UID_A, (scoped) =>
         scoped.friendship.upsert({
           where: { userLow_userHigh: pair },
@@ -141,7 +147,7 @@ async function verifyFriendRequestRejectDelete() {
       await upsertUser(tx, UID_A, "RLS Friend A");
       await upsertUser(tx, UID_B, "RLS Friend B");
 
-      const pair = friendshipPair(UID_A, UID_B);
+      const pair = await resolveFriendshipPair(tx, UID_A, UID_B);
       await withRls(tx, UID_A, (scoped) =>
         scoped.friendship.create({
           data: {
@@ -202,7 +208,11 @@ async function verifyFirebaseUidPairInsert() {
       await upsertUser(tx, UID_FIREBASE_LIKE, "Firebase Like A");
       await upsertUser(tx, UID_FIREBASE_LIKE_B, "Firebase Like B");
 
-      const pair = friendshipPair(UID_FIREBASE_LIKE, UID_FIREBASE_LIKE_B);
+      const pair = await resolveFriendshipPair(
+        tx,
+        UID_FIREBASE_LIKE,
+        UID_FIREBASE_LIKE_B,
+      );
       await withRls(tx, UID_FIREBASE_LIKE, (scoped) =>
         scoped.friendship.create({
           data: {

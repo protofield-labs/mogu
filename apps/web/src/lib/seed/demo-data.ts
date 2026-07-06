@@ -1,7 +1,5 @@
 /** Demo seed constants (#46). Fixed IDs for idempotent re-seeding. */
 
-import { normalizeFriendshipPair } from "@/lib/friendship/pair";
-
 export type DemoUserDef = {
   uid: string;
   displayName: string;
@@ -59,13 +57,6 @@ export const DEMO_SPOT_IDS = {
 } as const;
 
 export const DEMO_DAILY_RECO_ID = "33333333-3333-4333-8333-333333333301";
-
-export function friendshipPair(a: string, b: string): {
-  userLow: string;
-  userHigh: string;
-} {
-  return normalizeFriendshipPair(a, b);
-}
 
 export function demoUserIds(viewerUid: string): string[] {
   return [

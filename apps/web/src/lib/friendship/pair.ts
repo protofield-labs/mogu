@@ -1,22 +1,23 @@
-/** Friendship pair ordering aligned with PostgreSQL LEAST/GREATEST (#79). */
+/** Friendship pair ordering — DB uses PostgreSQL LEAST/GREATEST (#79). */
 
 export type FriendshipPair = {
   userLow: string;
   userHigh: string;
 };
 
-/** UTF-8 byte order (matches PG text `<` for ASCII Firebase UIDs). */
+/** UTF-8 byte order (may differ from PG text `<` for mixed demo-/Firebase ids). */
 export function compareFriendshipUids(a: string, b: string): number {
   return Buffer.compare(Buffer.from(a, "utf8"), Buffer.from(b, "utf8"));
 }
 
+/** Distinct user ids only; ordering is validated by the database CHECK. */
 export function isOrderedFriendshipPair(pair: FriendshipPair): boolean {
-  return compareFriendshipUids(pair.userLow, pair.userHigh) < 0;
+  return pair.userLow !== pair.userHigh;
 }
 
 /**
- * Order two user ids for friendships.user_low / user_high.
- * Uses byte compare instead of JS `<` so client encode/decode matches DB CHECK.
+ * Offline pair ordering (byte compare). Do not use for DB writes — use SQL
+ * LEAST/GREATEST via resolveFriendshipPairFromDb instead.
  */
 export function normalizeFriendshipPair(a: string, b: string): FriendshipPair {
   if (compareFriendshipUids(a, b) < 0) {

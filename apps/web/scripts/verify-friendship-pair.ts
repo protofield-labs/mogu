@@ -33,7 +33,7 @@ function verifyByteOrdering() {
 
   for (const [a, b] of pairs) {
     const pair = normalizeFriendshipPair(a, b);
-    assert(isOrderedFriendshipPair(pair), `pair not ordered: ${a} / ${b}`);
+    assert(isOrderedFriendshipPair(pair), `pair not distinct: ${a} / ${b}`);
     assert(
       compareFriendshipUids(pair.userLow, pair.userHigh) < 0,
       `byte order failed: ${a} / ${b}`,
@@ -53,7 +53,7 @@ function verifyByteOrdering() {
 }
 
 function verifyPairIdRoundTrip() {
-  const pair = normalizeFriendshipPair(UID_REPORTED, "demo-aoi");
+  const pair = { userLow: UID_REPORTED, userHigh: "demo-aoi" };
   const pairId = encodeFriendshipPairId(pair);
   const decoded = decodeFriendshipPairId(pairId);
   assert(decoded !== null, "decode pairId");
@@ -63,9 +63,15 @@ function verifyPairIdRoundTrip() {
   assert(decoded.userLow === pair.userLow, "round-trip userLow");
   assert(decoded.userHigh === pair.userHigh, "round-trip userHigh");
   assert(decodeFriendshipPairId("not-valid") === null, "reject invalid pairId");
+  assert(
+    decodeFriendshipPairId(
+      encodeFriendshipPairId({ userLow: "same", userHigh: "same" }),
+    ) === null,
+    "reject identical ids",
+  );
 }
 
-async function verifyMatchesPostgresLeastGreatest() {
+async function verifyPostgresLeastGreatest() {
   if (!process.env.DATABASE_URL) {
     console.log("SKIP: DATABASE_URL not set (Postgres LEAST/GREATEST cross-check)");
     return;
@@ -75,27 +81,32 @@ async function verifyMatchesPostgresLeastGreatest() {
     [UID_REPORTED, "demo-ken"],
     [UID_REPORTED, "aaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
     ["rls-friends-user-a", "rls-friends-user-b"],
+    ["demo-ken", "demo-viewer"],
   ];
 
   try {
     for (const [a, b] of samples) {
       const rows = await prisma.$queryRaw<
-        { user_low: string; user_high: string }[]
+        { user_low: string; user_high: string; check_ok: boolean }[]
       >`
         SELECT LEAST(${a}::text, ${b}::text) AS user_low,
-               GREATEST(${a}::text, ${b}::text) AS user_high
+               GREATEST(${a}::text, ${b}::text) AS user_high,
+               (LEAST(${a}::text, ${b}::text) < GREATEST(${a}::text, ${b}::text)) AS check_ok
       `;
       const pg = rows[0];
-      const normalized = normalizeFriendshipPair(a, b);
       assert(pg !== undefined, "postgres row");
-      assert(
-        pg.user_low === normalized.userLow,
-        `user_low mismatch for ${a}/${b}: pg=${pg.user_low} js=${normalized.userLow}`,
-      );
-      assert(
-        pg.user_high === normalized.userHigh,
-        `user_high mismatch for ${a}/${b}`,
-      );
+      assert(pg.user_low !== pg.user_high, `pair must be distinct for ${a}/${b}`);
+      assert(pg.check_ok, `CHECK would fail for ${a}/${b}`);
+
+      const bytePair = normalizeFriendshipPair(a, b);
+      if (
+        bytePair.userLow !== pg.user_low ||
+        bytePair.userHigh !== pg.user_high
+      ) {
+        console.log(
+          `  note: byte normalize differs from PG LEAST for ${JSON.stringify([a, b])}`,
+        );
+      }
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -116,7 +127,7 @@ async function verifyMatchesPostgresLeastGreatest() {
 async function main() {
   verifyByteOrdering();
   verifyPairIdRoundTrip();
-  await verifyMatchesPostgresLeastGreatest();
+  await verifyPostgresLeastGreatest();
   console.log("PASS: friendship pair verification");
 }
 

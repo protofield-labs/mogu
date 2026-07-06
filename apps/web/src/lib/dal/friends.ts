@@ -6,7 +6,6 @@ import { toUserDto, userSelect, type UserDto } from "@/lib/dal/users";
 import {
   decodeFriendshipPairId,
   encodeFriendshipPairId,
-  isOrderedFriendshipPair,
   type FriendshipPair,
 } from "@/lib/friendship/pair";
 
@@ -61,8 +60,8 @@ async function resolvePairFromDb(
     throw new Error("Failed to resolve friendship pair");
   }
   const pair = { userLow: row.user_low, userHigh: row.user_high };
-  if (!isOrderedFriendshipPair(pair)) {
-    throw new Error("Friendship pair must have distinct ordered user ids");
+  if (pair.userLow === pair.userHigh) {
+    throw new Error("Friendship pair must have distinct user ids");
   }
   return pair;
 }
