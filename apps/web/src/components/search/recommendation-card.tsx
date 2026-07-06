@@ -3,39 +3,31 @@
 import { useEffect, useState } from "react";
 import { ChevronDownIcon } from "lucide-react";
 
+import { GoogleMapsAttribution } from "@/components/places/google-maps-attribution";
+import { SpotPlaceName } from "@/components/places/spot-place-name";
 import { AuthImage } from "@/components/mypage/auth-image";
 import { Button } from "@/components/ui/button";
-import { fetchPlace, recollectSpot } from "@/lib/agent/browser-api";
+import { recollectSpot } from "@/lib/agent/browser-api";
 import {
   googleMapsPlaceUrl,
   openNowLabel,
 } from "@/lib/agent/chat-helpers";
 import type { Recommendation, Spot } from "@/lib/agent/types";
 import { listMyCollections } from "@/lib/collections/browser-api";
+import { usePlace } from "@/lib/places/use-place";
 
 type RecommendationCardProps = {
   recommendation: Recommendation;
 };
 
 function SpotSummary({ spot, compact = false }: { spot: Spot; compact?: boolean }) {
-  const [placeName, setPlaceName] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void fetchPlace(spot.placeId).then((place) => {
-      if (!cancelled && place) {
-        setPlaceName(place.name);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [spot.placeId]);
-
   return (
     <div className={compact ? "text-sm text-muted-foreground" : undefined}>
       <p className="font-medium text-foreground">
-        {placeName ?? (spot.comment || "スポット")}
+        <SpotPlaceName
+          placeId={spot.placeId}
+          fallback={spot.comment || "スポット"}
+        />
       </p>
       {!compact && spot.comment ? (
         <p className="mt-1 text-sm text-muted-foreground">{spot.comment}</p>
@@ -56,25 +48,13 @@ type CollectionsState =
 
 export function RecommendationCard({ recommendation }: RecommendationCardProps) {
   const { spot, assertion, evidence, alternatives } = recommendation;
-  const [openNow, setOpenNow] = useState<boolean | undefined>();
+  const { place } = usePlace(spot.placeId);
   const [collections, setCollections] = useState<CollectionsState>({
     status: "loading",
   });
   const [recollecting, setRecollecting] = useState(false);
   const [recollected, setRecollected] = useState(false);
   const [recollectError, setRecollectError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void fetchPlace(spot.placeId).then((place) => {
-      if (!cancelled && place) {
-        setOpenNow(place.openNow);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [spot.placeId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -97,7 +77,7 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
     };
   }, []);
 
-  const openNowText = openNowLabel(openNow);
+  const openNowText = openNowLabel(place?.openNow);
   const hasNoCollection =
     collections.status === "ready" && collections.targetCollectionId === null;
 
@@ -105,8 +85,6 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
     if (collections.status === "ready") {
       return collections.targetCollectionId;
     }
-    // Initial load failed or is in flight: retry here so a transient error
-    // does not permanently disable the save button.
     try {
       const result = await listMyCollections();
       const targetCollectionId = result[0]?.id ?? null;
@@ -194,7 +172,7 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
         </p>
       ) : null}
 
-      <p className="mt-2 text-[0.65rem] text-muted-foreground">Google Maps</p>
+      <GoogleMapsAttribution className="mt-2" />
 
       {alternatives.length > 0 ? (
         <details className="group mt-3 border-t border-border pt-3">
