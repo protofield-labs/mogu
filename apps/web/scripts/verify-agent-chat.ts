@@ -8,6 +8,7 @@ import {
   createAgentEntry,
   createUserEntry,
   createWelcomeEntry,
+  formatAgentUserError,
   formatUserBubbleText,
   googleMapsPlaceUrl,
   isRecommendation,
@@ -80,6 +81,24 @@ function main() {
     "recommendation guard accepts shape",
   );
   assert(!isRecommendation({ text: "nope" }), "reject non recommendation");
+
+  assert(
+    formatAgentUserError(
+      new Error("Agent Engine is not configured"),
+      "fallback",
+    ) === "エージェントが準備中です。しばらくしてから再度お試しください",
+    "agent engine 503 copy",
+  );
+  assert(
+    formatAgentUserError(new Error("Failed to fetch"), "fallback") ===
+      "通信に失敗しました。接続を確認してください",
+    "network error copy",
+  );
+  assert(
+    formatAgentUserError(new Error("Failed to create agent session"), "開始失敗") ===
+      "開始失敗",
+    "generic session fallback",
+  );
 
   console.log("PASS: agent chat helpers");
 }
