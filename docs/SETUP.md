@@ -60,7 +60,8 @@ Use the harness scripts for plan and checks:
 ./scripts/plan.sh terraform/environments/dev
 ```
 
-`terraform apply` requires human approval (see `terraform/AGENTS.md`).
+`terraform apply` is run locally or by the agent after review (`scripts/plan.sh`);
+CI runs plan only and never applies (see `terraform/AGENTS.md`).
 
 **PR plan CI** (`.github/workflows/terraform-check.yml`):
 
@@ -97,7 +98,8 @@ bucket IAM before the plan job can succeed:
 
 ```bash
 ./scripts/plan.sh terraform/environments/dev
-# review, then apply with human approval
+# review, then apply locally (or ask the agent to apply)
+terraform -chdir=terraform/environments/dev apply
 ```
 
 ## 3. Next.js deploy (GitHub Actions)
