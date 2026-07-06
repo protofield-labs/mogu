@@ -98,13 +98,14 @@ export function ProfileHeroCard({
             tabIndex={editing ? -1 : 0}
             aria-expanded={editing}
             aria-controls={editPanelId}
+            inert={editing}
             onClick={() => {
               if (!editing) {
                 openEdit();
               }
             }}
             onKeyDown={(event) => {
-              if (editing) {
+              if (editing || event.target !== event.currentTarget) {
                 return;
               }
               if (event.key === "Enter" || event.key === " ") {
@@ -150,10 +151,15 @@ export function ProfileHeroCard({
                   </span>
                 </dd>
               </div>
-              <div className="py-2.5" onClick={(event) => event.stopPropagation()}>
+              <div
+                className="py-2.5"
+                onClick={(event) => event.stopPropagation()}
+                onKeyDown={(event) => event.stopPropagation()}
+              >
                 <dd>
                   <Link
                     href="/mypage/friends"
+                    tabIndex={editing ? -1 : undefined}
                     className="relative inline-flex items-baseline text-base font-semibold text-foreground underline-offset-4 hover:underline"
                     aria-label={stats.friendsLabel}
                   >
