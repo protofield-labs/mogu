@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import { CollectionDetailSkeleton } from "@/components/loading/skeletons";
 import { LoadErrorState } from "@/components/ui/load-error-state";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SpotForm, SpotList } from "@/components/mypage/spot-form";
 import {
   getCollectionDetail,
@@ -23,6 +24,7 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [deleteSpotTarget, setDeleteSpotTarget] = useState<Spot | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [prevCollectionId, setPrevCollectionId] = useState(collectionId);
 
@@ -80,10 +82,12 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
     setEditingSpot(null);
   }
 
-  async function handleDeleteSpot(spot: Spot) {
-    if (!window.confirm("このスポットを削除しますか？")) {
+  async function handleConfirmDeleteSpot() {
+    if (!deleteSpotTarget) {
       return;
     }
+
+    const spot = deleteSpotTarget;
     try {
       await deleteSpot(spot.id);
       setDetail((current) =>
@@ -98,6 +102,7 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
       if (editingSpot?.id === spot.id) {
         setEditingSpot(null);
       }
+      setDeleteSpotTarget(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "削除に失敗しました");
     }
@@ -156,9 +161,18 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
         <SpotList
           spots={detail.spots}
           onEdit={setEditingSpot}
-          onDelete={(spot) => void handleDeleteSpot(spot)}
+          onDelete={setDeleteSpotTarget}
         />
       </section>
+
+      <ConfirmDialog
+        open={deleteSpotTarget !== null}
+        title="スポットを削除"
+        description="このスポットを削除しますか？この操作は元に戻せません。"
+        confirmLabel="削除する"
+        onConfirm={() => void handleConfirmDeleteSpot()}
+        onCancel={() => setDeleteSpotTarget(null)}
+      />
     </div>
   );
 }

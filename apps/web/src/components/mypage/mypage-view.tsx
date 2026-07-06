@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { MypageViewSkeleton } from "@/components/loading/skeletons";
 import { LoadErrorState } from "@/components/ui/load-error-state";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CollectionGrid } from "@/components/mypage/collection-grid";
 import { FlagInboxCard } from "@/components/mypage/flag-inbox-card";
 import { MypageNavTiles } from "@/components/mypage/mypage-nav-tiles";
@@ -60,6 +61,7 @@ export function MypageView() {
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [shelfError, setShelfError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Collection | null>(null);
   const collectionsRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -193,11 +195,12 @@ export function MypageView() {
     }
   }
 
-  async function handleDelete(collection: Collection) {
-    if (!window.confirm(`「${collection.name}」を削除しますか？`)) {
+  async function handleConfirmDeleteCollection() {
+    if (!deleteTarget) {
       return;
     }
 
+    const collection = deleteTarget;
     setBusy(true);
     setShelfError(null);
     try {
@@ -216,6 +219,7 @@ export function MypageView() {
             }
           : current,
       );
+      setDeleteTarget(null);
     } catch (err) {
       setShelfError(err instanceof Error ? err.message : "削除に失敗しました");
     } finally {
@@ -363,7 +367,21 @@ export function MypageView() {
       <CollectionGrid
         collections={collections}
         onEdit={startEdit}
-        onDelete={(collection) => void handleDelete(collection)}
+        onDelete={setDeleteTarget}
+      />
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="コレクションを削除"
+        description={
+          deleteTarget
+            ? `「${deleteTarget.name}」を削除しますか？この操作は元に戻せません。`
+            : ""
+        }
+        confirmLabel="削除する"
+        busy={busy}
+        onConfirm={() => void handleConfirmDeleteCollection()}
+        onCancel={() => setDeleteTarget(null)}
       />
     </div>
   );
