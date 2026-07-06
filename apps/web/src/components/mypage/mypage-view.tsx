@@ -7,8 +7,7 @@ import { MypageViewSkeleton } from "@/components/loading/skeletons";
 import { CollectionGrid } from "@/components/mypage/collection-grid";
 import { FlagInboxCard } from "@/components/mypage/flag-inbox-card";
 import { MypageTopBar } from "@/components/mypage/mypage-top-bar";
-import { ProfileHeader } from "@/components/mypage/profile-header";
-import { SettingsSection } from "@/components/mypage/settings-section";
+import { ProfileSection } from "@/components/mypage/profile-section";
 import {
   createCollection,
   deleteCollection,
@@ -232,9 +231,9 @@ export function MypageView() {
   return (
     <div className="flex flex-1 flex-col gap-6 pb-mogu-screen-y">
       <MypageTopBar />
-      <ProfileHeader me={me} pendingFriendRequests={pendingFriendRequests} />
-      <SettingsSection
+      <ProfileSection
         me={me}
+        pendingFriendRequests={pendingFriendRequests}
         onProfileUpdated={(profile) =>
           setMe((current) => (current ? { ...current, ...profile } : current))
         }
