@@ -2,6 +2,8 @@
  * Photo URL validation (#35 Definition of Done).
  * Run via: pnpm exec tsx scripts/verify-photo-url.ts
  */
+import { assert } from "./test-helpers/assert";
+
 import {
   buildObjectPublicUrl,
   buildUploadObjectPath,
@@ -11,12 +13,6 @@ import {
   validateOwnedPhotoUrl,
   validatePhotoUrls,
 } from "../src/lib/storage/photo-url";
-
-function assert(condition: boolean, message: string): void {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
 
 function main() {
   const bucket = "mogu-501309-dev-app";

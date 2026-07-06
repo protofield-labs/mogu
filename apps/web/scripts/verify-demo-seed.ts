@@ -5,6 +5,8 @@
  * Requires DATABASE_URL and applied migrations (including demo_seed_policy).
  * Runs seed idempotently before assertions.
  */
+import { assert } from "./test-helpers/assert";
+
 import { PrismaClient } from "@prisma/client";
 
 import {
@@ -17,12 +19,6 @@ import {
 import { withSeedRls } from "../src/lib/seed/rls";
 
 const prisma = new PrismaClient();
-
-function assert(condition: boolean, message: string): void {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
 
 async function main() {
   const viewerUid = process.env.SEED_VIEWER_UID?.trim() || DEMO_VIEWER_DEFAULT.uid;

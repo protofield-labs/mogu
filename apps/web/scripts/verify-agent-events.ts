@@ -2,6 +2,8 @@
  * Agent SSE helpers verification (#45 Definition of Done).
  * Run via: pnpm exec tsx scripts/verify-agent-events.ts
  */
+import { assert } from "./test-helpers/assert";
+
 import {
   publishAgentEvent,
   resetAgentEventBusForTests,
@@ -13,12 +15,6 @@ import {
   createThinkingEvent,
   extractThinkingEvent,
 } from "../src/lib/agent/stream-parser";
-
-function assert(condition: boolean, message: string): void {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
 
 function main() {
   const kenEvent = extractThinkingEvent({ author: "ken" });

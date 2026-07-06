@@ -2,6 +2,8 @@
  * User-facing API error label verification (#89 Definition of Done).
  * Run via: pnpm exec tsx scripts/verify-api-error-labels.ts
  */
+import { assert } from "./test-helpers/assert";
+
 import {
   conflictResponse,
   formatApiErrorMessage,
@@ -12,12 +14,6 @@ import {
   validationErrorResponse,
 } from "../src/lib/auth/api-error";
 import { formatCollectionVisibility } from "../src/lib/labels/collection-labels";
-
-function assert(condition: boolean, message: string): void {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
 
 async function main() {
   assert(

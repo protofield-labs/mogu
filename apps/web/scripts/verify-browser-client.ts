@@ -2,6 +2,8 @@
  * Browser API client unification verification (#110).
  * Run via: pnpm exec tsx scripts/verify-browser-client.ts
  */
+import { assert } from "./test-helpers/assert";
+
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -10,12 +12,6 @@ import { feedPageSchema } from "../src/lib/api/schemas/home";
 import { spotSchema } from "../src/lib/api/schemas/spot";
 import { toSpotDto } from "../src/lib/spot/to-spot-dto";
 import type { SpotRow } from "../src/lib/spot/types";
-
-function assert(condition: boolean, message: string): void {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
 
 const root = join(process.cwd(), "src");
 const browserApiFiles = [

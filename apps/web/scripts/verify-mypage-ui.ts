@@ -2,6 +2,8 @@
  * Mypage UI helpers verification (#56 Definition of Done).
  * Run via: pnpm exec tsx scripts/verify-mypage-ui.ts
  */
+import { assert } from "./test-helpers/assert";
+
 import {
   formatAnonymousFlagLine,
   formatNamedFlagLine,
@@ -23,12 +25,6 @@ import {
   formatFriendRequestError,
   isIncomingPending,
 } from "../src/lib/mypage/friend-request-ui";
-
-function assert(condition: boolean, message: string): void {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
 
 function main() {
   const weekOf = "2026-07-06";

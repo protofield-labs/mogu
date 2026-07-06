@@ -2,17 +2,13 @@
  * Feed cursor + recommendation text helpers (#39/#42).
  * Run via: pnpm exec tsx scripts/verify-feed-helpers.ts
  */
+import { assert } from "./test-helpers/assert";
+
 import { Rating } from "@prisma/client";
 
 import { decodeFeedCursor, encodeFeedCursor } from "../src/lib/feed/cursor";
 import { buildAssertion, buildEvidence } from "../src/lib/recommendations/pick";
 import { jstTodayDate } from "../src/lib/recommendations/valid-date";
-
-function assert(condition: boolean, message: string): void {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
 
 const createdAt = new Date("2026-07-06T12:00:00.000Z");
 const id = "11111111-1111-4111-8111-111111111111";

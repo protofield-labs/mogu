@@ -2,6 +2,8 @@
  * Agent chat UI helpers verification (#55 Definition of Done).
  * Run via: pnpm exec tsx scripts/verify-agent-chat.ts
  */
+import { assert } from "./test-helpers/assert";
+
 import {
   AGENT_FOOTER_CAPTION,
   AGENT_OPENING_MESSAGE,
@@ -15,12 +17,6 @@ import {
   openNowLabel,
   parseSseBuffer,
 } from "../src/lib/agent/chat-helpers";
-
-function assert(condition: boolean, message: string): void {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
 
 function main() {
   assert(

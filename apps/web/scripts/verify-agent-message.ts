@@ -2,17 +2,13 @@
  * Agent message helpers verification (#44 Definition of Done).
  * Run via: pnpm exec tsx scripts/verify-agent-message.ts
  */
+import { assert } from "./test-helpers/assert";
+
 import {
   buildAgentUserMessage,
   parseAgentStreamResponse,
 } from "../src/lib/agent/stream-parser";
 import { isValidSessionId } from "../src/lib/agent/session-id";
-
-function assert(condition: boolean, message: string): void {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
 
 function main() {
   assert(isValidSessionId("8508595470556200960"), "numeric session id valid");

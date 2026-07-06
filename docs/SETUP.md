@@ -210,8 +210,10 @@ Copy `apps/web/.env.example` to `apps/web/.env` for local `pnpm dev` if needed.
 
 ```bash
 export DATABASE_URL="postgresql://app_user:${DB_PASSWORD}@127.0.0.1:5432/app"
-chmod +x scripts/verify-users-rls.sh
-./scripts/verify-users-rls.sh
+cd apps/web
+pnpm exec tsx scripts/verify-users-rls.ts
+# or run all RLS scripts:
+pnpm test:verify:rls
 ```
 
 **Verify guardrails (CI と同じ)** — `savedCount` カラム禁止・depth>=2 匿名化・users RLS:
