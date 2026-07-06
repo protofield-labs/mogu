@@ -111,6 +111,9 @@ jobs:
       - name: Apply migrations
         run: pnpm db:migrate
 
+      - name: Verify friendship pair ordering
+        run: pnpm exec tsx scripts/verify-friendship-pair.ts
+
       - name: Seed demo data
         run: pnpm db:seed
 

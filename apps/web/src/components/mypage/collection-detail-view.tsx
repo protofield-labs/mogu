@@ -4,6 +4,7 @@ import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { CollectionDetailSkeleton } from "@/components/loading/skeletons";
 import { SpotForm, SpotList } from "@/components/mypage/spot-form";
 import {
   getCollectionDetail,
@@ -89,11 +90,7 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
   }
 
   if (loading) {
-    return (
-      <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-        コレクションを読み込んでいます…
-      </div>
-    );
+    return <CollectionDetailSkeleton />;
   }
 
   if (!detail) {

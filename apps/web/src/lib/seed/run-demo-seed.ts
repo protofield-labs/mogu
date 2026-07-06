@@ -13,7 +13,6 @@ import {
   DEMO_SHARED_PLACE_ID,
   DEMO_SPOT_IDS,
   DEMO_VIEWER_DEFAULT,
-  friendshipPair,
 } from "./demo-data";
 import {
   disableDemoSeedFlags,
@@ -64,6 +63,18 @@ async function upsertUser(tx: SeedTx, user: DemoUserDef) {
   );
 }
 
+async function resolveFriendshipPair(tx: SeedTx, a: string, b: string) {
+  const rows = await tx.$queryRaw<{ user_low: string; user_high: string }[]>`
+    SELECT LEAST(${a}::text, ${b}::text) AS user_low,
+           GREATEST(${a}::text, ${b}::text) AS user_high
+  `;
+  const row = rows[0];
+  if (!row || row.user_low === row.user_high) {
+    throw new Error(`Invalid friendship pair: ${a} / ${b}`);
+  }
+  return { userLow: row.user_low, userHigh: row.user_high };
+}
+
 export async function seedDemo(prisma: PrismaClient): Promise<void> {
   const viewerUid = resolveViewerUid();
   const viewer = resolveViewerProfile(viewerUid);
@@ -79,12 +90,12 @@ export async function seedDemo(prisma: PrismaClient): Promise<void> {
       await upsertUser(tx, persona);
     }
 
-    const friendships = [
-      friendshipPair(viewerUid, DEMO_PERSONAS.ken.uid),
-      friendshipPair(viewerUid, DEMO_PERSONAS.aoi.uid),
-      friendshipPair(viewerUid, DEMO_PERSONAS.mika.uid),
-      friendshipPair(DEMO_PERSONAS.ken.uid, DEMO_PERSONAS.aoi.uid),
-    ];
+    const friendships = await Promise.all([
+      resolveFriendshipPair(tx, viewerUid, DEMO_PERSONAS.ken.uid),
+      resolveFriendshipPair(tx, viewerUid, DEMO_PERSONAS.aoi.uid),
+      resolveFriendshipPair(tx, viewerUid, DEMO_PERSONAS.mika.uid),
+      resolveFriendshipPair(tx, DEMO_PERSONAS.ken.uid, DEMO_PERSONAS.aoi.uid),
+    ]);
 
     for (const pair of friendships.slice(0, 3)) {
       await withSeedRls(tx, viewerUid, (scoped) =>
@@ -109,10 +120,7 @@ export async function seedDemo(prisma: PrismaClient): Promise<void> {
       );
     }
 
-    const kenAoi = friendshipPair(
-      DEMO_PERSONAS.ken.uid,
-      DEMO_PERSONAS.aoi.uid,
-    );
+    const kenAoi = friendships[3]!;
     await withSeedRls(tx, DEMO_PERSONAS.ken.uid, (scoped) =>
       scoped.friendship.upsert({
         where: {

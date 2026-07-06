@@ -32,8 +32,16 @@ async function withRls<T>(
   return fn(tx);
 }
 
-function friendshipPair(a: string, b: string) {
-  return a < b ? { userLow: a, userHigh: b } : { userLow: b, userHigh: a };
+async function resolveFriendshipPair(tx: Tx, a: string, b: string) {
+  const rows = await tx.$queryRaw<{ user_low: string; user_high: string }[]>`
+    SELECT LEAST(${a}::text, ${b}::text) AS user_low,
+           GREATEST(${a}::text, ${b}::text) AS user_high
+  `;
+  const row = rows[0];
+  if (!row || row.user_low === row.user_high) {
+    throw new Error(`Invalid friendship pair: ${a} / ${b}`);
+  }
+  return { userLow: row.user_low, userHigh: row.user_high };
 }
 
 async function upsertUser(tx: Tx, uid: string, displayName: string) {
@@ -70,7 +78,7 @@ async function verifyFriendshipRlsBoundary() {
         throw new Error("Friend collection was visible before acceptance");
       }
 
-      const pair = friendshipPair(UID_A, UID_B);
+      const pair = await resolveFriendshipPair(tx, UID_A, UID_B);
       await withRls(tx, UID_A, (scoped) =>
         scoped.friendship.upsert({
           where: { userLow_userHigh: pair },
@@ -139,7 +147,7 @@ async function verifyFriendRequestRejectDelete() {
       await upsertUser(tx, UID_A, "RLS Friend A");
       await upsertUser(tx, UID_B, "RLS Friend B");
 
-      const pair = friendshipPair(UID_A, UID_B);
+      const pair = await resolveFriendshipPair(tx, UID_A, UID_B);
       await withRls(tx, UID_A, (scoped) =>
         scoped.friendship.create({
           data: {
@@ -191,11 +199,46 @@ async function verifyFriendRequestRejectDelete() {
   }
 }
 
+const UID_FIREBASE_LIKE = "GBguwTEai5c8DPCdbQEVu6VOXRI3";
+const UID_FIREBASE_LIKE_B = "ZZZZZZZZZZZZZZZZZZZZZZZZZZZZ";
+
+async function verifyFirebaseUidPairInsert() {
+  try {
+    await prisma.$transaction(async (tx) => {
+      await upsertUser(tx, UID_FIREBASE_LIKE, "Firebase Like A");
+      await upsertUser(tx, UID_FIREBASE_LIKE_B, "Firebase Like B");
+
+      const pair = await resolveFriendshipPair(
+        tx,
+        UID_FIREBASE_LIKE,
+        UID_FIREBASE_LIKE_B,
+      );
+      await withRls(tx, UID_FIREBASE_LIKE, (scoped) =>
+        scoped.friendship.create({
+          data: {
+            ...pair,
+            status: "pending",
+            requestedBy: UID_FIREBASE_LIKE,
+          },
+        }),
+      );
+
+      throw new Rollback();
+    });
+  } catch (error) {
+    if (!(error instanceof Rollback)) {
+      throw error;
+    }
+  }
+}
+
 async function main() {
   await verifyFriendshipRlsBoundary();
   console.log("PASS: friends RLS pending/accepted boundary verified");
   await verifyFriendRequestRejectDelete();
   console.log("PASS: friends RLS reject delete verified");
+  await verifyFirebaseUidPairInsert();
+  console.log("PASS: friends CHECK constraint with Firebase-like UIDs");
 }
 
 main()

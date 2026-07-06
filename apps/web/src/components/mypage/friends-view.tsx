@@ -4,6 +4,7 @@ import { ChevronLeft, Lock, Search } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+import { FriendsViewSkeleton } from "@/components/loading/skeletons";
 import { notifyBadgesUpdated } from "@/lib/mypage/badge-events";
 import {
   acceptFriendRequest,
@@ -146,11 +147,7 @@ export function FriendsView() {
   }
 
   if (loading) {
-    return (
-      <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-        友達を読み込んでいます…
-      </div>
-    );
+    return <FriendsViewSkeleton />;
   }
 
   return (

@@ -9,7 +9,9 @@ import { FeedCompactRow } from "@/components/home/feed-compact-row";
 import { FeedHeroCard } from "@/components/home/feed-hero-card";
 import { HomeEmptyState } from "@/components/home/home-empty-state";
 import { RecommendationCompactRow } from "@/components/home/recommendation-compact-row";
+import { HomeViewSkeleton } from "@/components/loading/skeletons";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { fetchFeedPage, fetchHomeRecommendation } from "@/lib/home/browser-api";
 import {
   getLastReadFeedAt,
@@ -151,11 +153,7 @@ export function HomeView() {
   }
 
   if (loading) {
-    return (
-      <div className="flex flex-1 items-center justify-center px-mogu-screen-x py-mogu-screen-y text-sm text-muted-foreground">
-        読み込み中…
-      </div>
-    );
+    return <HomeViewSkeleton embedded />;
   }
 
   if (error && !me) {
@@ -203,6 +201,12 @@ export function HomeView() {
             再読み込み
           </Button>
         </div>
+      ) : recommendation.status === "loading" ? (
+        <Skeleton
+          aria-busy="true"
+          aria-label="一推しを読み込んでいます"
+          className="mx-mogu-screen-x h-14 rounded-2xl"
+        />
       ) : (
         <Link
           href="/search"

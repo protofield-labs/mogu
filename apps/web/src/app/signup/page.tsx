@@ -1,14 +1,17 @@
 "use client";
 
+import { LoaderCircleIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
+import { AuthFormSkeleton } from "@/components/loading/skeletons";
 import { useAuth } from "@/contexts/auth-context";
 import {
   getAuthErrorMessage,
   signUpWithEmail,
 } from "@/lib/auth/client-auth";
+import { cn } from "@/lib/utils";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -44,24 +47,25 @@ export default function SignupPage() {
   }
 
   if (loading || user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center text-gray-600">
-        Loading…
-      </div>
-    );
+    return <AuthFormSkeleton label="アカウント状態を確認しています" />;
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md space-y-6 rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
+    <main className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div
+        className={cn(
+          "relative w-full max-w-md space-y-6 rounded-3xl border border-border bg-mogu-surface-elevated p-8 shadow-sm transition-opacity",
+          submitting && "pointer-events-none opacity-60",
+        )}
+      >
         <div className="space-y-1 text-center">
-          <h1 className="text-2xl font-bold text-gray-900">Sign up</h1>
-          <p className="text-sm text-gray-600">Create your mogu account</p>
+          <h1 className="text-2xl font-bold text-foreground">Sign up</h1>
+          <p className="text-sm text-muted-foreground">Create your mogu account</p>
         </div>
 
         <form className="space-y-4" onSubmit={(e) => void handleSignUp(e)}>
           <label className="block space-y-1">
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-foreground">
               Display name
             </span>
             <input
@@ -69,47 +73,57 @@ export default function SignupPage() {
               required
               maxLength={100}
               autoComplete="name"
+              disabled={submitting}
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className="h-10 w-full rounded-2xl border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
             />
           </label>
           <label className="block space-y-1">
-            <span className="text-sm font-medium text-gray-700">Email</span>
+            <span className="text-sm font-medium text-foreground">Email</span>
             <input
               type="email"
               required
               autoComplete="email"
+              disabled={submitting}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className="h-10 w-full rounded-2xl border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
             />
           </label>
           <label className="block space-y-1">
-            <span className="text-sm font-medium text-gray-700">Password</span>
+            <span className="text-sm font-medium text-foreground">Password</span>
             <input
               type="password"
               required
               minLength={6}
               autoComplete="new-password"
+              disabled={submitting}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className="h-10 w-full rounded-2xl border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
             />
           </label>
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+            className="flex h-10 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/80 disabled:opacity-50"
           >
-            Create account
+            {submitting ? (
+              <>
+                <LoaderCircleIcon className="size-4 animate-spin" aria-hidden />
+                アカウント作成中…
+              </>
+            ) : (
+              "Create account"
+            )}
           </button>
         </form>
 
-        <p className="text-center text-sm text-gray-600">
+        <p className="text-center text-sm text-muted-foreground">
           Already have an account?{" "}
-          <Link href="/login" className="text-blue-600 hover:underline">
+          <Link href="/login" className="text-primary hover:underline">
             Log in
           </Link>
         </p>

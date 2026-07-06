@@ -1,15 +1,18 @@
 "use client";
 
+import { LoaderCircleIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
+import { AuthFormSkeleton } from "@/components/loading/skeletons";
 import { useAuth } from "@/contexts/auth-context";
 import {
   getAuthErrorMessage,
   signInWithEmail,
   signInWithGoogle,
 } from "@/lib/auth/client-auth";
+import { cn } from "@/lib/utils";
 
 function GoogleIcon() {
   return (
@@ -79,71 +82,85 @@ export default function LoginPage() {
   }
 
   if (loading || user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center text-gray-600">
-        Loading…
-      </div>
-    );
+    return <AuthFormSkeleton />;
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md space-y-6 rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
+    <main className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div
+        className={cn(
+          "relative w-full max-w-md space-y-6 rounded-3xl border border-border bg-mogu-surface-elevated p-8 shadow-sm transition-opacity",
+          submitting && "pointer-events-none opacity-60",
+        )}
+      >
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900">Log in</h1>
+          <h1 className="text-2xl font-bold text-foreground">Log in</h1>
         </div>
 
         <button
           type="button"
           disabled={submitting}
           onClick={() => void handleGoogleSignIn()}
-          className="flex w-full items-center justify-center gap-3 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-3 rounded-2xl border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50"
         >
-          <GoogleIcon />
-          Continue with Google
+          {submitting ? (
+            <LoaderCircleIcon className="size-4 animate-spin" aria-hidden />
+          ) : (
+            <GoogleIcon />
+          )}
+          {submitting ? "ログイン中…" : "Continue with Google"}
         </button>
 
-        <div className="relative text-center text-xs text-gray-400">
-          <span className="bg-white px-2">or</span>
-          <div className="absolute inset-x-0 top-1/2 -z-10 border-t border-gray-200" />
+        <div className="relative text-center text-xs text-muted-foreground">
+          <span className="bg-mogu-surface-elevated px-2">or</span>
+          <div className="absolute inset-x-0 top-1/2 -z-10 border-t border-border" />
         </div>
 
         <form className="space-y-4" onSubmit={(e) => void handleEmailSignIn(e)}>
           <label className="block space-y-1">
-            <span className="text-sm font-medium text-gray-700">Email</span>
+            <span className="text-sm font-medium text-foreground">Email</span>
             <input
               type="email"
               required
               autoComplete="email"
+              disabled={submitting}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className="h-10 w-full rounded-2xl border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
             />
           </label>
           <label className="block space-y-1">
-            <span className="text-sm font-medium text-gray-700">Password</span>
+            <span className="text-sm font-medium text-foreground">Password</span>
             <input
               type="password"
               required
               autoComplete="current-password"
+              disabled={submitting}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className="h-10 w-full rounded-2xl border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
             />
           </label>
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+            className="flex h-10 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/80 disabled:opacity-50"
           >
-            Log in with Email
+            {submitting ? (
+              <>
+                <LoaderCircleIcon className="size-4 animate-spin" aria-hidden />
+                ログイン中…
+              </>
+            ) : (
+              "Log in with Email"
+            )}
           </button>
         </form>
 
-        <p className="text-center text-sm text-gray-600">
+        <p className="text-center text-sm text-muted-foreground">
           No account?{" "}
-          <Link href="/signup" className="text-blue-600 hover:underline">
+          <Link href="/signup" className="text-primary hover:underline">
             Sign up
           </Link>
         </p>
