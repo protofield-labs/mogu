@@ -28,7 +28,7 @@ export function MypageNavTiles({
       <button
         type="button"
         onClick={onCollectionsClick}
-        className="group flex flex-col items-center gap-3 rounded-3xl bg-mogu-surface-elevated p-4 pb-5 text-center shadow-sm transition-shadow hover:shadow-md"
+        className="group flex flex-col items-center gap-3 rounded-mogu-card bg-mogu-surface-elevated p-4 pb-5 text-center shadow-sm transition-shadow hover:shadow-md"
       >
         <span className="relative mt-2 flex h-20 items-center justify-center">
           {coverUrl ? (
@@ -67,7 +67,7 @@ export function MypageNavTiles({
 
       <Link
         href="/mypage/friends"
-        className="group relative flex flex-col items-center gap-3 rounded-3xl bg-mogu-surface-elevated p-4 pb-5 text-center shadow-sm transition-shadow hover:shadow-md"
+        className="group relative flex flex-col items-center gap-3 rounded-mogu-card bg-mogu-surface-elevated p-4 pb-5 text-center shadow-sm transition-shadow hover:shadow-md"
       >
         {showFriendBadge ? (
           <span className="absolute right-3 top-3 rounded-full bg-mogu-badge px-2 py-0.5 text-[0.65rem] font-semibold text-white">

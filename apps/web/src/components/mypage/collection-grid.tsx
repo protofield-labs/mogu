@@ -7,7 +7,7 @@ import type { Collection } from "@/lib/collections/browser-api";
 import { cn } from "@/lib/utils";
 
 function collectionInitials(name: string): string {
-  return name.trim().slice(0, 1) || "棚";
+  return name.trim().slice(0, 1) || "コ";
 }
 
 function CollectionTile({
@@ -91,7 +91,7 @@ export function CollectionGrid({
   return (
     <section className="space-y-4 px-mogu-screen-x">
       {collections.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-border bg-mogu-surface-elevated p-8 text-center text-sm text-muted-foreground">
+        <div className="rounded-mogu-card border border-dashed border-border bg-mogu-surface-elevated p-8 text-center text-sm text-muted-foreground">
           まだコレクションがありません。最初のコレクションを作ってみましょう。
         </div>
       ) : (
@@ -109,12 +109,12 @@ export function CollectionGrid({
 
       <div
         className={cn(
-          "rounded-3xl border border-dashed border-border bg-mogu-surface-elevated p-5 text-center",
+          "rounded-mogu-card border border-dashed border-border bg-mogu-surface-elevated p-5 text-center",
         )}
       >
         <p className="inline-flex items-center justify-center gap-2 text-sm font-medium text-foreground">
           <Sparkles className="size-4" aria-hidden />
-          + この棚に合いそうなお店
+          + このコレクションに合いそうなお店
         </p>
         <p className="mt-2 text-xs text-muted-foreground">
           スポットが増えるほど、断言が鋭くなります

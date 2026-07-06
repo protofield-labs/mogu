@@ -34,6 +34,7 @@
 | `--mogu-spacing-screen-y` | `py-mogu-screen-y` | 画面上下余白 |
 | `--mogu-tab-bar-height` | `h-mogu-tab-bar` | 下部3タブの高さ |
 | `--mogu-shell-max-width` | `max-w-mogu-shell` | PC 中央寄せ時の最大幅 |
+| `--mogu-radius-card` | `rounded-mogu-card` | 画面カードの標準角丸（1rem） |
 
 ## チャット部品（検索2b）
 
