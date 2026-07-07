@@ -42,10 +42,26 @@ assert(
 );
 
 const feedHero = readSource("components/home/feed-hero-card.tsx");
-assert(feedHero.includes("useRecollect"), "feed hero uses recollect hook");
+assert(feedHero.includes("useFeedSpotSave"), "feed hero uses feed spot save hook");
+
+const feedCompact = readSource("components/home/feed-compact-row.tsx");
+assert(feedCompact.includes("useFeedSpotSave"), "feed compact uses feed spot save hook");
 
 const saveSpot = readSource("lib/recollect/save-spot.ts");
-assert(saveSpot.includes("savedSpot.collectionId !== collectionId"), "validates idempotent target");
+assert(saveSpot.includes("@/lib/spots/browser-api"), "save spot uses spots browser api");
+assert(saveSpot.includes("result.error"), "save spot surfaces recollect errors");
+assert(saveSpot.includes("result.spot.collectionId !== collectionId"), "validates idempotent target");
 assert(!saveSpot.includes("棚"), "save error avoids 棚");
+
+const spotsApi = readSource("lib/spots/browser-api.ts");
+assert(spotsApi.includes("RecollectSpotResult"), "recollect spot result type exported");
+assert(spotsApi.includes("readApiErrorResponse"), "recollect spot reads api errors");
+
+const agentApi = readSource("lib/agent/browser-api.ts");
+assert(!agentApi.includes("recollectSpot"), "recollect spot removed from agent api");
+
+const defaultCollection = readSource("lib/recollect/recollect-to-default-collection.ts");
+assert(defaultCollection.includes("pickDefaultCollection"), "default collection picker helper");
+assert(defaultCollection.includes("saveSpotToDefaultCollection"), "default collection save helper");
 
 console.log("PASS: recollect UX verified");

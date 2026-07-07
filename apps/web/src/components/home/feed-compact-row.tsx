@@ -1,13 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 
 import { FeedSpotDetailSheet } from "@/components/home/feed-spot-detail-sheet";
 import { SpotPlaceName } from "@/components/places/spot-place-name";
 import { AuthImage } from "@/components/mypage/auth-image";
 import { RecollectPicker } from "@/components/recollect/recollect-picker";
-import { useRecollect } from "@/lib/recollect/use-recollect";
+import { useFeedSpotSave } from "@/lib/recollect/use-feed-spot-save";
 import { Button } from "@/components/ui/button";
 import { formatViaLabel } from "@/lib/home/feed-labels";
 import type { FeedItem } from "@/lib/home/types";
@@ -20,15 +19,13 @@ type FeedCompactRowProps = {
 };
 
 export function FeedCompactRow({ item, viewerId }: FeedCompactRowProps) {
-  const recollect = useRecollect(item.spot.id, { initialSaved: item.savedByMe });
-  const [detailOpen, setDetailOpen] = useState(false);
+  const { recollect, detailOpen, openDetail, closeDetail } = useFeedSpotSave(
+    item.spot.id,
+    { initialSaved: item.savedByMe },
+  );
   const { place, placeName } = usePlace(item.spot.placeId);
   const photo = item.spot.photoUrls[0];
   const titleFallback = item.spot.comment || item.collectionName;
-
-  function openDetail() {
-    setDetailOpen(true);
-  }
 
   return (
     <>
@@ -98,7 +95,7 @@ export function FeedCompactRow({ item, viewerId }: FeedCompactRowProps) {
         place={place}
         placeName={placeName}
         open={detailOpen}
-        onClose={() => setDetailOpen(false)}
+        onClose={closeDetail}
         saved={recollect.saved}
         busy={recollect.busy}
         error={recollect.error}

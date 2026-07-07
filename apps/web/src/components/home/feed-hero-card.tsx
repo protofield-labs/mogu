@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useRef } from "react";
 
 import { FeedSpotDetailSheet } from "@/components/home/feed-spot-detail-sheet";
 import { UserAvatar } from "@/components/home/user-avatar";
 import { SpotPlaceName } from "@/components/places/spot-place-name";
 import { AuthImage } from "@/components/mypage/auth-image";
 import { RecollectPicker } from "@/components/recollect/recollect-picker";
-import { useRecollect } from "@/lib/recollect/use-recollect";
+import { useFeedSpotSave } from "@/lib/recollect/use-feed-spot-save";
 import { Button } from "@/components/ui/button";
 import {
   formatRatingChip,
@@ -25,17 +25,15 @@ type FeedHeroCardProps = {
 };
 
 export function FeedHeroCard({ item, viewerId }: FeedHeroCardProps) {
-  const recollect = useRecollect(item.spot.id, { initialSaved: item.savedByMe });
-  const [detailOpen, setDetailOpen] = useState(false);
+  const { recollect, detailOpen, openDetail, closeDetail } = useFeedSpotSave(
+    item.spot.id,
+    { initialSaved: item.savedByMe },
+  );
   const touchStartX = useRef(0);
   const didScroll = useRef(false);
   const { place, placeName } = usePlace(item.spot.placeId);
   const savedBadge = formatSavedCountBadge(item.spot.savedCount);
   const titleFallback = item.spot.comment || item.collectionName;
-
-  function openDetail() {
-    setDetailOpen(true);
-  }
 
   function handlePhotoTouchStart(event: React.TouchEvent<HTMLDivElement>) {
     touchStartX.current = event.touches[0]?.clientX ?? 0;
@@ -164,7 +162,7 @@ export function FeedHeroCard({ item, viewerId }: FeedHeroCardProps) {
         place={place}
         placeName={placeName}
         open={detailOpen}
-        onClose={() => setDetailOpen(false)}
+        onClose={closeDetail}
         saved={recollect.saved}
         busy={recollect.busy}
         error={recollect.error}
