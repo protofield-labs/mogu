@@ -5,12 +5,14 @@ import type { ComponentProps } from "react";
 
 import { SpotDetailSheet } from "@/components/spots/spot-detail-sheet";
 import { UserAvatar } from "@/components/home/user-avatar";
+import { ShareButton } from "@/components/share/share-button";
 import { Button } from "@/components/ui/button";
 import { googleMapsPlaceUrl } from "@/lib/agent/chat-helpers";
 import type { PlaceDTO } from "@/lib/agent/types";
 import { formatViaLabel } from "@/lib/home/feed-labels";
 import type { FeedItem } from "@/lib/home/types";
 import { actorProfilePath } from "@/lib/friends/paths";
+import { spotShareUrl } from "@/lib/share/share-url";
 
 type FeedSpotDetailSheetProps = {
   item: FeedItem;
@@ -55,20 +57,23 @@ export function FeedSpotDetailSheet({
       open={open}
       onClose={onClose}
       header={
-        <Link
-          href={actorProfilePath(actor.id, viewerId)}
-          className="flex min-w-0 items-center gap-2"
-          onClick={onClose}
-        >
-          <UserAvatar
-            displayName={actor.displayName}
-            avatarColor={actor.avatarColor}
-            size="md"
-          />
-          <p className="truncate text-sm text-muted-foreground">
-            {formatViaLabel(actor.displayName)}
-          </p>
-        </Link>
+        <div className="flex min-w-0 items-center gap-2">
+          <Link
+            href={actorProfilePath(actor.id, viewerId)}
+            className="flex min-w-0 flex-1 items-center gap-2"
+            onClick={onClose}
+          >
+            <UserAvatar
+              displayName={actor.displayName}
+              avatarColor={actor.avatarColor}
+              size="md"
+            />
+            <p className="truncate text-sm text-muted-foreground">
+              {formatViaLabel(actor.displayName)}
+            </p>
+          </Link>
+          <ShareButton url={spotShareUrl(spot.id)} className="shrink-0" />
+        </div>
       }
       footer={
         <>

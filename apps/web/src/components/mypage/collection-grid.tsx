@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { CollectionCover } from "@/components/mypage/collection-cover";
 import type { Collection } from "@/lib/collections/browser-api";
+import { collectionPath } from "@/lib/share/paths";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatCollectionVisibility } from "@/lib/labels/collection-labels";
 
@@ -136,7 +137,7 @@ export function CollectionGrid({
   collections,
   onEdit,
   onDelete,
-  getCollectionHref = (collection) => `/mypage/collections/${collection.id}`,
+  getCollectionHref = (collection) => collectionPath(collection.id),
   showUpsell = true,
   emptyMessage = "まだコレクションがありません。最初のコレクションを作ってみましょう。",
   reorderMode = false,

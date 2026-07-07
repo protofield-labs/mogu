@@ -242,3 +242,44 @@ export async function deleteSpot(
     return { ok: true as const };
   });
 }
+
+export type SpotDetailDto = SpotDto & {
+  collectionName: string;
+  ownerId: string;
+};
+
+/** Fetch a visible spot for deeplink pages (#122). */
+export async function getSpotDetail(
+  uid: string,
+  spotId: string,
+): Promise<SpotDetailDto | null> {
+  const detail = await withAuthRls(uid, async (tx) => {
+    const spot = await tx.spot.findUnique({
+      where: { id: spotId },
+      include: {
+        collection: {
+          select: { id: true, name: true, ownerId: true },
+        },
+      },
+    });
+    if (!spot) {
+      return null;
+    }
+
+    const savedCount = await countSavedInCircle(tx, spot.placeId);
+    return {
+      spot,
+      savedCount,
+    };
+  });
+
+  if (!detail) {
+    return null;
+  }
+
+  return {
+    ...toSpotDto(detail.spot, detail.savedCount),
+    collectionName: detail.spot.collection.name,
+    ownerId: detail.spot.collection.ownerId,
+  };
+}

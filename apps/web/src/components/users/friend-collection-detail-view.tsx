@@ -7,8 +7,10 @@ import { useEffect, useState } from "react";
 import { CollectionDetailSkeleton } from "@/components/loading/skeletons";
 import { FriendSpotList } from "@/components/users/friend-spot-list";
 import { LoadErrorState } from "@/components/ui/load-error-state";
+import { ShareButton } from "@/components/share/share-button";
 import { getCollectionDetail } from "@/lib/collections/browser-api";
 import { friendProfilePath } from "@/lib/friends/paths";
+import { collectionShareUrl } from "@/lib/share/share-url";
 
 type FriendCollectionDetailViewProps = {
   ownerId: string;
@@ -106,6 +108,7 @@ export function FriendCollectionDetailView({
           </h1>
           <p className="text-xs text-muted-foreground">{detail.spotCount}軒</p>
         </div>
+        <ShareButton url={collectionShareUrl(collectionId)} />
       </header>
 
       <section className="space-y-3 px-mogu-screen-x">

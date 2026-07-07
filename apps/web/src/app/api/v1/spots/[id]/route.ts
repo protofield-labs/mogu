@@ -6,7 +6,7 @@ import {
   validationErrorResponse,
   withAuthRoute,
 } from "@/lib/auth/require-auth";
-import { deleteSpot, updateSpot } from "@/lib/dal/spots";
+import { deleteSpot, getSpotDetail, updateSpot } from "@/lib/dal/spots";
 import { updateSpotBodySchema } from "@/lib/spots/schemas";
 import { resolveBucketName, validatePhotoUrls } from "@/lib/storage/photo-url";
 
@@ -23,6 +23,25 @@ function validateSpotPhotoUrls(urls: string[] | undefined, uid: string): boolean
   } catch {
     return false;
   }
+}
+
+export async function GET(
+  request: Request,
+  { params }: RouteParams,
+): Promise<Response> {
+  const route = await parseRouteParams(params, uuidRouteParamsSchema);
+  if (!route.ok) {
+    return validationErrorResponse("Invalid spot id");
+  }
+
+  return withAuthRoute(request, async (_req, { uid }) => {
+    const spot = await getSpotDetail(uid, route.data.id);
+    if (!spot) {
+      return notFoundResponse("Spot not found");
+    }
+
+    return Response.json(spot);
+  });
 }
 
 export async function PATCH(

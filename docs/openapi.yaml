@@ -321,6 +321,22 @@ paths:
         default:
           $ref: "#/components/responses/Error"
 
+  /collections/{id}/gate:
+    get:
+      tags: [collections]
+      summary: 非友達向けコレクション共有ゲート
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShareGate"
+        default:
+          $ref: "#/components/responses/Error"
+
   /collections/{id}/suggestions:
     get:
       tags: [collections]
@@ -362,6 +378,20 @@ paths:
           $ref: "#/components/responses/Error"
 
   /spots/{id}:
+    get:
+      tags: [spots]
+      summary: スポット詳細（ディープリンク）
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpotDetail"
+        default:
+          $ref: "#/components/responses/Error"
     patch:
       tags: [spots]
       summary: スポット更新
@@ -390,6 +420,22 @@ paths:
       responses:
         "204":
           description: No Content
+        default:
+          $ref: "#/components/responses/Error"
+
+  /spots/{id}/gate:
+    get:
+      tags: [spots]
+      summary: 非友達向けスポット共有ゲート
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShareGate"
         default:
           $ref: "#/components/responses/Error"
 
@@ -816,6 +862,28 @@ components:
         createdAt:
           type: string
           format: date-time
+
+    SpotDetail:
+      allOf:
+        - $ref: "#/components/schemas/Spot"
+        - type: object
+          required: [collectionName, ownerId]
+          properties:
+            collectionName:
+              type: string
+            ownerId:
+              type: string
+
+    ShareGate:
+      type: object
+      required: [ownerId, ownerDisplayName, collectionName]
+      properties:
+        ownerId:
+          type: string
+        ownerDisplayName:
+          type: string
+        collectionName:
+          type: string
 
     Collection:
       type: object

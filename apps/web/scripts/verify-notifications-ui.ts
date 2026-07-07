@@ -49,11 +49,11 @@ assert(
     collectionId: "col-1",
     placeId: "ChIJ1",
     spotComment: "nice",
-    actor: null,
-    isAnonymous: true,
+    actor: { id: "u1", displayName: "Ken", avatarColor: "#336699" },
+    isAnonymous: false,
     createdAt: fiveMinutesAgo,
-  }) === "/mypage/collections/col-1?spotId=spot-1",
-  "flag event deep link to collection spot",
+  }) === "/spots/spot-1",
+  "named flag event deep link to spot",
 );
 
 const notificationsView = readSource("components/notifications/notifications-view.tsx");

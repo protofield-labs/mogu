@@ -22,3 +22,8 @@ export const spotSchema = z.object({
   originUserId: z.string().nullable(),
   createdAt: z.string(),
 });
+
+export const spotDetailSchema = spotSchema.extend({
+  collectionName: z.string(),
+  ownerId: z.string(),
+});
