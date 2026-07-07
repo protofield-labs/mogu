@@ -1,18 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback } from "react";
 
+import { ProgressiveImageFrame } from "@/components/ui/progressive-image-frame";
 import { authFetch } from "@/lib/auth/auth-fetch";
+import { useAuthenticatedImageBlob } from "@/lib/ui/use-authenticated-image-blob";
 
 type PlacePhotoImageProps = {
   url: string;
   alt?: string;
   className?: string;
-};
-
-type LoadedImage = {
-  forUrl: string;
-  src: string;
 };
 
 /** Place Photos proxy image via authenticated fetch (guardrail 7). */
@@ -21,49 +18,19 @@ export function PlacePhotoImage({
   alt = "",
   className,
 }: PlacePhotoImageProps) {
-  const [loaded, setLoaded] = useState<LoadedImage | null>(null);
+  const fetchPhoto = useCallback((key: string) => authFetch(key), []);
+  const { status, src, imageVisible, onImageLoad, onImageError } =
+    useAuthenticatedImageBlob(url, fetchPhoto);
 
-  useEffect(() => {
-    let cancelled = false;
-    let blobUrl: string | null = null;
-
-    async function load() {
-      try {
-        const response = await authFetch(url);
-        if (!response.ok) {
-          if (!cancelled) {
-            setLoaded(null);
-          }
-          return;
-        }
-        const blob = await response.blob();
-        if (cancelled) {
-          return;
-        }
-        blobUrl = URL.createObjectURL(blob);
-        setLoaded({ forUrl: url, src: blobUrl });
-      } catch {
-        if (!cancelled) {
-          setLoaded(null);
-        }
-      }
-    }
-
-    void load();
-    return () => {
-      cancelled = true;
-      if (blobUrl) {
-        URL.revokeObjectURL(blobUrl);
-      }
-    };
-  }, [url]);
-
-  const src = loaded && loaded.forUrl === url ? loaded.src : null;
-
-  if (!src) {
-    return <div className={className} aria-hidden />;
-  }
-
-  // eslint-disable-next-line @next/next/no-img-element -- blob URL from authenticated fetch
-  return <img src={src} alt={alt} className={className} loading="lazy" decoding="async" />;
+  return (
+    <ProgressiveImageFrame
+      className={className}
+      status={status}
+      alt={alt}
+      src={src}
+      imageVisible={imageVisible}
+      onImageLoad={onImageLoad}
+      onImageError={onImageError}
+    />
+  );
 }
