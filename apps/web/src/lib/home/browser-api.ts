@@ -7,6 +7,7 @@ import {
   parseApiJson,
 } from "@/lib/api/browser-client";
 import { feedPageSchema, recommendationSchema } from "@/lib/api/schemas/home";
+import { HOME_RECOMMENDATION_LOAD_ERROR } from "@/lib/home/recommendation-labels";
 import { authFetch } from "@/lib/auth/auth-fetch";
 import type { FeedPage, Recommendation } from "@/lib/home/types";
 
@@ -23,7 +24,7 @@ export async function fetchHomeRecommendation(): Promise<Recommendation | null> 
   return apiJsonOrNull(
     "/api/v1/home/recommendation",
     recommendationSchema,
-    "一推しを読み込めませんでした",
+    HOME_RECOMMENDATION_LOAD_ERROR,
     { emptyStatuses: [204, 404] },
   );
 }

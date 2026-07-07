@@ -1,6 +1,7 @@
 import "server-only";
 
-import type { PlaceDTO, PlaceLocationDTO, PlaceSearchResult } from "./types";
+import type { PlaceDTO, PlaceLocationDTO, PlacePhoto, PlaceSearchResult } from "./types";
+import { buildPlacePhotoProxyUrl } from "./place-photo-url";
 
 const PLACES_BASE = "https://places.googleapis.com/v1";
 
@@ -36,12 +37,22 @@ function normalizePlaceId(raw: string): string {
 type GoogleDisplayName = { text?: string };
 type GoogleLatLng = { latitude?: number; longitude?: number };
 
+type GooglePhotoAttribution = { displayName?: string; uri?: string };
+
+type GooglePhoto = {
+  name?: string;
+  widthPx?: number;
+  heightPx?: number;
+  authorAttributions?: GooglePhotoAttribution[];
+};
+
 type GooglePlace = {
   id?: string;
   displayName?: GoogleDisplayName;
   formattedAddress?: string;
   location?: GoogleLatLng;
   currentOpeningHours?: { openNow?: boolean };
+  photos?: GooglePhoto[];
 };
 
 function mapLocation(location: GoogleLatLng | undefined): PlaceDTO["location"] {
@@ -51,6 +62,18 @@ function mapLocation(location: GoogleLatLng | undefined): PlaceDTO["location"] {
     return undefined;
   }
   return { lat, lng };
+}
+
+function mapPhotos(placeId: string, photos: GooglePhoto[] | undefined): PlacePhoto[] {
+  return (photos ?? []).slice(0, 5).map((photo, index) => ({
+    url: buildPlacePhotoProxyUrl(placeId, index),
+    authorAttributions: (photo.authorAttributions ?? [])
+      .map((attr) => ({
+        name: attr.displayName?.trim() ?? "",
+        uri: attr.uri?.trim() ?? "",
+      }))
+      .filter((attr) => attr.name.length > 0),
+  }));
 }
 
 function mapPlace(place: GooglePlace): PlaceDTO | null {
@@ -66,8 +89,7 @@ function mapPlace(place: GooglePlace): PlaceDTO | null {
     placeId,
     name,
     address: place.formattedAddress ?? "",
-    // Place Photos media URLs require the API key; omit to keep the key server-side.
-    photos: [],
+    photos: mapPhotos(placeId, place.photos),
     ...(location ? { location } : {}),
     ...(place.currentOpeningHours?.openNow !== undefined
       ? { openNow: place.currentOpeningHours.openNow }
@@ -122,7 +144,7 @@ async function placesFetch<T>(
 export async function fetchPlaceDetails(placeId: string): Promise<PlaceDTO | null> {
   const normalized = normalizePlaceId(placeId);
   const fieldMask =
-    "id,displayName,formattedAddress,location,currentOpeningHours";
+    "id,displayName,formattedAddress,location,currentOpeningHours,photos";
 
   try {
     const place = await placesFetch<GooglePlace>(
@@ -201,4 +223,47 @@ export async function fetchPlaceLocations(
   );
 
   return results.filter((item): item is PlaceLocationDTO => item !== null);
+}
+
+const PLACE_PHOTOS_FIELD_MASK = "photos";
+
+/** Stream Place Photos media bytes via server-side proxy (guardrail 7). */
+export async function fetchPlacePhotoMedia(
+  placeId: string,
+  index: number,
+): Promise<{ body: ReadableStream<Uint8Array>; contentType: string } | null> {
+  if (index < 0) {
+    return null;
+  }
+
+  const normalized = normalizePlaceId(placeId);
+  const place = await placesFetch<{ photos?: GooglePhoto[] }>(
+    `/places/${encodeURIComponent(normalized)}`,
+    { method: "GET", fieldMask: PLACE_PHOTOS_FIELD_MASK },
+  );
+  const photo = place.photos?.[index];
+  const photoName = photo?.name?.trim();
+  if (!photoName) {
+    return null;
+  }
+
+  const apiKey = readApiKey();
+  const mediaUrl = `${PLACES_BASE}/${photoName}/media?maxHeightPx=800&maxWidthPx=1200`;
+  const response = await fetch(mediaUrl, {
+    headers: { "X-Goog-Api-Key": apiKey },
+    redirect: "follow",
+    cache: "no-store",
+  });
+
+  if (!response.ok || !response.body) {
+    throw new PlacesApiError(
+      `Place photo media request failed (${response.status})`,
+      response.status,
+    );
+  }
+
+  return {
+    body: response.body,
+    contentType: response.headers.get("Content-Type") ?? "image/jpeg",
+  };
 }

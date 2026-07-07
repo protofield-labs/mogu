@@ -1,5 +1,7 @@
 import "server-only";
 
+import { isAgentAssertionTurn } from "./assertion-turn";
+import { buildAgentRecommendation } from "./build-recommendation";
 import { publishAgentEvent } from "./event-bus";
 import {
   AgentSessionError,
@@ -141,9 +143,14 @@ export async function sendAgentMessage(
     publishAgentEvent(input.userId, input.sessionId, createDoneEvent());
   }
 
+  const recommendation = isAgentAssertionTurn(text)
+    ? await buildAgentRecommendation(input.userId, text)
+    : null;
+
   return {
     role: "agent",
     text,
     ...(thinkingMessages.length > 0 ? { thinking: thinkingMessages } : {}),
+    ...(recommendation ? { recommendation } : {}),
   };
 }

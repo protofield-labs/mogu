@@ -16,6 +16,10 @@ import { LoadErrorState } from "@/components/ui/load-error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchFeedPage, fetchHomeRecommendation } from "@/lib/home/browser-api";
 import {
+  HOME_RECOMMENDATION_LOAD_ERROR,
+  HOME_RECOMMENDATION_LOADING_ARIA,
+} from "@/lib/home/recommendation-labels";
+import {
   filterFeedByActor,
   getLastReadFeedAt,
   markFeedRead,
@@ -225,17 +229,20 @@ export function HomeView() {
         <LoadErrorState
           variant="inline"
           className="mx-mogu-screen-x"
-          message="一推しを読み込めませんでした"
+          message={HOME_RECOMMENDATION_LOAD_ERROR}
           onRetry={() => void handleRetryRecommendation()}
         />
       ) : recommendation.status === "loading" ? (
         <Skeleton
           aria-busy="true"
-          aria-label="一推しを読み込んでいます"
+          aria-label={HOME_RECOMMENDATION_LOADING_ARIA}
           className="mx-mogu-screen-x h-14 rounded-2xl"
         />
       ) : (
-        <RecommendationEmptyRow ownSpotCount={me.counts.spots} />
+        <RecommendationEmptyRow
+          ownSpotCount={me.counts.spots}
+          friendCount={friends.length}
+        />
       )}
 
       {solo && feedItems.length === 0 ? (

@@ -3,22 +3,40 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 
+import {
+  HOME_RECOMMENDATION_OWN_HINT,
+  HOME_RECOMMENDATION_SOLO_HINT,
+} from "@/lib/home/recommendation-labels";
+
 /** Show fallback CTA only when the user has enough spots for meaningful picks. */
 export const MIN_SPOTS_FOR_RECOMMENDATION_EMPTY = 10;
 
 type RecommendationEmptyRowProps = {
   ownSpotCount: number;
+  friendCount: number;
 };
 
 /**
  * Fallback when GET /home/recommendation has no pick for today (204).
- * Hidden until the user has enough own spots (#91 UX).
  */
 export function RecommendationEmptyRow({
   ownSpotCount,
+  friendCount,
 }: RecommendationEmptyRowProps) {
+  if (friendCount === 0) {
+    return (
+      <div className="mx-mogu-screen-x rounded-2xl border border-dashed border-border bg-mogu-surface-elevated px-4 py-3 text-sm text-muted-foreground">
+        {HOME_RECOMMENDATION_SOLO_HINT}
+      </div>
+    );
+  }
+
   if (ownSpotCount < MIN_SPOTS_FOR_RECOMMENDATION_EMPTY) {
-    return null;
+    return (
+      <div className="mx-mogu-screen-x rounded-2xl border border-dashed border-border bg-mogu-surface-elevated px-4 py-3 text-sm text-muted-foreground">
+        {HOME_RECOMMENDATION_OWN_HINT}
+      </div>
+    );
   }
 
   return (
