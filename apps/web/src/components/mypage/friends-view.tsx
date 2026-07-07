@@ -38,7 +38,11 @@ import {
   isOutgoingPending,
 } from "@/lib/mypage/friend-request-ui";
 import type { FriendRequest, FriendUser } from "@/lib/mypage/types";
-import { friendProfilePath } from "@/lib/friends/paths";
+import {
+  FRIENDS_FROM_HOME,
+  friendProfilePathWithContext,
+  friendsBackNavigation,
+} from "@/lib/friends/paths";
 import { cn } from "@/lib/utils";
 
 type FriendWithCollections = FriendUser & {
@@ -47,7 +51,11 @@ type FriendWithCollections = FriendUser & {
 
 type RequestAction = "accept" | "reject" | "cancel";
 
-export function FriendsView() {
+type FriendsViewProps = {
+  fromHome?: boolean;
+};
+
+export function FriendsView({ fromHome = false }: FriendsViewProps) {
   const [friends, setFriends] = useState<FriendWithCollections[]>([]);
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [outgoingRequests, setOutgoingRequests] = useState<FriendRequest[]>([]);
@@ -340,14 +348,15 @@ export function FriendsView() {
     !searching &&
     !searchError &&
     searchResults.length === 0;
+  const backNavigation = friendsBackNavigation(fromHome);
 
   return (
     <div className="flex flex-1 flex-col gap-6 pb-mogu-screen-y">
       <header className="flex items-center gap-3 px-mogu-screen-x pt-3">
         <Link
-          href="/mypage"
+          href={backNavigation.href}
           className="flex size-9 items-center justify-center rounded-full border border-border bg-mogu-surface-elevated"
-          aria-label="マイページに戻る"
+          aria-label={backNavigation.ariaLabel}
         >
           <ChevronLeft className="size-5" aria-hidden />
         </Link>
@@ -506,7 +515,10 @@ export function FriendsView() {
             {friends.map((friend) => (
               <li key={friend.id} className="flex items-center gap-3 p-4">
                 <Link
-                  href={friendProfilePath(friend.id)}
+                  href={friendProfilePathWithContext(
+                    friend.id,
+                    fromHome ? { from: FRIENDS_FROM_HOME } : undefined,
+                  )}
                   className="flex min-w-0 flex-1 items-center gap-3 transition-colors hover:opacity-80"
                 >
                   <Avatar {...friendAvatarProps(friend)} />

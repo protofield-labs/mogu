@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Plus, Sparkles } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
+import { FRIENDS_FROM_HOME, friendsPagePath } from "@/lib/friends/paths";
 import { cn } from "@/lib/utils";
 
 export function HomeEmptyState() {
@@ -18,7 +19,7 @@ export function HomeEmptyState() {
 
       <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
         <Link
-          href="/mypage/friends"
+          href={friendsPagePath({ from: FRIENDS_FROM_HOME })}
           className={cn(buttonVariants({ variant: "secondary" }), "gap-1.5")}
         >
           <Plus className="size-4" aria-hidden />

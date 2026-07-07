@@ -14,15 +14,19 @@ import {
   fetchFriendProfile,
   listFriendCollections,
 } from "@/lib/friends/browser-api";
-import { friendProfilePath, collectionPath } from "@/lib/friends/paths";
+import { FRIENDS_FROM_HOME, collectionPath, friendsPagePath } from "@/lib/friends/paths";
 import { fetchUserShareGate } from "@/lib/share/browser-api";
 import { profileShareUrl } from "@/lib/share/share-url";
 
 type FriendProfileViewProps = {
   userId: string;
+  fromHome?: boolean;
 };
 
-export function FriendProfileView({ userId }: FriendProfileViewProps) {
+export function FriendProfileView({
+  userId,
+  fromHome = false,
+}: FriendProfileViewProps) {
   const [profile, setProfile] = useState<Awaited<
     ReturnType<typeof fetchFriendProfile>
   > | null>(null);
@@ -122,7 +126,7 @@ export function FriendProfileView({ userId }: FriendProfileViewProps) {
     <div className="flex flex-1 flex-col gap-6 pb-mogu-screen-y">
       <header className="flex items-center gap-3 px-mogu-screen-x pt-3">
         <Link
-          href="/mypage/friends"
+          href={friendsPagePath(fromHome ? { from: FRIENDS_FROM_HOME } : undefined)}
           className="flex size-9 items-center justify-center rounded-full border border-border bg-mogu-surface-elevated"
           aria-label="友達一覧に戻る"
         >
