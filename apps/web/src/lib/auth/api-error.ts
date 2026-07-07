@@ -67,6 +67,8 @@ const API_ERROR_DETAIL_MESSAGES: Record<string, string> = {
   "Cannot send a friend request to yourself": "自分自身には申請できません",
   "Friend request already exists": "すでに申請済みです",
   "Friend request is not pending": "この申請はすでに処理済みです",
+  "Cannot cancel a request you did not send": "送信した申請のみ取り消せます",
+  "Friendship is not accepted": "友達関係が成立していません",
   "User not found": "ユーザーが見つかりません",
   "Agent Engine is not configured":
     "エージェントが準備中です。しばらくしてから再度お試しください",

@@ -46,6 +46,10 @@ export type RejectFriendRequestResult =
       reason: "invalid_pair_id" | "not_found" | "forbidden" | "conflict";
     };
 
+export type CancelFriendRequestResult = RejectFriendRequestResult;
+
+export type RemoveFriendResult = RejectFriendRequestResult;
+
 async function resolvePairFromDb(
   tx: PrismaTransaction,
   a: string,
@@ -247,6 +251,69 @@ export async function rejectFriendRequest(
       return { ok: false as const, reason: "forbidden" as const };
     }
     if (friendship.status !== "pending") {
+      return { ok: false as const, reason: "conflict" as const };
+    }
+
+    await tx.friendship.delete({
+      where: { userLow_userHigh: pair },
+    });
+
+    return { ok: true as const };
+  });
+
+  return result;
+}
+
+export async function cancelFriendRequest(
+  uid: string,
+  pairId: string,
+): Promise<CancelFriendRequestResult> {
+  const result = await withAuthRls(uid, async (tx) => {
+    const pair = await resolveCanonicalPairFromPairId(tx, pairId);
+    if (!pair) {
+      return { ok: false as const, reason: "invalid_pair_id" as const };
+    }
+
+    const friendship = await tx.friendship.findUnique({
+      where: { userLow_userHigh: pair },
+    });
+    if (!friendship) {
+      return { ok: false as const, reason: "not_found" as const };
+    }
+    if (friendship.requestedBy !== uid) {
+      return { ok: false as const, reason: "forbidden" as const };
+    }
+    if (friendship.status !== "pending") {
+      return { ok: false as const, reason: "conflict" as const };
+    }
+
+    await tx.friendship.delete({
+      where: { userLow_userHigh: pair },
+    });
+
+    return { ok: true as const };
+  });
+
+  return result;
+}
+
+export async function removeFriend(
+  uid: string,
+  pairId: string,
+): Promise<RemoveFriendResult> {
+  const result = await withAuthRls(uid, async (tx) => {
+    const pair = await resolveCanonicalPairFromPairId(tx, pairId);
+    if (!pair) {
+      return { ok: false as const, reason: "invalid_pair_id" as const };
+    }
+
+    const friendship = await tx.friendship.findUnique({
+      where: { userLow_userHigh: pair },
+    });
+    if (!friendship) {
+      return { ok: false as const, reason: "not_found" as const };
+    }
+    if (friendship.status !== "accepted") {
       return { ok: false as const, reason: "conflict" as const };
     }
 

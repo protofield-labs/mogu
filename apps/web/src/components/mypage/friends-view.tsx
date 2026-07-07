@@ -7,20 +7,24 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { FriendsViewSkeleton } from "@/components/loading/skeletons";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { LoadErrorState } from "@/components/ui/load-error-state";
 import { Spinner } from "@/components/ui/spinner";
 import { notifyBadgesUpdated } from "@/lib/mypage/badge-events";
 import {
   acceptFriendRequest,
+  cancelFriendRequest,
   fetchFriendCollectionCount,
   fetchFriends,
   fetchIncomingFriendRequests,
   fetchMe,
   fetchOutgoingFriendRequests,
   rejectFriendRequest,
+  removeFriend,
   searchUsers,
   sendFriendRequest,
 } from "@/lib/mypage/browser-api";
+import { friendshipPairIdFromUserIds } from "@/lib/friends/pair-id";
 import {
   findDuplicateDisplayNames,
   formatAvatarColorLabel,
@@ -49,7 +53,7 @@ function friendAvatarProps(
   };
 }
 
-type RequestAction = "accept" | "reject";
+type RequestAction = "accept" | "reject" | "cancel";
 
 export function FriendsView() {
   const [friends, setFriends] = useState<FriendWithCollections[]>([]);
@@ -67,6 +71,11 @@ export function FriendsView() {
     null,
   );
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
+  const [meId, setMeId] = useState<string | null>(null);
+  const [unfriendTarget, setUnfriendTarget] = useState<FriendWithCollections | null>(
+    null,
+  );
+  const [unfriendBusy, setUnfriendBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
 
@@ -95,6 +104,7 @@ export function FriendsView() {
       fetchOutgoingFriendRequests(),
     ]);
     setFriendCount(me.counts.friends);
+    setMeId(me.id);
     setRequests(incoming);
     setOutgoingRequests(outgoing);
 
@@ -198,6 +208,41 @@ export function FriendsView() {
     } finally {
       setBusyPairId(null);
       setBusyRequestAction(null);
+    }
+  }
+
+  async function handleCancel(pairId: string) {
+    setBusyPairId(pairId);
+    setBusyRequestAction("cancel");
+    setError(null);
+    try {
+      await cancelFriendRequest(pairId);
+      notifyBadgesUpdated();
+      await loadFriendsData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "取り消しに失敗しました");
+    } finally {
+      setBusyPairId(null);
+      setBusyRequestAction(null);
+    }
+  }
+
+  async function handleConfirmUnfriend() {
+    if (!unfriendTarget || !meId) {
+      return;
+    }
+    setUnfriendBusy(true);
+    setError(null);
+    try {
+      const pairId = friendshipPairIdFromUserIds(meId, unfriendTarget.id);
+      await removeFriend(pairId);
+      notifyBadgesUpdated();
+      setUnfriendTarget(null);
+      await loadFriendsData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "友達解除に失敗しました");
+    } finally {
+      setUnfriendBusy(false);
     }
   }
 
@@ -473,7 +518,9 @@ export function FriendsView() {
         <section className="space-y-2 px-mogu-screen-x">
           <h2 className="text-xs font-medium text-muted-foreground">申請(送信)</h2>
           <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-mogu-surface-elevated">
-            {outgoingRequests.map((request) => (
+            {outgoingRequests.map((request) => {
+              const isBusy = busyPairId === request.pairId;
+              return (
               <li key={request.pairId} className="flex items-center gap-3 p-4">
                 <Avatar {...friendAvatarProps(request.to)} />
                 <div className="min-w-0 flex-1">
@@ -482,11 +529,26 @@ export function FriendsView() {
                   </p>
                   <p className="text-xs text-muted-foreground">承認待ち</p>
                 </div>
-                <span className="rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-                  申請済み
-                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isBusy}
+                  onClick={() => void handleCancel(request.pairId)}
+                  className="shrink-0 rounded-full"
+                >
+                  {isBusy && busyRequestAction === "cancel" ? (
+                    <>
+                      <Spinner />
+                      処理中…
+                    </>
+                  ) : (
+                    "取り消す"
+                  )}
+                </Button>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </section>
       ) : null}
@@ -500,10 +562,10 @@ export function FriendsView() {
         ) : (
           <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-mogu-surface-elevated">
             {friends.map((friend) => (
-              <li key={friend.id}>
+              <li key={friend.id} className="flex items-center gap-3 p-4">
                 <Link
                   href={friendProfilePath(friend.id)}
-                  className="flex items-center gap-3 p-4 transition-colors hover:bg-muted/40"
+                  className="flex min-w-0 flex-1 items-center gap-3 transition-colors hover:opacity-80"
                 >
                   <Avatar {...friendAvatarProps(friend)} />
                   <div className="min-w-0 flex-1">
@@ -515,11 +577,34 @@ export function FriendsView() {
                     </p>
                   </div>
                 </Link>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setUnfriendTarget(friend)}
+                  className="shrink-0 rounded-full"
+                >
+                  解除
+                </Button>
               </li>
             ))}
           </ul>
         )}
       </section>
+
+      <ConfirmDialog
+        open={unfriendTarget !== null}
+        title="友達を解除"
+        description={
+          unfriendTarget
+            ? `${unfriendTarget.displayName}さんとの友達関係を解除しますか？相手のコレクションは見られなくなります。`
+            : ""
+        }
+        confirmLabel="解除する"
+        busy={unfriendBusy}
+        onConfirm={() => void handleConfirmUnfriend()}
+        onCancel={() => setUnfriendTarget(null)}
+      />
     </div>
   );
 }
