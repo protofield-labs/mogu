@@ -47,8 +47,25 @@ model User {
   flagsReceived            Flag[]               @relation("FlagRecipient")
   flagsActor               Flag[]               @relation("FlagActor")
   dailyRecommendations     DailyRecommendation[]
+  agentConsultations       AgentConsultation[]
 
   @@map("users")
+}
+
+/// Agent consultation history (#153): snapshot for list/resume; Vertex holds live state.
+model AgentConsultation {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String   @map("user_id")
+  vertexSessionId String   @unique @map("vertex_session_id")
+  title           String   @default("")
+  entries         Json     @default("[]")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [firebaseUid], onDelete: Cascade)
+
+  @@index([userId, updatedAt(sort: Desc)], map: "idx_agent_consultations_user_updated")
+  @@map("agent_consultations")
 }
 
 model Friendship {

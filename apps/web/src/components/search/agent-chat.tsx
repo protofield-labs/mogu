@@ -1,7 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { LoaderCircleIcon, MessageSquarePlusIcon, SparklesIcon } from "lucide-react";
+import {
+  HistoryIcon,
+  LoaderCircleIcon,
+  MessageSquarePlusIcon,
+  SparklesIcon,
+} from "lucide-react";
 
 import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
 import { MoguWordmark } from "@/components/brand/mogu-wordmark";
@@ -24,7 +29,13 @@ import {
   MessageScrollerViewport,
 } from "@/components/chat";
 import { Button } from "@/components/ui/button";
-import { createAgentSession } from "@/lib/agent/browser-api";
+import { AgentConsultationHistorySheet } from "@/components/search/agent-consultation-history-sheet";
+import {
+  createAgentSession,
+  fetchAgentConsultation,
+  syncAgentConsultationEntries,
+  type AgentConsultationSummary,
+} from "@/lib/agent/browser-api";
 import {
   abortInflightAgentTurnSse,
   getInflightAgentTurn,
@@ -59,6 +70,7 @@ import { RecommendationCard } from "@/components/search/recommendation-card";
 import { useAuth } from "@/contexts/auth-context";
 
 type SessionStatus = "loading" | "ready" | "error";
+type ConsultationViewMode = "live" | "readonly" | null;
 
 function AgentAvatar() {
   return (
@@ -160,6 +172,10 @@ export function AgentChat() {
   const [sending, setSending] = useState(false);
   const [retryingSession, setRetryingSession] = useState(false);
   const [resettingConsultation, setResettingConsultation] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [consultationViewMode, setConsultationViewMode] =
+    useState<ConsultationViewMode>(null);
+  const [loadingConsultation, setLoadingConsultation] = useState(false);
   const pendingRecommendationRef = useRef<Recommendation | null | undefined>(
     undefined,
   );
@@ -177,6 +193,77 @@ export function AgentChat() {
     clearAgentChatSession();
     sessionPersistEnabledRef.current = false;
   }, []);
+
+  const persistInitialConsultationEntries = useCallback(
+    async (vertexSessionId: string, nextEntries: ChatEntry[]) => {
+      if (!userId) {
+        return;
+      }
+      try {
+        await syncAgentConsultationEntries(vertexSessionId, nextEntries);
+      } catch {
+        // Best-effort; live chat should continue even if history sync fails.
+      }
+    },
+    [userId],
+  );
+
+  const applyConsultationDetail = useCallback(
+    async (consultationId: string) => {
+      if (!userId || loadingConsultation) {
+        return;
+      }
+
+      const generation = ++connectGenerationRef.current;
+      setLoadingConsultation(true);
+      setHistoryOpen(false);
+      setSessionStatus("loading");
+      setInitError(null);
+      setSendError(null);
+      setThinkingMessages([]);
+
+      try {
+        const detail = await fetchAgentConsultation(consultationId);
+        if (generation !== connectGenerationRef.current) {
+          return;
+        }
+
+        const nextEntries =
+          detail.entries.length > 0 ? detail.entries : [createWelcomeEntry()];
+
+        if (detail.resumable) {
+          setConsultationViewMode("live");
+          setSessionId(detail.vertexSessionId);
+          setEntries(nextEntries);
+          sessionPersistEnabledRef.current = true;
+          saveAgentChatSession(userId, detail.vertexSessionId, nextEntries);
+        } else {
+          invalidateStoredSession();
+          setConsultationViewMode("readonly");
+          setSessionId(null);
+          setEntries(nextEntries);
+        }
+
+        setSessionStatus("ready");
+      } catch (err) {
+        if (generation !== connectGenerationRef.current) {
+          return;
+        }
+        setConsultationViewMode(null);
+        setSessionId(null);
+        setEntries([createWelcomeEntry()]);
+        setInitError(
+          formatAgentUserError(err, "相談履歴を開けませんでした"),
+        );
+        setSessionStatus("error");
+      } finally {
+        if (generation === connectGenerationRef.current) {
+          setLoadingConsultation(false);
+        }
+      }
+    },
+    [userId, loadingConsultation, invalidateStoredSession],
+  );
 
   const applySendTurnResult = useCallback(
     (result: SendTurnResult, trimmed?: string) => {
@@ -254,6 +341,7 @@ export function AgentChat() {
         setSessionStatus("loading");
         setInitError(null);
         setSendError(null);
+        setConsultationViewMode(null);
       }
 
       if (pendingRecommendationRef.current === undefined) {
@@ -264,6 +352,7 @@ export function AgentChat() {
       if (!pending && userId) {
         const stored = loadAgentChatSession(userId);
         if (stored && generation === connectGenerationRef.current) {
+          setConsultationViewMode("live");
           setSessionId(stored.sessionId);
           setEntries(stored.entries);
           setSessionStatus("ready");
@@ -293,7 +382,9 @@ export function AgentChat() {
         setSessionId(id);
         setEntries(initialEntries);
         setSessionStatus("ready");
+        setConsultationViewMode("live");
         sessionPersistEnabledRef.current = true;
+        void persistInitialConsultationEntries(id, initialEntries);
       } catch (err) {
         if (generation !== connectGenerationRef.current) {
           return;
@@ -306,7 +397,7 @@ export function AgentChat() {
         setSessionStatus("error");
       }
     },
-    [userId, resumeInflightTurn],
+    [userId, resumeInflightTurn, persistInitialConsultationEntries],
   );
 
   useEffect(() => {
@@ -428,12 +519,15 @@ export function AgentChat() {
     sending ||
     retryingSession ||
     resettingConsultation ||
+    loadingConsultation ||
+    consultationViewMode === "readonly" ||
     !sessionId;
   const showInitialSkeleton =
     sessionStatus === "loading" &&
     entries.length === 0 &&
     !retryingSession &&
-    !resettingConsultation;
+    !resettingConsultation &&
+    !loadingConsultation;
   const hasUserMessages = entries.some((entry) => entry.kind === "user");
   const isWelcomeOnly =
     entries.length === 1 &&
@@ -444,7 +538,8 @@ export function AgentChat() {
     isWelcomeOnly &&
     !hasUserMessages &&
     !sending &&
-    !resettingConsultation;
+    !resettingConsultation &&
+    consultationViewMode !== "readonly";
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -454,26 +549,39 @@ export function AgentChat() {
           <MoguWordmark as="h1" />
         </div>
         {sessionStatus === "ready" ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={resettingConsultation || sending}
-            onClick={() => void handleNewConsultation()}
-            className="text-muted-foreground"
-          >
-            {resettingConsultation ? (
-              <>
-                <LoaderCircleIcon className="size-4 animate-spin" aria-hidden />
-                開始中…
-              </>
-            ) : (
-              <>
-                <MessageSquarePlusIcon className="size-4" aria-hidden />
-                新しい相談
-              </>
-            )}
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={loadingConsultation || sending}
+              onClick={() => setHistoryOpen(true)}
+              className="text-muted-foreground"
+            >
+              <HistoryIcon className="size-4" aria-hidden />
+              履歴
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={resettingConsultation || sending || loadingConsultation}
+              onClick={() => void handleNewConsultation()}
+              className="text-muted-foreground"
+            >
+              {resettingConsultation ? (
+                <>
+                  <LoaderCircleIcon className="size-4 animate-spin" aria-hidden />
+                  開始中…
+                </>
+              ) : (
+                <>
+                  <MessageSquarePlusIcon className="size-4" aria-hidden />
+                  新しい相談
+                </>
+              )}
+            </Button>
+          </div>
         ) : null}
       </header>
 
@@ -485,6 +593,26 @@ export function AgentChat() {
               {showInitialSkeleton ? (
                 <MessageScrollerItem>
                   <AgentChatSkeleton />
+                </MessageScrollerItem>
+              ) : null}
+
+              {consultationViewMode === "readonly" ? (
+                <MessageScrollerItem>
+                  <div className="flex flex-col gap-3 rounded-2xl border border-border bg-mogu-surface-elevated px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      この相談は再開できません。内容は閲覧のみです。
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={resettingConsultation}
+                      onClick={() => void handleNewConsultation()}
+                      className="shrink-0"
+                    >
+                      新しい相談
+                    </Button>
+                  </div>
                 </MessageScrollerItem>
               ) : null}
 
@@ -622,6 +750,14 @@ export function AgentChat() {
           {AGENT_FOOTER_CAPTION}
         </p>
       </footer>
+
+      <AgentConsultationHistorySheet
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        onSelect={(consultation: AgentConsultationSummary) => {
+          void applyConsultationDetail(consultation.id);
+        }}
+      />
     </div>
   );
 }

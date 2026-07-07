@@ -17,6 +17,7 @@ import {
 } from "./stream-parser";
 import type { AgentMessage, AgentEvent } from "./types";
 import { assertAgentSessionOwnership } from "./session-client";
+import { appendAgentConsultationTurn } from "@/lib/dal/agent-consultations";
 import {
   getAccessToken,
   requireAgentEngineConfig,
@@ -147,10 +148,24 @@ export async function sendAgentMessage(
     ? await buildAgentRecommendation(input.userId, text)
     : null;
 
-  return {
+  const agentMessage: AgentMessage = {
     role: "agent",
     text,
     ...(thinkingMessages.length > 0 ? { thinking: thinkingMessages } : {}),
     ...(recommendation ? { recommendation } : {}),
   };
+
+  try {
+    await appendAgentConsultationTurn(
+      input.userId,
+      input.sessionId,
+      input.text,
+      input.chips,
+      agentMessage,
+    );
+  } catch {
+    // History persistence is best-effort; the Vertex turn already succeeded.
+  }
+
+  return agentMessage;
 }
