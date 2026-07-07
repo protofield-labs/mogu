@@ -73,6 +73,11 @@ export function HomeView() {
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const feedViewedRef = useRef(false);
+  const selectedFriendIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    selectedFriendIdRef.current = selectedFriendId;
+  }, [selectedFriendId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,7 +128,7 @@ export function HomeView() {
 
   useEffect(() => {
     return () => {
-      if (feedViewedRef.current) {
+      if (feedViewedRef.current && !selectedFriendIdRef.current) {
         markFeedRead();
       }
     };
@@ -243,7 +248,9 @@ export function HomeView() {
           {visibleFeedItems.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               {selectedFriend
-                ? `まだ${selectedFriend.displayName}さんの記録がありません。`
+                ? nextCursor
+                  ? `${selectedFriend.displayName}さんの投稿は、まだ読み込まれていない可能性があります。「もっと見る」で続きを確認できます。`
+                  : `まだ${selectedFriend.displayName}さんの記録がありません。`
                 : "まだ友達の記録がありません。"}
             </p>
           ) : null}

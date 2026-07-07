@@ -157,6 +157,7 @@ async function verifyFriendUnfriendDelete() {
   await runInRollbackTransaction(async (tx) => {
     await upsertUser(tx, UID_A, "RLS Friend A");
     await upsertUser(tx, UID_B, "RLS Friend B");
+    await upsertUser(tx, UID_C, "RLS Friend C");
 
     const pair = await resolveFriendshipPair(tx, UID_A, UID_B);
     await withRls(tx, UID_A, (scoped) =>
@@ -181,6 +182,27 @@ async function verifyFriendUnfriendDelete() {
     );
     if (remaining !== 0) {
       throw new Error("Participant could not unfriend accepted friendship");
+    }
+
+    await withRls(tx, UID_A, (scoped) =>
+      scoped.friendship.create({
+        data: {
+          ...pair,
+          status: "accepted",
+          requestedBy: UID_A,
+          acceptedAt: new Date(),
+        },
+      }),
+    );
+
+    const outsiderDelete = await withRls(tx, UID_C, (scoped) =>
+      scoped.friendship
+        .delete({ where: { userLow_userHigh: pair } })
+        .then(() => "deleted" as const)
+        .catch(() => "denied" as const),
+    );
+    if (outsiderDelete !== "denied") {
+      throw new Error("Non-participant must not delete friendship");
     }
   });
 }
