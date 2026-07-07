@@ -3,13 +3,17 @@ import {
   AgentSessionForbiddenError,
   AgentSessionNotFoundError,
 } from "@/lib/agent/errors";
-import { subscribeAgentEvents } from "@/lib/agent/event-bus";
+import {
+  listBufferedAgentEvents,
+  subscribeAgentEvents,
+} from "@/lib/agent/event-bus";
 import { assertAgentSessionOwnership } from "@/lib/agent/session-client";
 import { isValidSessionId } from "@/lib/agent/session-id";
 import {
   AGENT_SSE_HEADERS,
   AGENT_SSE_KEEPALIVE_MS,
   formatAgentEventSse,
+  formatSseConnectedComment,
   formatSseKeepalive,
 } from "@/lib/agent/sse";
 import {
@@ -26,7 +30,7 @@ type RouteParams = {
 
 /**
  * SSE stream of thinking/done events for an agent session (#45).
- * Client opens this before POST /messages; events are published during streamQuery.
+ * Replays buffered events after Last-Event-ID (#67).
  */
 export async function GET(
   request: Request,
@@ -58,6 +62,8 @@ export async function GET(
       throw error;
     }
 
+    const lastEventId = req.headers.get("Last-Event-ID") ?? undefined;
+
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
         const encoder = new TextEncoder();
@@ -88,8 +94,18 @@ export async function GET(
           }
         };
 
-        const unsubscribe = subscribeAgentEvents(uid, sessionId, (event) => {
-          push(formatAgentEventSse(event));
+        for (const delivery of listBufferedAgentEvents(
+          uid,
+          sessionId,
+          lastEventId,
+        )) {
+          push(formatAgentEventSse(delivery.event, delivery.id));
+        }
+
+        push(formatSseConnectedComment());
+
+        const unsubscribe = subscribeAgentEvents(uid, sessionId, (delivery) => {
+          push(formatAgentEventSse(delivery.event, delivery.id));
         });
 
         const keepalive = setInterval(() => {

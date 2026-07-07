@@ -109,10 +109,13 @@ async function readAgentEventStream(
   body: ReadableStream<Uint8Array>,
   onEvent: (event: AgentEvent) => void,
   signal: AbortSignal,
-): Promise<void> {
+  onProgress?: (state: { lastEventId?: string; connected: boolean }) => void,
+): Promise<{ lastEventId?: string; connected: boolean }> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let lastEventId: string | undefined;
+  let connected = false;
 
   try {
     while (true) {
@@ -127,32 +130,58 @@ async function readAgentEventStream(
       buffer += decoder.decode(value, { stream: true });
       const parsed = parseSseBuffer(buffer);
       buffer = parsed.remainder;
+      if (parsed.lastEventId) {
+        lastEventId = parsed.lastEventId;
+      }
+      if (parsed.connected) {
+        connected = true;
+      }
+      onProgress?.({ lastEventId, connected });
       for (const event of parsed.events) {
         onEvent(event);
       }
     }
 
     const trailing = parseSseBuffer(`${buffer}\n\n`);
+    if (trailing.lastEventId) {
+      lastEventId = trailing.lastEventId;
+    }
+    if (trailing.connected) {
+      connected = true;
+    }
+    onProgress?.({ lastEventId, connected });
     for (const event of trailing.events) {
       onEvent(event);
     }
   } finally {
     reader.releaseLock();
   }
+
+  return { lastEventId, connected };
 }
 
+export type ConnectAgentEventsResult = {
+  lastEventId?: string;
+};
+
 /**
- * Open SSE and invoke onEvent while POST /messages runs.
- * Resolves once response headers arrive (#67 ordering).
+ * Open SSE, replay missed events via Last-Event-ID, and read until disconnect (#45, #67).
  */
 export async function connectAgentEvents(
   sessionId: string,
   onEvent: (event: AgentEvent) => void,
   signal: AbortSignal,
-): Promise<void> {
+  lastEventId?: string,
+  onProgress?: (state: { lastEventId?: string; connected: boolean }) => void,
+): Promise<ConnectAgentEventsResult> {
+  const headers: Record<string, string> = {};
+  if (lastEventId) {
+    headers["Last-Event-ID"] = lastEventId;
+  }
+
   const response = await authFetch(
     `/api/v1/agent/sessions/${sessionId}/events`,
-    { signal },
+    { signal, headers },
   );
   if (!response.ok) {
     throw await readApiErrorResponse(response, "イベントストリームを開けませんでした");
@@ -161,7 +190,13 @@ export async function connectAgentEvents(
     throw new Error("イベントストリームの応答が空です");
   }
 
-  readAgentEventStream(response.body, onEvent, signal).catch(() => {});
+  const result = await readAgentEventStream(
+    response.body,
+    onEvent,
+    signal,
+    onProgress,
+  );
+  return { lastEventId: result.lastEventId ?? lastEventId };
 }
 
 /** Fetch place display fields at render time (guardrail 7). */
