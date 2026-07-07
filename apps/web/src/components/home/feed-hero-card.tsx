@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { FeedSpotDetailSheet } from "@/components/home/feed-spot-detail-sheet";
 import { UserAvatar } from "@/components/home/user-avatar";
@@ -27,6 +27,8 @@ type FeedHeroCardProps = {
 export function FeedHeroCard({ item, viewerId }: FeedHeroCardProps) {
   const recollect = useRecollect(item.spot.id, { initialSaved: item.savedByMe });
   const [detailOpen, setDetailOpen] = useState(false);
+  const touchStartX = useRef(0);
+  const didScroll = useRef(false);
   const { place, placeName } = usePlace(item.spot.placeId);
   const savedBadge = formatSavedCountBadge(item.spot.savedCount);
   const titleFallback = item.spot.comment || item.collectionName;
@@ -35,16 +37,43 @@ export function FeedHeroCard({ item, viewerId }: FeedHeroCardProps) {
     setDetailOpen(true);
   }
 
+  function handlePhotoTouchStart(event: React.TouchEvent<HTMLDivElement>) {
+    touchStartX.current = event.touches[0]?.clientX ?? 0;
+    didScroll.current = false;
+  }
+
+  function handlePhotoTouchMove(event: React.TouchEvent<HTMLDivElement>) {
+    const x = event.touches[0]?.clientX ?? 0;
+    if (Math.abs(x - touchStartX.current) > 8) {
+      didScroll.current = true;
+    }
+  }
+
+  function handlePhotoActivate() {
+    if (!didScroll.current) {
+      openDetail();
+    }
+  }
+
   return (
     <>
       <article className="mogu-elevated overflow-hidden rounded-2xl border border-border">
         <div className="relative">
           {item.spot.photoUrls.length > 0 ? (
-            <button
-              type="button"
-              onClick={openDetail}
-              className="block w-full text-left"
+            <div
+              role="button"
+              tabIndex={0}
               aria-label="スポット詳細を開く"
+              onClick={handlePhotoActivate}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  openDetail();
+                }
+              }}
+              onTouchStart={handlePhotoTouchStart}
+              onTouchMove={handlePhotoTouchMove}
+              className="block w-full cursor-pointer text-left"
             >
               <div className="flex snap-x snap-mandatory overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {item.spot.photoUrls.map((url) => (
@@ -56,7 +85,7 @@ export function FeedHeroCard({ item, viewerId }: FeedHeroCardProps) {
                   />
                 ))}
               </div>
-            </button>
+            </div>
           ) : (
             <button
               type="button"

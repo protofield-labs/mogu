@@ -2,7 +2,7 @@
 
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { CollectionDetailSkeleton } from "@/components/loading/skeletons";
 import { LoadErrorState } from "@/components/ui/load-error-state";
@@ -19,6 +19,7 @@ import {
 import { googleMapsPlaceUrl } from "@/lib/agent/chat-helpers";
 import { formatCollectionVisibility } from "@/lib/labels/collection-labels";
 import { usePlace } from "@/lib/places/use-place";
+import { usePlaceNames } from "@/lib/places/use-place-names";
 import { deleteSpot, type Spot } from "@/lib/spots/browser-api";
 
 type CollectionDetailViewProps = {
@@ -43,6 +44,11 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
     selectedSpot?.placeId ?? "",
     detailOpen && selectedSpot !== null,
   );
+  const spotPlaceIds = useMemo(
+    () => (detail?.spots ?? []).map((spot) => spot.placeId),
+    [detail?.spots],
+  );
+  const placeNames = usePlaceNames(spotPlaceIds);
 
   if (collectionId !== prevCollectionId) {
     setPrevCollectionId(collectionId);
@@ -239,7 +245,11 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
             </Link>
           </EmptyState>
         ) : (
-          <SpotList spots={detail.spots} onSelect={handleSelectSpot} />
+          <SpotList
+            spots={detail.spots}
+            onSelect={handleSelectSpot}
+            placeNames={placeNames}
+          />
         )}
       </section>
 

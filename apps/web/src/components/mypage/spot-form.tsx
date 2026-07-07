@@ -315,9 +315,10 @@ export function SpotForm({
 type SpotListProps = {
   spots: Spot[];
   onSelect: (spot: Spot) => void;
+  placeNames?: Record<string, string | null>;
 };
 
-export function SpotList({ spots, onSelect }: SpotListProps) {
+export function SpotList({ spots, onSelect, placeNames }: SpotListProps) {
   if (spots.length === 0) {
     return null;
   }
@@ -346,6 +347,7 @@ export function SpotList({ spots, onSelect }: SpotListProps) {
                   <SpotPlaceName
                     placeId={spot.placeId}
                     fallback={spot.comment || "スポット"}
+                    placeName={placeNames?.[spot.placeId]}
                   />
                 </p>
                 {spot.comment ? (
