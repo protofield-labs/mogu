@@ -5,7 +5,7 @@ import { APIProvider, Map, Marker, useMap } from "@vis.gl/react-google-maps";
 
 import { CollectionSpotMapCard } from "@/components/collections/collection-spot-map-card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { ratingPinColor } from "@/lib/collections/rating-pin-color";
+import { mapPinIcon } from "@/lib/collections/map-pin-icon";
 import {
   DEFAULT_MAP_CENTER,
   readGoogleMapsApiKey,
@@ -54,13 +54,6 @@ function computeMapViewport(points: Array<{ lat: number; lng: number }>): {
   const zoom = Math.max(11, Math.min(15, Math.round(14 - Math.log2(span * 111))));
 
   return { center, zoom };
-}
-
-function markerIconUrl(color: string, selected: boolean): string {
-  const size = selected ? 20 : 16;
-  const stroke = selected ? "#111827" : "#ffffff";
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><circle cx="${size / 2}" cy="${size / 2}" r="${size / 2 - 1}" fill="${color}" stroke="${stroke}" stroke-width="1.5"/></svg>`;
-  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
 function FitMapViewport({ markerKey }: { markerKey: string }) {
@@ -180,10 +173,7 @@ export function CollectionSpotMapView({
                 event.stop();
                 onSelectSpot(spot);
               }}
-              icon={markerIconUrl(
-                ratingPinColor(spot.rating),
-                selectedSpotId === spot.id,
-              )}
+              icon={mapPinIcon(spot.rating, selectedSpotId === spot.id)}
             />
           ))}
         </Map>
