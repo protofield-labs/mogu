@@ -20,9 +20,11 @@ import {
 } from "../src/lib/agent/chat-helpers";
 import {
   AGENT_CHAT_SESSION_TTL_MS,
+  isAgentReplyPending,
   isStoredAgentChatSessionFresh,
   loadAgentChatSession,
   parseStoredAgentChatSession,
+  reconcileStoredAgentChatSession,
   type StoredAgentChatSession,
 } from "../src/lib/agent/session-storage";
 import {
@@ -140,13 +142,46 @@ function main() {
   );
   assert(parseStoredAgentChatSession('{"sessionId":"bad"}') === null, "reject invalid stored session");
 
-  const selections = { area: "恵比寿", party: "2人", mood: "サクッと" };
+  const pendingUser = createUserEntry("恵比寿で2人");
+  if (pendingUser.kind !== "user") {
+    throw new Error("expected user entry");
+  }
+  const pendingStored: StoredAgentChatSession = {
+    userId: "user-abc",
+    sessionId: "1234567890",
+    entries: [welcome, pendingUser],
+    pendingUserEntryId: pendingUser.id,
+    savedAt: new Date().toISOString(),
+  };
+  assert(isAgentReplyPending(pendingStored), "detect pending agent reply");
   assert(
-    structuredSelectionsToChips(selections).join(",") === "恵比寿,2人,サクッと",
+    !isAgentReplyPending({
+      ...pendingStored,
+      entries: [
+        ...pendingStored.entries,
+        createAgentEntry({ text: "ここがおすすめ" }),
+      ],
+    }),
+    "completed turn is not pending",
+  );
+  assert(
+    reconcileStoredAgentChatSession({
+      ...pendingStored,
+      entries: [
+        ...pendingStored.entries,
+        createAgentEntry({ text: "ここがおすすめ" }),
+      ],
+    }).pendingUserEntryId === undefined,
+    "reconcile clears resolved pending marker",
+  );
+
+  const structuredSelections = { area: "恵比寿", party: "2人", mood: "サクッと" };
+  assert(
+    structuredSelectionsToChips(structuredSelections).join(",") === "恵比寿,2人,サクッと",
     "structured chip order follows groups",
   );
   assert(
-    buildStructuredChipPrompt(selections) === "今夜は恵比寿・2人・サクッとで探しています",
+    buildStructuredChipPrompt(structuredSelections) === "今夜は恵比寿・2人・サクッとで探しています",
     "structured chip prompt",
   );
   assert(buildStructuredChipPrompt({}) === "", "empty structured prompt");

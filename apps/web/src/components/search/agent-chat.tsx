@@ -21,11 +21,13 @@ import {
   MessageScrollerViewport,
 } from "@/components/chat";
 import { Button } from "@/components/ui/button";
+import { createAgentSession } from "@/lib/agent/browser-api";
 import {
-  createAgentSession,
-  connectAgentEvents,
-  sendAgentMessage,
-} from "@/lib/agent/browser-api";
+  abortInflightAgentTurnSse,
+  getInflightAgentTurn,
+  sendAgentTurn,
+  type SendTurnResult,
+} from "@/lib/agent/send-turn";
 import {
   AGENT_FOOTER_CAPTION,
   createAgentEntry,
@@ -38,8 +40,11 @@ import {
 } from "@/lib/agent/chat-helpers";
 import {
   clearAgentChatSession,
+  clearStalePendingAgentReply,
+  isAgentReplyPending,
   loadAgentChatSession,
   saveAgentChatSession,
+  type StoredAgentChatSession,
 } from "@/lib/agent/session-storage";
 import {
   consumePendingRecommendation,
@@ -156,14 +161,87 @@ export function AgentChat() {
     undefined,
   );
   const sendingRef = useRef(false);
+  const entriesRef = useRef<ChatEntry[]>([]);
   const mountInitStartedRef = useRef(false);
   const connectGenerationRef = useRef(0);
   const sessionPersistEnabledRef = useRef(true);
+
+  useEffect(() => {
+    entriesRef.current = entries;
+  }, [entries]);
 
   const invalidateStoredSession = useCallback(() => {
     clearAgentChatSession();
     sessionPersistEnabledRef.current = false;
   }, []);
+
+  const applySendTurnResult = useCallback(
+    (result: SendTurnResult, trimmed?: string) => {
+      if (result.ok) {
+        setEntries(result.entries);
+        setSendError(null);
+        return;
+      }
+
+      setEntries(result.entries);
+      if (trimmed) {
+        setInput(trimmed);
+      }
+      if (isAgentSessionUnavailableError(result.error)) {
+        invalidateStoredSession();
+        setSendError(
+          "セッションの有効期限が切れました。「新しい相談」から再度お試しください。",
+        );
+        return;
+      }
+      setSendError(
+        formatAgentUserError(result.error, "メッセージの送信に失敗しました"),
+      );
+    },
+    [invalidateStoredSession],
+  );
+
+  const resumeInflightTurn = useCallback(
+    async (stored: StoredAgentChatSession, generation: number) => {
+      const inflight = getInflightAgentTurn(stored.userId, stored.sessionId);
+      if (!inflight) {
+        const pendingIndex = stored.entries.findIndex(
+          (entry) => entry.id === stored.pendingUserEntryId,
+        );
+        const entries =
+          pendingIndex === -1
+            ? stored.entries
+            : stored.entries.filter((_, index) => index !== pendingIndex);
+        clearStalePendingAgentReply(stored.userId, stored.sessionId, entries);
+        if (generation !== connectGenerationRef.current) {
+          return;
+        }
+        setEntries(entries);
+        setSendError("前回の送信を完了できませんでした。もう一度お試しください。");
+        return;
+      }
+
+      sendingRef.current = true;
+      setSending(true);
+      setSendError(null);
+      setThinkingMessages([]);
+
+      try {
+        const result = await inflight;
+        if (generation !== connectGenerationRef.current) {
+          return;
+        }
+        applySendTurnResult(result);
+      } finally {
+        if (generation === connectGenerationRef.current) {
+          sendingRef.current = false;
+          setSending(false);
+          setThinkingMessages([]);
+        }
+      }
+    },
+    [applySendTurnResult],
+  );
 
   const connectAgentChatSession = useCallback(
     async ({ isRetry = false } = {}) => {
@@ -187,6 +265,9 @@ export function AgentChat() {
           setEntries(stored.entries);
           setSessionStatus("ready");
           sessionPersistEnabledRef.current = true;
+          if (isAgentReplyPending(stored)) {
+            void resumeInflightTurn(stored, generation);
+          }
           return;
         }
       }
@@ -222,8 +303,16 @@ export function AgentChat() {
         setSessionStatus("error");
       }
     },
-    [userId],
+    [userId, resumeInflightTurn],
   );
+
+  useEffect(() => {
+    return () => {
+      if (userId && sessionId && sendingRef.current) {
+        abortInflightAgentTurnSse(userId, sessionId);
+      }
+    };
+  }, [userId, sessionId]);
 
   useEffect(() => {
     if (authLoading || mountInitStartedRef.current) {
@@ -241,12 +330,13 @@ export function AgentChat() {
       sessionStatus !== "ready" ||
       !sessionId ||
       !userId ||
-      entries.length === 0
+      entries.length === 0 ||
+      sendingRef.current
     ) {
       return;
     }
     saveAgentChatSession(userId, sessionId, entries);
-  }, [sessionStatus, sessionId, userId, entries]);
+  }, [sessionStatus, sessionId, userId, entries, sending]);
 
   async function handleRetrySession() {
     if (retryingSession) {
@@ -276,7 +366,7 @@ export function AgentChat() {
 
   const sendMessage = useCallback(
     async (text: string, chips?: string[]) => {
-      if (!sessionId || sendingRef.current) {
+      if (!sessionId || !userId || sendingRef.current) {
         return;
       }
       const trimmed = text.trim();
@@ -288,63 +378,37 @@ export function AgentChat() {
       setSending(true);
       setSendError(null);
       setThinkingMessages([]);
+
+      const entriesBefore = entriesRef.current;
       const userEntry = createUserEntry(trimmed, chips);
-      setEntries((prev) => [...prev, userEntry]);
+      if (userEntry.kind !== "user") {
+        return;
+      }
+      setEntries([...entriesBefore, userEntry]);
       setInput("");
 
-      const abort = new AbortController();
-      const seenThinking = new Set<string>();
-
       try {
-        await connectAgentEvents(
+        const result = await sendAgentTurn({
+          userId,
           sessionId,
-          (event) => {
-            if (event.type !== "thinking") {
-              return;
-            }
-            if (seenThinking.has(event.message)) {
-              return;
-            }
-            seenThinking.add(event.message);
-            setThinkingMessages((prev) => [...prev, event.message]);
-          },
-          abort.signal,
-        );
-
-        const agentMessage = await sendAgentMessage(sessionId, {
           text: trimmed,
           chips,
+          entriesBefore,
+          userEntry,
+          onThinking: (message) => {
+            setThinkingMessages((prev) =>
+              prev.includes(message) ? prev : [...prev, message],
+            );
+          },
         });
-
-        setEntries((prev) => [
-          ...prev,
-          createAgentEntry({
-            text: agentMessage.text,
-            recommendation: agentMessage.recommendation,
-            quickReplies: agentMessage.quickReplies,
-          }),
-        ]);
-      } catch (err) {
-        setEntries((prev) => prev.filter((entry) => entry.id !== userEntry.id));
-        setInput(trimmed);
-        if (isAgentSessionUnavailableError(err)) {
-          invalidateStoredSession();
-          setSendError(
-            "セッションの有効期限が切れました。「新しい相談」から再度お試しください。",
-          );
-        } else {
-          setSendError(
-            formatAgentUserError(err, "メッセージの送信に失敗しました"),
-          );
-        }
+        applySendTurnResult(result, trimmed);
       } finally {
-        abort.abort();
-        setThinkingMessages([]);
         sendingRef.current = false;
         setSending(false);
+        setThinkingMessages([]);
       }
     },
-    [sessionId, invalidateStoredSession],
+    [sessionId, userId, applySendTurnResult],
   );
 
   function handleSubmit(event: React.FormEvent) {
