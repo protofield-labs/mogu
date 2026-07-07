@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Sparkles, User } from "lucide-react";
+import { Home, User } from "lucide-react";
 
+import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
 import { cn } from "@/lib/utils";
 
 type TabBarProps = {
@@ -13,10 +14,24 @@ type TabBarProps = {
 type TabItem = {
   href: string;
   label: string;
-  icon: typeof Home;
+  icon: typeof Home | typeof User | "mogu";
   isActive: (pathname: string) => boolean;
   showBadge?: boolean;
 };
+
+function TabIcon({ tab, active }: { tab: TabItem; active: boolean }) {
+  const className = cn(
+    "size-7 transition-colors",
+    active ? "text-primary" : "text-muted-foreground",
+  );
+
+  if (tab.icon === "mogu") {
+    return <MoguBrandIcon className={className} />;
+  }
+
+  const Icon = tab.icon;
+  return <Icon className={className} aria-hidden />;
+}
 
 export function TabBar({ showMypageBadge = false }: TabBarProps) {
   const pathname = usePathname();
@@ -31,7 +46,7 @@ export function TabBar({ showMypageBadge = false }: TabBarProps) {
     {
       href: "/search",
       label: "検索",
-      icon: Sparkles,
+      icon: "mogu",
       isActive: (path) => path.startsWith("/search"),
     },
     {
@@ -51,7 +66,6 @@ export function TabBar({ showMypageBadge = false }: TabBarProps) {
       <div className="flex h-mogu-tab-bar items-center justify-around px-mogu-screen-x">
         {tabs.map((tab) => {
           const active = tab.isActive(pathname);
-          const Icon = tab.icon;
 
           return (
             <Link
@@ -62,13 +76,7 @@ export function TabBar({ showMypageBadge = false }: TabBarProps) {
               className="relative flex flex-1 items-center justify-center"
             >
               <span className="relative flex size-11 items-center justify-center">
-                <Icon
-                  className={cn(
-                    "size-7 transition-colors",
-                    active ? "text-primary" : "text-muted-foreground",
-                  )}
-                  aria-hidden
-                />
+                <TabIcon tab={tab} active={active} />
                 {tab.showBadge ? (
                   <span
                     className="absolute right-1.5 top-1.5 size-2 rounded-full bg-mogu-badge"
