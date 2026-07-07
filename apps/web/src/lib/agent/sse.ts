@@ -23,4 +23,7 @@ export function formatSseKeepalive(): string {
 
 export const AGENT_SSE_KEEPALIVE_MS = 15_000;
 
+/** Poll shared DB events when publish lands on another Cloud Run instance (#66). */
+export const AGENT_SSE_POLL_MS = 300;
+
 export const AGENT_SSE_CONNECTED_MARKER = "connected";
