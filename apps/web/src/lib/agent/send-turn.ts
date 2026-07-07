@@ -44,6 +44,43 @@ export function abortInflightAgentTurnSse(userId: string, sessionId: string): vo
   inflightBySession.get(inflightKey(userId, sessionId))?.abortSse();
 }
 
+const SSE_READY_TIMEOUT_MS = 15_000;
+
+function waitForSseReady(
+  getReady: () => boolean,
+  hasFailed: () => boolean,
+  signal: AbortSignal,
+): Promise<void> {
+  if (getReady() || hasFailed()) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve, reject) => {
+    const deadline = Date.now() + SSE_READY_TIMEOUT_MS;
+    const timer = setInterval(() => {
+      if (signal.aborted) {
+        clearInterval(timer);
+        reject(new DOMException("Aborted", "AbortError"));
+        return;
+      }
+      if (hasFailed()) {
+        clearInterval(timer);
+        resolve();
+        return;
+      }
+      if (getReady()) {
+        clearInterval(timer);
+        resolve();
+        return;
+      }
+      if (Date.now() > deadline) {
+        clearInterval(timer);
+        reject(new Error("イベントストリームを開けませんでした"));
+      }
+    }, 10);
+  });
+}
+
 async function executeSendTurn(params: {
   userId: string;
   sessionId: string;
@@ -52,7 +89,7 @@ async function executeSendTurn(params: {
   entriesBefore: ChatEntry[];
   userEntry: Extract<ChatEntry, { kind: "user" }>;
   onThinking?: (message: string) => void;
-  sseSignal: AbortSignal;
+  sseAbort: AbortController;
 }): Promise<SendTurnResult> {
   const {
     userId,
@@ -62,8 +99,9 @@ async function executeSendTurn(params: {
     entriesBefore,
     userEntry,
     onThinking,
-    sseSignal,
+    sseAbort,
   } = params;
+  const sseSignal = sseAbort.signal;
   const entriesWithUser: ChatEntry[] = [...entriesBefore, userEntry];
   const writeEpoch = getAgentChatWriteEpoch();
 
@@ -73,19 +111,66 @@ async function executeSendTurn(params: {
   });
 
   const seenThinking = new Set<string>();
+  let lastEventId: string | undefined;
+  let sseReady = false;
+  let turnComplete = false;
+  let fatalSseError: unknown;
 
-  try {
-    await connectAgentEvents(
-      sessionId,
-      (event) => {
-        if (event.type !== "thinking" || seenThinking.has(event.message)) {
+  const handleEvent = (event: { type: string; message: string }) => {
+    if (event.type !== "thinking" || seenThinking.has(event.message)) {
+      return;
+    }
+    seenThinking.add(event.message);
+    onThinking?.(event.message);
+  };
+
+  const sseLoop = (async () => {
+    while (!turnComplete && !sseSignal.aborted) {
+      try {
+        const result = await connectAgentEvents(
+          sessionId,
+          handleEvent,
+          sseSignal,
+          lastEventId,
+          ({ connected, lastEventId: nextId }) => {
+            if (connected) {
+              sseReady = true;
+            }
+            if (nextId) {
+              lastEventId = nextId;
+            }
+          },
+        );
+        if (result.lastEventId) {
+          lastEventId = result.lastEventId;
+        }
+      } catch (error) {
+        if (turnComplete || sseSignal.aborted) {
           return;
         }
-        seenThinking.add(event.message);
-        onThinking?.(event.message);
-      },
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+        if (!sseReady) {
+          fatalSseError = error;
+          return;
+        }
+      }
+    }
+  })();
+
+  try {
+    await waitForSseReady(
+      () => sseReady,
+      () => fatalSseError !== undefined,
       sseSignal,
     );
+    if (fatalSseError) {
+      throw fatalSseError;
+    }
+    if (!sseReady) {
+      throw new Error("イベントストリームを開けませんでした");
+    }
 
     const agentMessage = await sendAgentMessage(sessionId, { text, chips });
     const entries: ChatEntry[] = [
@@ -106,6 +191,10 @@ async function executeSendTurn(params: {
       userEntryId: userEntry.id,
       error,
     };
+  } finally {
+    turnComplete = true;
+    sseAbort.abort();
+    await sseLoop.catch(() => {});
   }
 }
 
@@ -128,7 +217,7 @@ export function sendAgentTurn(params: {
   const abortSse = new AbortController();
   const promise = executeSendTurn({
     ...params,
-    sseSignal: abortSse.signal,
+    sseAbort: abortSse,
   }).finally(() => {
     inflightBySession.delete(key);
   });

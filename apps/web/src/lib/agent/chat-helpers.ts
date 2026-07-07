@@ -103,29 +103,50 @@ export function isRecommendation(value: unknown): value is Recommendation {
   );
 }
 
-/** Parse SSE frames from a growing buffer (#45 client). */
+/** Parse SSE frames from a growing buffer (#45 client, #67 id replay). */
 export function parseSseBuffer(buffer: string): {
   events: AgentEvent[];
   remainder: string;
+  lastEventId?: string;
+  connected: boolean;
 } {
   const events: AgentEvent[] = [];
   const frames = buffer.split("\n\n");
   const remainder = frames.pop() ?? "";
+  let lastEventId: string | undefined;
+  let connected = false;
 
   for (const frame of frames) {
+    let frameEventId: string | undefined;
+    let frameData: string | undefined;
+
     for (const line of frame.split("\n")) {
-      if (!line.startsWith("data: ")) {
+      if (line.startsWith(": connected")) {
+        connected = true;
         continue;
       }
+      if (line.startsWith("id: ")) {
+        frameEventId = line.slice(4).trim();
+        continue;
+      }
+      if (line.startsWith("data: ")) {
+        frameData = line.slice(6);
+      }
+    }
+
+    if (frameData !== undefined) {
       try {
-        events.push(JSON.parse(line.slice(6)) as AgentEvent);
+        events.push(JSON.parse(frameData) as AgentEvent);
+        if (frameEventId) {
+          lastEventId = frameEventId;
+        }
       } catch {
         // Skip malformed frames.
       }
     }
   }
 
-  return { events, remainder };
+  return { events, remainder, lastEventId, connected };
 }
 
 export function googleMapsPlaceUrl(placeId: string): string {
