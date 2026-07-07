@@ -29,8 +29,11 @@ const photoRoute = readSource("app/api/v1/places/[placeId]/photos/[index]/route.
 assert(photoRoute.includes("fetchPlacePhotoMedia"), "photo route proxies media");
 
 const spotDetailMedia = readSource("components/spots/spot-detail-media.tsx");
-assert(spotDetailMedia.includes("resolveSpotHeroPhoto"), "spot detail media resolves hero");
 assert(spotDetailMedia.includes("PlacePhotoImage"), "spot detail media uses place photos");
+assert(
+  spotDetailMedia.includes("authorAttributions"),
+  "spot detail media attributes each place photo",
+);
 
 const recommendationCard = readSource("components/search/recommendation-card.tsx");
 assert(

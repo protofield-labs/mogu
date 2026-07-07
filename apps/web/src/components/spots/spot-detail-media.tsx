@@ -3,7 +3,6 @@
 import { PlacePhotoImage } from "@/components/places/place-photo-image";
 import { AuthImage } from "@/components/mypage/auth-image";
 import type { PlaceDTO } from "@/lib/places/types";
-import { resolveSpotHeroPhoto } from "@/lib/places/resolve-spot-hero-photo";
 
 type SpotDetailMediaProps = {
   photoUrls: string[];
@@ -23,8 +22,6 @@ export function SpotDetailMedia({
   place,
   placeName,
 }: SpotDetailMediaProps) {
-  const heroPhoto = resolveSpotHeroPhoto({ photoUrls }, place);
-
   if (photoUrls.length > 0) {
     return (
       <div className="mb-4 flex snap-x snap-mandatory overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -44,25 +41,25 @@ export function SpotDetailMedia({
     return null;
   }
 
-  const attribution = formatPhotoAttributions(
-    heroPhoto?.source === "place" ? heroPhoto.authorAttributions : [],
-  );
-
   return (
-    <div className="mb-4 space-y-2">
-      <div className="flex snap-x snap-mandatory overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {place.photos.map((photo) => (
-          <PlacePhotoImage
-            key={photo.url}
-            url={photo.url}
-            alt={placeName ?? ""}
-            className="aspect-[4/3] w-full shrink-0 snap-center rounded-xl object-cover"
-          />
-        ))}
-      </div>
-      {attribution ? (
-        <p className="text-caption text-muted-foreground">Photo: {attribution}</p>
-      ) : null}
+    <div className="mb-4 flex snap-x snap-mandatory overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {place.photos.map((photo) => {
+        const attribution = formatPhotoAttributions(photo.authorAttributions);
+        return (
+          <div key={photo.url} className="w-full shrink-0 snap-center space-y-2">
+            <PlacePhotoImage
+              url={photo.url}
+              alt={placeName ?? ""}
+              className="aspect-[4/3] w-full rounded-xl object-cover"
+            />
+            {attribution ? (
+              <p className="text-caption text-muted-foreground">
+                Photo: {attribution}
+              </p>
+            ) : null}
+          </div>
+        );
+      })}
     </div>
   );
 }

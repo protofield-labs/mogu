@@ -30,11 +30,11 @@ function formatPhotoAttributions(
 
 function AlternativeSpotRow({ spot }: { spot: Spot }) {
   const recollect = useRecollect(spot.id);
-  const { place } = usePlace(spot.placeId);
+  const { place, placeName } = usePlace(spot.placeId);
 
   return (
     <li className="rounded-lg border border-border bg-background p-3">
-      <SpotSummary spot={spot} compact />
+      <SpotSummary spot={spot} compact placeName={placeName} />
       <div className="mt-2 flex flex-wrap gap-2">
         <a
           href={googleMapsPlaceUrl({
@@ -66,13 +66,22 @@ function AlternativeSpotRow({ spot }: { spot: Spot }) {
   );
 }
 
-function SpotSummary({ spot, compact = false }: { spot: Spot; compact?: boolean }) {
+function SpotSummary({
+  spot,
+  compact = false,
+  placeName,
+}: {
+  spot: Spot;
+  compact?: boolean;
+  placeName?: string | null;
+}) {
   return (
     <div className={compact ? "text-sm text-muted-foreground" : undefined}>
       <p className="font-medium text-foreground">
         <SpotPlaceName
           placeId={spot.placeId}
           fallback={spot.comment || "スポット"}
+          placeName={placeName}
         />
       </p>
       {!compact && spot.comment ? (
@@ -122,7 +131,7 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
       <p className="mt-2 text-sm text-muted-foreground">{evidence}</p>
 
       <div className="mt-3">
-        <SpotSummary spot={spot} />
+        <SpotSummary spot={spot} placeName={place?.name} />
       </div>
 
       {openNowText ? (
