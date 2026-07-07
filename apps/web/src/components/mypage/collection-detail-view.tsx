@@ -2,16 +2,24 @@
 
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { CollectionDetailSkeleton } from "@/components/loading/skeletons";
 import { LoadErrorState } from "@/components/ui/load-error-state";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SpotForm, SpotList } from "@/components/mypage/spot-form";
+import { SpotDetailSheet } from "@/components/spots/spot-detail-sheet";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   getCollectionDetail,
   type CollectionDetail,
 } from "@/lib/collections/browser-api";
+import { googleMapsPlaceUrl } from "@/lib/agent/chat-helpers";
+import { formatCollectionVisibility } from "@/lib/labels/collection-labels";
+import { usePlace } from "@/lib/places/use-place";
+import { usePlaceNames } from "@/lib/places/use-place-names";
 import { deleteSpot, type Spot } from "@/lib/spots/browser-api";
 
 type CollectionDetailViewProps = {
@@ -21,6 +29,8 @@ type CollectionDetailViewProps = {
 export function CollectionDetailView({ collectionId }: CollectionDetailViewProps) {
   const [detail, setDetail] = useState<CollectionDetail | null>(null);
   const [editingSpot, setEditingSpot] = useState<Spot | null>(null);
+  const [selectedSpot, setSelectedSpot] = useState<Spot | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +38,17 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
   const [deletingSpot, setDeletingSpot] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
   const [prevCollectionId, setPrevCollectionId] = useState(collectionId);
+  const formSectionRef = useRef<HTMLElement>(null);
+
+  const { place, placeName } = usePlace(
+    selectedSpot?.placeId ?? "",
+    detailOpen && selectedSpot !== null,
+  );
+  const spotPlaceIds = useMemo(
+    () => (detail?.spots ?? []).map((spot) => spot.placeId),
+    [detail?.spots],
+  );
+  const placeNames = usePlaceNames(spotPlaceIds);
 
   if (collectionId !== prevCollectionId) {
     setPrevCollectionId(collectionId);
@@ -35,6 +56,8 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
     setLoadError(null);
     setDetail(null);
     setEditingSpot(null);
+    setSelectedSpot(null);
+    setDetailOpen(false);
     setDeleteSpotTarget(null);
   }
 
@@ -82,6 +105,33 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
       };
     });
     setEditingSpot(null);
+    setSelectedSpot((current) => (current?.id === spot.id ? spot : current));
+  }
+
+  function handleSelectSpot(spot: Spot) {
+    setSelectedSpot(spot);
+    setDetailOpen(true);
+  }
+
+  function handleCloseDetail() {
+    setDetailOpen(false);
+  }
+
+  function handleEditFromDetail() {
+    if (!selectedSpot) {
+      return;
+    }
+    setDetailOpen(false);
+    setEditingSpot(selectedSpot);
+    formSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function handleDeleteFromDetail() {
+    if (!selectedSpot) {
+      return;
+    }
+    setDetailOpen(false);
+    setDeleteSpotTarget(selectedSpot);
   }
 
   async function handleConfirmDeleteSpot() {
@@ -105,6 +155,9 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
       );
       if (editingSpot?.id === spot.id) {
         setEditingSpot(null);
+      }
+      if (selectedSpot?.id === spot.id) {
+        setSelectedSpot(null);
       }
       setDeleteSpotTarget(null);
     } catch (err) {
@@ -135,23 +188,40 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
 
   return (
     <div className="flex flex-1 flex-col gap-6 pb-mogu-screen-y">
-      <header className="flex items-center gap-3 px-mogu-screen-x pt-3">
-        <Link
-          href="/mypage"
-          className="flex size-9 items-center justify-center rounded-full border border-border bg-mogu-surface-elevated"
-          aria-label="マイページに戻る"
-        >
-          <ChevronLeft className="size-5" aria-hidden />
-        </Link>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-base font-semibold text-foreground">
-            {detail.name}
-          </h1>
-          <p className="text-xs text-muted-foreground">{detail.spotCount}軒</p>
+      <header className="space-y-3 px-mogu-screen-x pt-3">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/mypage"
+            className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-mogu-surface-elevated"
+            aria-label="マイページに戻る"
+          >
+            <ChevronLeft className="size-5" aria-hidden />
+          </Link>
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-base font-semibold text-foreground">
+              {detail.name}
+            </h1>
+            <p className="text-xs text-muted-foreground">{detail.spotCount}軒</p>
+          </div>
         </div>
+
+        <div className="flex flex-wrap items-center gap-2 pl-12">
+          <Badge variant="accent">
+            {formatCollectionVisibility(detail.visibility)}
+          </Badge>
+          {detail.theme ? (
+            <span className="rounded-full border border-border bg-background px-2.5 py-0.5 text-xs text-muted-foreground">
+              {detail.theme}
+            </span>
+          ) : null}
+        </div>
+
+        {detail.description ? (
+          <p className="pl-12 text-sm text-muted-foreground">{detail.description}</p>
+        ) : null}
       </header>
 
-      <section className="space-y-3 px-mogu-screen-x">
+      <section ref={formSectionRef} className="space-y-3 px-mogu-screen-x">
         <SpotForm
           key={editingSpot?.id ?? "new"}
           collectionId={detail.id}
@@ -164,12 +234,68 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
       <section className="space-y-3 px-mogu-screen-x">
         <h2 className="text-sm font-semibold text-foreground">スポット一覧</h2>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        <SpotList
-          spots={detail.spots}
-          onEdit={setEditingSpot}
-          onDelete={setDeleteSpotTarget}
-        />
+        {detail.spots.length === 0 ? (
+          <EmptyState className="space-y-4 p-6">
+            <p>まだスポットがありません。</p>
+            <Link
+              href="/search"
+              className="inline-flex h-10 items-center justify-center rounded-2xl bg-primary px-4 text-sm font-medium text-primary-foreground"
+            >
+              エージェントに相談して最初のスポットを追加
+            </Link>
+          </EmptyState>
+        ) : (
+          <SpotList
+            spots={detail.spots}
+            onSelect={handleSelectSpot}
+            placeNames={placeNames}
+          />
+        )}
       </section>
+
+      {selectedSpot ? (
+        <SpotDetailSheet
+          spot={selectedSpot}
+          place={place}
+          placeName={placeName}
+          titleFallback={detail.name}
+          open={detailOpen}
+          onClose={handleCloseDetail}
+          header={
+            <p className="truncate text-sm font-medium text-foreground">
+              {detail.name}
+            </p>
+          }
+          footer={
+            <div className="flex flex-wrap gap-2">
+              <a
+                href={googleMapsPlaceUrl(selectedSpot.placeId)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-7 items-center justify-center rounded-[min(var(--radius-md),12px)] border border-border bg-background px-2.5 text-[0.8rem] font-medium hover:bg-muted hover:text-foreground"
+              >
+                地図で開く
+              </a>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={handleEditFromDetail}
+              >
+                編集
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={handleDeleteFromDetail}
+              >
+                削除
+              </Button>
+            </div>
+          }
+        />
+      ) : null}
 
       <ConfirmDialog
         open={deleteSpotTarget !== null}
