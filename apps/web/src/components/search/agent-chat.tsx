@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LoaderCircleIcon, MessageSquarePlusIcon, SparklesIcon } from "lucide-react";
 
+import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
+import { MoguWordmark } from "@/components/brand/mogu-wordmark";
+
 import {
   Bubble,
   BubbleContent,
@@ -60,7 +63,7 @@ type SessionStatus = "loading" | "ready" | "error";
 function AgentAvatar() {
   return (
     <MessageAvatar className="size-8 bg-mogu-surface-elevated text-foreground">
-      <SparklesIcon className="size-4" aria-hidden />
+      <MoguBrandIcon className="size-4" />
     </MessageAvatar>
   );
 }
@@ -446,9 +449,9 @@ export function AgentChat() {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <header className="flex shrink-0 items-center justify-between border-b border-border px-mogu-screen-x py-3">
-        <div className="flex items-center gap-2 text-base font-semibold text-foreground">
-          <SparklesIcon className="size-4" aria-hidden />
-          mogu
+        <div className="flex items-center gap-2">
+          <MoguBrandIcon className="size-5" />
+          <MoguWordmark as="h1" />
         </div>
         {sessionStatus === "ready" ? (
           <Button
