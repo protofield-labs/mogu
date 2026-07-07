@@ -19,7 +19,7 @@ import {
   formatSpotTagChips,
   formatViaLabel,
 } from "../src/lib/home/feed-labels";
-import { recollectFeedSpot } from "../src/lib/home/recollect-spot";
+import { saveSpotToCollection } from "../src/lib/recollect/save-spot";
 
 const friends = [
   { id: "f-ken", displayName: "Ken", avatarColor: "#336699" },
@@ -45,6 +45,7 @@ const feedItems = [
     actor: friends[0]!,
     collectionName: "Ken shelf",
     createdAt: "2026-07-06T12:00:00.000Z",
+    savedByMe: false,
   },
   {
     spot: {
@@ -64,6 +65,7 @@ const feedItems = [
     actor: friends[1]!,
     collectionName: "Aoi shelf",
     createdAt: "2026-07-05T10:00:00.000Z",
+    savedByMe: true,
   },
 ];
 
@@ -108,7 +110,7 @@ function main() {
   assert(shouldShowSoloEmptyState(0), "solo when no friends");
   assert(!shouldShowSoloEmptyState(2), "not solo with friends");
 
-  assert(typeof recollectFeedSpot === "function", "recollect helper exported");
+  assert(typeof saveSpotToCollection === "function", "save spot helper exported");
   assert(typeof markFeedRead === "function", "markFeedRead exported");
   assert(typeof getLastReadFeedAt === "function", "getLastReadFeedAt exported");
 

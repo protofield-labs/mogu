@@ -9,6 +9,8 @@ import {
   createAgentSessionResponseSchema,
   placeDtoSchema,
 } from "@/lib/api/schemas/agent";
+import { spotSchema } from "@/lib/api/schemas/spot";
+import type { SpotDto } from "@/lib/spot/types";
 import { readApiErrorResponse } from "@/lib/auth/api-error";
 import { authFetch } from "@/lib/auth/auth-fetch";
 
@@ -122,11 +124,14 @@ export async function fetchPlace(placeId: string): Promise<PlaceDTO | null> {
 export async function recollectSpot(
   spotId: string,
   targetCollectionId: string,
-): Promise<boolean> {
+): Promise<SpotDto | null> {
   const response = await authFetch(`/api/v1/spots/${spotId}/recollect`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ targetCollectionId }),
   });
-  return response.ok;
+  if (!response.ok) {
+    return null;
+  }
+  return parseApiJson(response, spotSchema, "保存に失敗しました");
 }

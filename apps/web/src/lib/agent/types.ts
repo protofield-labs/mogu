@@ -9,6 +9,7 @@ export type Recommendation = {
   assertion: string;
   evidence: string;
   alternatives: Spot[];
+  savedByMe?: boolean;
 };
 
 /** OpenAPI AgentMessage (#44). */

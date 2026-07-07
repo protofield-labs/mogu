@@ -3,6 +3,7 @@ import "server-only";
 import { withAuthRls } from "@/lib/auth/with-auth-rls";
 import { toSpotDto, type SpotDto } from "@/lib/dal/spot-dto";
 import { countSavedInCircleByPlaceIds } from "@/lib/dal/saved-count";
+import { DEFAULT_COLLECTION_NAME } from "@/lib/recollect/constants";
 
 export type CollectionVisibilityValue = "friends" | "secret";
 
@@ -79,6 +80,27 @@ export async function listCollections(
   );
 
   return collections.map(toCollectionDto);
+}
+
+/** Create the default onboarding shelf when the user has none (#117). */
+export async function ensureDefaultCollection(uid: string): Promise<CollectionDto | null> {
+  return withAuthRls(uid, async (tx) => {
+    const existingCount = await tx.collection.count({ where: { ownerId: uid } });
+    if (existingCount > 0) {
+      return null;
+    }
+
+    const collection = await tx.collection.create({
+      data: {
+        ownerId: uid,
+        name: DEFAULT_COLLECTION_NAME,
+        visibility: "friends",
+      },
+      include: { _count: { select: { spots: true } } },
+    });
+
+    return toCollectionDto(collection);
+  });
 }
 
 export async function createCollection(
