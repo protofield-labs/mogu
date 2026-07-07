@@ -190,7 +190,9 @@ export async function fetchPlaceLocations(
         );
         return mapPlaceLocation(place);
       } catch (error) {
-        if (error instanceof PlacesApiError && error.status === 404) {
+        // One bad or transient place lookup must not drop every map pin;
+        // skip it and let the rest of the batch resolve.
+        if (error instanceof PlacesApiError) {
           return null;
         }
         throw error;

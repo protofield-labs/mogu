@@ -150,18 +150,11 @@ export function CollectionSpotMapView({
     );
   }
 
-  if (error) {
-    return (
-      <EmptyState className="rounded-2xl p-6">
-        {error}
-      </EmptyState>
-    );
-  }
-
+  // With cached pins available, keep the map visible even if a refetch failed.
   if (markers.length === 0) {
     return (
       <EmptyState className="rounded-2xl p-6">
-        表示できる位置情報がありません。
+        {error ?? "表示できる位置情報がありません。"}
       </EmptyState>
     );
   }
