@@ -9,6 +9,7 @@ import {
   sortFriendsForAvatarRow,
 } from "@/lib/home/feed-read";
 import type { FeedItem } from "@/lib/home/types";
+import { FRIENDS_FROM_HOME, friendsPagePath } from "@/lib/friends/paths";
 import type { FriendUser } from "@/lib/mypage/types";
 import { cn } from "@/lib/utils";
 
@@ -69,7 +70,7 @@ export function AvatarRow({
       })}
 
       <Link
-        href="/mypage/friends"
+        href={friendsPagePath({ from: FRIENDS_FROM_HOME })}
         className="flex w-14 shrink-0 flex-col items-center gap-1"
       >
         <span className="flex size-11 items-center justify-center rounded-full border border-dashed border-border bg-mogu-surface-elevated text-muted-foreground">
