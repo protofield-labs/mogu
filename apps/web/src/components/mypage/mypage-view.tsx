@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowDownUp, Plus, Sparkles } from "lucide-react";
+import { ArrowDownUp, MapPin, Plus, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { MypageViewSkeleton } from "@/components/loading/skeletons";
@@ -30,6 +30,8 @@ import {
 import { summarizeWeeklyFlags } from "@/lib/mypage/flag-inbox";
 import { shouldShowFriendRequestBadge } from "@/lib/mypage/stats-row";
 import { useMypageCollections } from "@/lib/mypage/use-mypage-collections";
+import { touchCardClass } from "@/lib/ui/touch-feedback";
+import { cn } from "@/lib/utils";
 
 export function MypageView() {
   const [me, setMe] = useState<Awaited<ReturnType<typeof fetchMe>> | null>(null);
@@ -155,6 +157,30 @@ export function MypageView() {
           })
         }
       />
+
+      {me.counts.spots > 0 ? (
+        <section className="px-mogu-screen-x">
+          <Link
+            href="/mypage/map"
+            className={cn(
+              "flex items-center gap-4 rounded-mogu-card bg-mogu-surface-elevated p-4 shadow-sm transition-shadow hover:shadow-md",
+              touchCardClass,
+            )}
+          >
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-muted to-background">
+              <MapPin className="size-5 text-foreground" aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-foreground">
+                すべてのスポットを地図で見る
+              </span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                {me.counts.spots} 件を俯瞰
+              </span>
+            </span>
+          </Link>
+        </section>
+      ) : null}
 
       <FlagInboxCard summary={flagSummary} />
 

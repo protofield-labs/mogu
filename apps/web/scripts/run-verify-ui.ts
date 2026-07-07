@@ -23,6 +23,7 @@ const scripts = [
   "verify-friend-profile.ts",
   "verify-deeplink-share.ts",
   "verify-map-view.ts",
+  "verify-all-my-spots.ts",
   "verify-branding-ui.ts",
   "verify-places-photos.ts",
   "verify-agent-recommendation.ts",

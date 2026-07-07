@@ -13,15 +13,18 @@ import {
 import { usePlaceLocations } from "@/lib/places/use-place-locations";
 import type { PlaceLocationDTO } from "@/lib/places/types";
 import type { Spot } from "@/lib/spots/browser-api";
+import { cn } from "@/lib/utils";
 
 type CollectionSpotMapViewProps = {
   spots: Spot[];
   placeNames?: Record<string, string | null>;
+  spotLabels?: Record<string, string>;
   selectedSpotId: string | null;
   onSelectSpot: (spot: Spot) => void;
   onClearSelection: () => void;
   onOpenDetail?: (spot: Spot) => void;
   detailHrefForSpot?: (spot: Spot) => string;
+  mapClassName?: string;
 };
 
 type MapMarkerSpot = {
@@ -93,11 +96,13 @@ function buildMarkerSpots(
 export function CollectionSpotMapView({
   spots,
   placeNames,
+  spotLabels,
   selectedSpotId,
   onSelectSpot,
   onClearSelection,
   onOpenDetail,
   detailHrefForSpot,
+  mapClassName = "aspect-[4/3] w-full",
 }: CollectionSpotMapViewProps) {
   const mapsApiKey = readGoogleMapsApiKey();
   const placeIds = spots.map((spot) => spot.placeId);
@@ -135,7 +140,10 @@ export function CollectionSpotMapView({
   if (loading) {
     return (
       <div
-        className="flex aspect-[4/3] items-center justify-center rounded-2xl border border-border bg-muted/30"
+        className={cn(
+          "flex items-center justify-center rounded-2xl border border-border bg-muted/30",
+          mapClassName,
+        )}
         aria-busy="true"
       >
         <p className="text-sm text-muted-foreground">地図を読み込み中…</p>
@@ -161,7 +169,7 @@ export function CollectionSpotMapView({
           gestureHandling="greedy"
           disableDefaultUI
           zoomControl
-          className="aspect-[4/3] w-full"
+          className={mapClassName}
           onClick={onClearSelection}
         >
           <FitMapViewport markerKey={markerKey} />
@@ -183,6 +191,7 @@ export function CollectionSpotMapView({
         <CollectionSpotMapCard
           spot={selectedMarker.spot}
           placeName={placeNames?.[selectedMarker.spot.placeId] ?? selectedMarker.location.name}
+          collectionLabel={spotLabels?.[selectedMarker.spot.id]}
           onOpenDetail={
             onOpenDetail ? () => onOpenDetail(selectedMarker.spot) : undefined
           }

@@ -10,6 +10,7 @@ import type { Spot } from "@/lib/spots/browser-api";
 type CollectionSpotMapCardProps = {
   spot: Spot;
   placeName: string | null;
+  collectionLabel?: string;
   onOpenDetail?: () => void;
   detailHref?: string;
   onClose: () => void;
@@ -18,6 +19,7 @@ type CollectionSpotMapCardProps = {
 export function CollectionSpotMapCard({
   spot,
   placeName,
+  collectionLabel,
   onOpenDetail,
   detailHref,
   onClose,
@@ -37,6 +39,11 @@ export function CollectionSpotMapCard({
           <p className="mt-2 text-xs text-muted-foreground">
             {formatRatingChip(spot.rating)}
           </p>
+          {collectionLabel ? (
+            <p className="mt-1 truncate text-xs text-muted-foreground">
+              {collectionLabel}
+            </p>
+          ) : null}
         </div>
         <Button
           type="button"

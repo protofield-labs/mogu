@@ -49,4 +49,17 @@ assert(locationsRoute.includes("fetchPlaceLocations"), "locations route resolves
 const placesClient = readSource("lib/places/google-places-client.ts");
 assert(placesClient.includes("location"), "places client requests coordinates");
 
+const mypageMapPage = readSource("app/(protected)/mypage/map/page.tsx");
+assert(mypageMapPage.includes("MypageAllSpotsMapView"), "mypage map page exists");
+
+const mypageMapView = readSource("components/mypage/mypage-all-spots-map-view.tsx");
+assert(mypageMapView.includes("CollectionSpotMapView"), "mypage map view reuses map component");
+assert(mypageMapView.includes("loadAllMySpots"), "mypage map loads all spots");
+
+const mypageView = readSource("components/mypage/mypage-view.tsx");
+assert(mypageView.includes('href="/mypage/map"'), "mypage links to cross-collection map");
+
+const allMySpots = readSource("lib/mypage/all-my-spots.ts");
+assert(allMySpots.includes("dedupeSpotsForMap"), "all-my-spots dedupes map pins");
+
 console.log("PASS: map view UI verified");
