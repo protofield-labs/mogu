@@ -202,7 +202,7 @@ export function CollectionPickerSheet({
                 </ul>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  まだコレクションがありません。最初の棚を作りましょう。
+                  まだコレクションがありません。最初のコレクションを作りましょう。
                 </p>
               )}
 
