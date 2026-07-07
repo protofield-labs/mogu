@@ -94,3 +94,13 @@ export function sortFriendsForAvatarRow(
 export function shouldShowSoloEmptyState(friendCount: number): boolean {
   return friendCount === 0;
 }
+
+export function filterFeedByActor(
+  feedItems: FeedItem[],
+  actorId: string | null,
+): FeedItem[] {
+  if (!actorId) {
+    return feedItems;
+  }
+  return feedItems.filter((item) => item.actor.id === actorId);
+}

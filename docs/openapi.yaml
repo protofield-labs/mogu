@@ -195,6 +195,30 @@ paths:
         default:
           $ref: "#/components/responses/Error"
 
+  /friends/requests/{pairId}:
+    delete:
+      tags: [friends]
+      summary: 友達申請取り消し（送信者のみ）
+      parameters:
+        - $ref: "#/components/parameters/pairId"
+      responses:
+        "204":
+          description: No Content
+        default:
+          $ref: "#/components/responses/Error"
+
+  /friends/{pairId}:
+    delete:
+      tags: [friends]
+      summary: 友達解除
+      parameters:
+        - $ref: "#/components/parameters/pairId"
+      responses:
+        "204":
+          description: No Content
+        default:
+          $ref: "#/components/responses/Error"
+
   /friends:
     get:
       tags: [friends]

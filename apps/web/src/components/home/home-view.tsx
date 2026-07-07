@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { AvatarRow } from "@/components/home/avatar-row";
+import { AvatarRow, FeedFilterChip } from "@/components/home/avatar-row";
 import { FeedCompactRow } from "@/components/home/feed-compact-row";
 import { FeedHeroCard } from "@/components/home/feed-hero-card";
 import { HomeEmptyState } from "@/components/home/home-empty-state";
@@ -15,6 +15,7 @@ import { LoadErrorState } from "@/components/ui/load-error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchFeedPage, fetchHomeRecommendation } from "@/lib/home/browser-api";
 import {
+  filterFeedByActor,
   getLastReadFeedAt,
   markFeedRead,
   oldestFeedItemTime,
@@ -66,11 +67,17 @@ export function HomeView() {
     status: "loading",
   });
   const [lastReadAt, setLastReadAt] = useState<Date | null>(null);
+  const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const feedViewedRef = useRef(false);
+  const selectedFriendIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    selectedFriendIdRef.current = selectedFriendId;
+  }, [selectedFriendId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,7 +128,7 @@ export function HomeView() {
 
   useEffect(() => {
     return () => {
-      if (feedViewedRef.current) {
+      if (feedViewedRef.current && !selectedFriendIdRef.current) {
         markFeedRead();
       }
     };
@@ -160,6 +167,14 @@ export function HomeView() {
     setReloadToken((current) => current + 1);
   }
 
+  function handleSelectFriend(friendId: string) {
+    setSelectedFriendId((current) => (current === friendId ? null : friendId));
+  }
+
+  function handleClearFeedFilter() {
+    setSelectedFriendId(null);
+  }
+
   if (loading) {
     return <HomeViewSkeleton embedded />;
   }
@@ -175,7 +190,11 @@ export function HomeView() {
   }
 
   const solo = shouldShowSoloEmptyState(me.counts.friends);
-  const [heroItem, ...compactItems] = feedItems;
+  const visibleFeedItems = filterFeedByActor(feedItems, selectedFriendId);
+  const selectedFriend = selectedFriendId
+    ? friends.find((friend) => friend.id === selectedFriendId)
+    : null;
+  const [heroItem, ...compactItems] = visibleFeedItems;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5 py-mogu-screen-y">
@@ -188,7 +207,16 @@ export function HomeView() {
         friends={friends}
         feedItems={feedItems}
         lastReadAt={lastReadAt}
+        selectedFriendId={selectedFriendId}
+        onSelectFriend={handleSelectFriend}
       />
+
+      {selectedFriend ? (
+        <FeedFilterChip
+          displayName={selectedFriend.displayName}
+          onClear={handleClearFeedFilter}
+        />
+      ) : null}
 
       {recommendation.status === "ready" && recommendation.value ? (
         <RecommendationCompactRow recommendation={recommendation.value} />
@@ -217,9 +245,13 @@ export function HomeView() {
             <h2 className="text-sm font-semibold text-foreground">新着フィード</h2>
           </div>
 
-          {feedItems.length === 0 ? (
+          {visibleFeedItems.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              まだ友達の記録がありません。
+              {selectedFriend
+                ? nextCursor
+                  ? `${selectedFriend.displayName}さんの投稿は、まだ読み込まれていない可能性があります。「もっと見る」で続きを確認できます。`
+                  : `まだ${selectedFriend.displayName}さんの記録がありません。`
+                : "まだ友達の記録がありません。"}
             </p>
           ) : null}
 

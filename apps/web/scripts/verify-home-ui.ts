@@ -5,6 +5,7 @@
 import { assert } from "./test-helpers/assert";
 
 import {
+  filterFeedByActor,
   friendHasUnreadFeed,
   getLastReadFeedAt,
   isFeedItemUnread,
@@ -109,6 +110,10 @@ function main() {
   );
   assert(shouldShowSoloEmptyState(0), "solo when no friends");
   assert(!shouldShowSoloEmptyState(2), "not solo with friends");
+
+  const kenOnly = filterFeedByActor(feedItems, "f-ken");
+  assert(kenOnly.length === 1 && kenOnly[0]?.actor.id === "f-ken", "feed filter by actor");
+  assert(filterFeedByActor(feedItems, null).length === 2, "null filter keeps all");
 
   assert(typeof saveSpotToCollection === "function", "save spot helper exported");
   assert(typeof markFeedRead === "function", "markFeedRead exported");

@@ -137,3 +137,19 @@ export async function rejectFriendRequest(pairId: string): Promise<void> {
     { method: "POST" },
   );
 }
+
+export async function cancelFriendRequest(pairId: string): Promise<void> {
+  await apiVoid(
+    `/api/v1/friends/requests/${encodeURIComponent(pairId)}`,
+    "友達申請を取り消せませんでした",
+    { method: "DELETE" },
+  );
+}
+
+export async function removeFriend(pairId: string): Promise<void> {
+  await apiVoid(
+    `/api/v1/friends/${encodeURIComponent(pairId)}`,
+    "友達を解除できませんでした",
+    { method: "DELETE" },
+  );
+}
