@@ -10,6 +10,7 @@ import { LoadErrorState } from "@/components/ui/load-error-state";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SpotForm, SpotList } from "@/components/mypage/spot-form";
 import { SpotDetailSheet } from "@/components/spots/spot-detail-sheet";
+import { ShareButton } from "@/components/share/share-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -29,6 +30,7 @@ import { formatCollectionVisibility } from "@/lib/labels/collection-labels";
 import { usePlace } from "@/lib/places/use-place";
 import { usePlaceNames } from "@/lib/places/use-place-names";
 import { deleteSpot, type Spot } from "@/lib/spots/browser-api";
+import { collectionShareUrl, spotShareUrl } from "@/lib/share/share-url";
 
 const ratingFilterOptions: Array<{
   value: CollectionSpotRatingFilter;
@@ -263,6 +265,7 @@ export function CollectionDetailView({
             </h1>
             <p className="text-xs text-muted-foreground">{detail.spotCount}軒</p>
           </div>
+          <ShareButton url={collectionShareUrl(collectionId)} />
         </div>
 
         <div className="flex flex-wrap items-center gap-2 pl-12">
@@ -362,9 +365,12 @@ export function CollectionDetailView({
           open={detailOpen}
           onClose={handleCloseDetail}
           header={
-            <p className="truncate text-sm font-medium text-foreground">
-              {detail.name}
-            </p>
+            <div className="flex min-w-0 items-center gap-2">
+              <p className="truncate text-sm font-medium text-foreground">
+                {detail.name}
+              </p>
+              <ShareButton url={spotShareUrl(selectedSpot.id)} className="ml-auto shrink-0" />
+            </div>
           }
           footer={
             <div className="flex flex-wrap gap-2">

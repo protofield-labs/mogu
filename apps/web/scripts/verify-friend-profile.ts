@@ -42,7 +42,7 @@ assert(userRoute.includes("getFriendProfile"), "users/[id] uses getFriendProfile
 assert(userRoute.includes("parseRouteParams"), "users/[id] uses parseRouteParams");
 
 const avatarRow = readSource("components/home/avatar-row.tsx");
-assert(avatarRow.includes("friendProfilePath"), "avatar row links to friend profile");
+assert(avatarRow.includes("onSelectFriend"), "avatar row filters feed by friend");
 
 const friendsView = readSource("components/mypage/friends-view.tsx");
 assert(friendsView.includes("friendProfilePath"), "friends view links to friend profile");

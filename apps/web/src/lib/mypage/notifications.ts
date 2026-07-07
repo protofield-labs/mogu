@@ -1,4 +1,5 @@
 import type { FlagEvent } from "@/lib/mypage/types";
+import { spotPath } from "@/lib/share/paths";
 
 export function formatFlagEventMessage(event: Pick<FlagEvent, "actor" | "isAnonymous">): string {
   if (event.isAnonymous || !event.actor) {
@@ -39,9 +40,8 @@ export function formatRelativeTime(iso: string, now: Date = new Date()): string 
 }
 
 export function flagEventHref(event: FlagEvent): string | null {
-  if (!event.collectionId || !event.spotId) {
+  if (!event.spotId || event.isAnonymous) {
     return null;
   }
-  const params = new URLSearchParams({ spotId: event.spotId });
-  return `/mypage/collections/${event.collectionId}?${params.toString()}`;
+  return spotPath(event.spotId);
 }

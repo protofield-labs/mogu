@@ -1,6 +1,7 @@
 "use client";
 
 import { Bookmark } from "lucide-react";
+import Link from "next/link";
 
 import { AuthImage } from "@/components/mypage/auth-image";
 import { RecollectPicker } from "@/components/recollect/recollect-picker";
@@ -11,6 +12,7 @@ import {
   formatRatingChip,
   formatSavedCountBadge,
 } from "@/lib/home/feed-labels";
+import { spotPath } from "@/lib/share/paths";
 import type { Spot } from "@/lib/spots/browser-api";
 
 type FriendSpotListProps = {
@@ -51,9 +53,11 @@ function FriendSpotRow({ spot }: { spot: Spot }) {
           <div className="size-16 shrink-0 rounded-xl bg-muted" aria-hidden />
         )}
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-foreground">
-            {spot.comment || spot.placeId}
-          </p>
+          <Link href={spotPath(spot.id)} className="block min-w-0">
+            <p className="text-sm font-medium text-foreground">
+              {spot.comment || spot.placeId}
+            </p>
+          </Link>
           <p className="mt-1 text-xs text-muted-foreground">
             {[formatRatingChip(spot.rating), formatSavedCountBadge(spot.savedCount)]
               .filter(Boolean)

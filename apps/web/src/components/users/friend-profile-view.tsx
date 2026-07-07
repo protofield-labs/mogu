@@ -7,12 +7,16 @@ import { useEffect, useState } from "react";
 import { MypageViewSkeleton } from "@/components/loading/skeletons";
 import { CollectionGrid } from "@/components/mypage/collection-grid";
 import { FriendProfileHeroCard } from "@/components/users/friend-profile-hero-card";
+import { FriendAccessGate } from "@/components/share/friend-access-gate";
+import { ShareButton } from "@/components/share/share-button";
 import { LoadErrorState } from "@/components/ui/load-error-state";
 import {
   fetchFriendProfile,
   listFriendCollections,
 } from "@/lib/friends/browser-api";
-import { friendCollectionPath } from "@/lib/friends/paths";
+import { friendProfilePath, collectionPath } from "@/lib/friends/paths";
+import { fetchUserShareGate } from "@/lib/share/browser-api";
+import { profileShareUrl } from "@/lib/share/share-url";
 
 type FriendProfileViewProps = {
   userId: string;
@@ -21,6 +25,9 @@ type FriendProfileViewProps = {
 export function FriendProfileView({ userId }: FriendProfileViewProps) {
   const [profile, setProfile] = useState<Awaited<
     ReturnType<typeof fetchFriendProfile>
+  > | null>(null);
+  const [gate, setGate] = useState<Awaited<
+    ReturnType<typeof fetchUserShareGate>
   > | null>(null);
   const [collections, setCollections] = useState<Awaited<
     ReturnType<typeof listFriendCollections>
@@ -36,6 +43,7 @@ export function FriendProfileView({ userId }: FriendProfileViewProps) {
     setLoadError(null);
     setProfile(null);
     setCollections(null);
+    setGate(null);
   }
 
   useEffect(() => {
@@ -48,8 +56,12 @@ export function FriendProfileView({ userId }: FriendProfileViewProps) {
           return;
         }
         if (!nextProfile) {
-          setProfile(null);
-          setCollections(null);
+          const nextGate = await fetchUserShareGate(userId);
+          if (!cancelled) {
+            setProfile(null);
+            setCollections(null);
+            setGate(nextGate);
+          }
           return;
         }
 
@@ -57,6 +69,7 @@ export function FriendProfileView({ userId }: FriendProfileViewProps) {
         if (!cancelled) {
           setProfile(nextProfile);
           setCollections(nextCollections);
+          setGate(null);
         }
       } catch (err) {
         if (!cancelled) {
@@ -88,6 +101,15 @@ export function FriendProfileView({ userId }: FriendProfileViewProps) {
   }
 
   if (!profile) {
+    if (gate) {
+      return (
+        <FriendAccessGate
+          ownerDisplayName={gate.ownerDisplayName}
+          ownerId={gate.ownerId}
+          resourceLabel="プロフィール"
+        />
+      );
+    }
     return (
       <LoadErrorState
         message={loadError ?? "友達のプロフィールを表示できませんでした"}
@@ -109,6 +131,7 @@ export function FriendProfileView({ userId }: FriendProfileViewProps) {
         <h1 className="min-w-0 flex-1 truncate text-base font-semibold text-foreground">
           {profile.displayName}
         </h1>
+        <ShareButton url={profileShareUrl(userId)} />
       </header>
 
       <FriendProfileHeroCard profile={profile} />
@@ -119,9 +142,7 @@ export function FriendProfileView({ userId }: FriendProfileViewProps) {
         </h2>
         <CollectionGrid
           collections={collections ?? []}
-          getCollectionHref={(collection) =>
-            friendCollectionPath(userId, collection.id)
-          }
+          getCollectionHref={(collection) => collectionPath(collection.id)}
           showUpsell={false}
           emptyMessage="まだコレクションがありません。"
         />

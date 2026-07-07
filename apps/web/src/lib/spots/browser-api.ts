@@ -65,3 +65,5 @@ export async function deleteSpot(id: string): Promise<void> {
     method: "DELETE",
   });
 }
+
+export { getSpotDetail, type SpotDetail } from "@/lib/share/browser-api";

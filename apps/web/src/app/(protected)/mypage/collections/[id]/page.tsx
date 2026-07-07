@@ -1,16 +1,17 @@
-import { CollectionDetailView } from "@/components/mypage/collection-detail-view";
+import { redirect } from "next/navigation";
 
 type PageProps = {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ spotId?: string }>;
 };
 
-export default async function CollectionDetailPage({
+export default async function LegacyCollectionDetailPage({
   params,
   searchParams,
 }: PageProps) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
-  return (
-    <CollectionDetailView collectionId={id} initialSpotId={query.spotId ?? null} />
-  );
+  const suffix = query.spotId
+    ? `?spotId=${encodeURIComponent(query.spotId)}`
+    : "";
+  redirect(`/collections/${encodeURIComponent(id)}${suffix}`);
 }
