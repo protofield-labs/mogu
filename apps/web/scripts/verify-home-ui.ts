@@ -153,6 +153,22 @@ function main() {
     "recommendation empty row resists flex shrink",
   );
 
+  const homeView = readSource("components/home/home-view.tsx");
+  assert(homeView.includes("CollectionSpotViewTabs"), "home view includes list/map tabs");
+  assert(homeView.includes("HomeFeedMapView"), "home view includes feed map");
+  assert(
+    homeView.includes('feedViewMode === "map"'),
+    "home view switches to map mode",
+  );
+  assert(
+    readSource("components/home/home-feed-map-view.tsx").includes("CollectionSpotMapView"),
+    "home feed map reuses collection map view",
+  );
+  assert(
+    readSource("components/home/home-feed-map-view.tsx").includes("FeedSpotDetailSheet"),
+    "home feed map opens feed detail sheet",
+  );
+
   console.log("PASS: home UI helpers verified");
 }
 
