@@ -1,5 +1,8 @@
 import "server-only";
 
+import {
+  deleteFriendshipWithGuard,
+} from "@/lib/dal/friendship-delete";
 import { withAuthRls } from "@/lib/auth/with-auth-rls";
 import type { PrismaTransaction } from "@/lib/db/prisma";
 import { toUserDto, userSelect, type UserDto } from "@/lib/dal/users";
@@ -241,24 +244,10 @@ export async function rejectFriendRequest(
       return { ok: false as const, reason: "invalid_pair_id" as const };
     }
 
-    const friendship = await tx.friendship.findUnique({
-      where: { userLow_userHigh: pair },
+    return deleteFriendshipWithGuard(tx, pair, uid, {
+      status: "pending",
+      mustNotBeRequester: true,
     });
-    if (!friendship) {
-      return { ok: false as const, reason: "not_found" as const };
-    }
-    if (friendship.requestedBy === uid) {
-      return { ok: false as const, reason: "forbidden" as const };
-    }
-    if (friendship.status !== "pending") {
-      return { ok: false as const, reason: "conflict" as const };
-    }
-
-    await tx.friendship.delete({
-      where: { userLow_userHigh: pair },
-    });
-
-    return { ok: true as const };
   });
 
   return result;
@@ -274,24 +263,10 @@ export async function cancelFriendRequest(
       return { ok: false as const, reason: "invalid_pair_id" as const };
     }
 
-    const friendship = await tx.friendship.findUnique({
-      where: { userLow_userHigh: pair },
+    return deleteFriendshipWithGuard(tx, pair, uid, {
+      status: "pending",
+      mustBeRequester: true,
     });
-    if (!friendship) {
-      return { ok: false as const, reason: "not_found" as const };
-    }
-    if (friendship.requestedBy !== uid) {
-      return { ok: false as const, reason: "forbidden" as const };
-    }
-    if (friendship.status !== "pending") {
-      return { ok: false as const, reason: "conflict" as const };
-    }
-
-    await tx.friendship.delete({
-      where: { userLow_userHigh: pair },
-    });
-
-    return { ok: true as const };
   });
 
   return result;
@@ -307,21 +282,9 @@ export async function removeFriend(
       return { ok: false as const, reason: "invalid_pair_id" as const };
     }
 
-    const friendship = await tx.friendship.findUnique({
-      where: { userLow_userHigh: pair },
+    return deleteFriendshipWithGuard(tx, pair, uid, {
+      status: "accepted",
     });
-    if (!friendship) {
-      return { ok: false as const, reason: "not_found" as const };
-    }
-    if (friendship.status !== "accepted") {
-      return { ok: false as const, reason: "conflict" as const };
-    }
-
-    await tx.friendship.delete({
-      where: { userLow_userHigh: pair },
-    });
-
-    return { ok: true as const };
   });
 
   return result;
