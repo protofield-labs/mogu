@@ -1,0 +1,59 @@
+"use client";
+
+import { SparklesIcon } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { AGENT_FOOTER_CAPTION } from "@/lib/agent/chat-helpers";
+
+type AgentChatComposerProps = {
+  input: string;
+  inputDisabled: boolean;
+  onInputChange: (value: string) => void;
+  onSubmit: (event: React.FormEvent) => void;
+  onSend: (text: string) => void;
+};
+
+export function AgentChatComposer({
+  input,
+  inputDisabled,
+  onInputChange,
+  onSubmit,
+  onSend,
+}: AgentChatComposerProps) {
+  return (
+    <footer className="shrink-0 border-t border-border px-mogu-screen-x pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3">
+      <form onSubmit={onSubmit} className="flex items-end gap-2">
+        <label className="sr-only" htmlFor="agent-message-input">
+          メッセージ
+        </label>
+        <textarea
+          id="agent-message-input"
+          rows={1}
+          value={input}
+          disabled={inputDisabled}
+          onChange={(event) => onInputChange(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+              onSend(input);
+            }
+          }}
+          placeholder="メッセージを入力..."
+          className="max-h-32 min-h-10 flex-1 resize-none rounded-2xl border border-border bg-mogu-surface-elevated px-4 py-2.5 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
+        />
+        <Button
+          type="submit"
+          size="icon"
+          className="size-10 shrink-0 rounded-full"
+          disabled={inputDisabled || !input.trim()}
+          aria-label="送信"
+        >
+          <SparklesIcon className="size-4" />
+        </Button>
+      </form>
+      <p className="mt-2 text-center text-xs text-muted-foreground">
+        {AGENT_FOOTER_CAPTION}
+      </p>
+    </footer>
+  );
+}

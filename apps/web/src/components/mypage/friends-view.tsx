@@ -1,287 +1,44 @@
 "use client";
 
-import { ChevronLeft, Search } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { FriendsViewSkeleton } from "@/components/loading/skeletons";
+import { FriendsApprovedSection } from "@/components/mypage/friends-approved-section";
+import { FriendsOutgoingSection } from "@/components/mypage/friends-outgoing-section";
+import { FriendsSearchSection } from "@/components/mypage/friends-search-section";
 import {
-  friendAvatarProps,
   IncomingFriendRequestList,
 } from "@/components/mypage/incoming-friend-request-list";
-import { Avatar } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { LoadErrorState } from "@/components/ui/load-error-state";
 import { Spinner } from "@/components/ui/spinner";
-import { notifyBadgesUpdated } from "@/lib/mypage/badge-events";
+import { friendsBackNavigation } from "@/lib/friends/paths";
 import {
-  acceptFriendRequest,
-  cancelFriendRequest,
-  fetchFriends,
-  fetchIncomingFriendRequests,
-  fetchMe,
-  fetchOutgoingFriendRequests,
-  rejectFriendRequest,
-  removeFriend,
-  searchUsers,
-  sendFriendRequest,
-} from "@/lib/mypage/browser-api";
-import { friendshipPairIdFromUserIds } from "@/lib/friends/pair-id";
-import {
-  findDuplicateDisplayNames,
-  formatAvatarColorLabel,
-  formatFriendRequestError,
   isAlreadyFriend,
   isIncomingPending,
   isOutgoingPending,
 } from "@/lib/mypage/friend-request-ui";
-import type { FriendListItem, FriendRequest, FriendUser } from "@/lib/mypage/types";
-import {
-  FRIENDS_FROM_HOME,
-  friendProfilePathWithContext,
-  friendsBackNavigation,
-} from "@/lib/friends/paths";
-import { cn } from "@/lib/utils";
-
-type FriendWithCollections = FriendListItem;
-
-type RequestAction = "accept" | "reject" | "cancel";
+import { useFriendsView } from "@/lib/mypage/use-friends-view";
+import type { FriendUser } from "@/lib/mypage/types";
 
 type FriendsViewProps = {
   fromHome?: boolean;
 };
 
 export function FriendsView({ fromHome = false }: FriendsViewProps) {
-  const [friends, setFriends] = useState<FriendWithCollections[]>([]);
-  const [requests, setRequests] = useState<FriendRequest[]>([]);
-  const [outgoingRequests, setOutgoingRequests] = useState<FriendRequest[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<FriendUser[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [friendCount, setFriendCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [reloadToken, setReloadToken] = useState(0);
-  const [busyPairId, setBusyPairId] = useState<string | null>(null);
-  const [busyRequestAction, setBusyRequestAction] = useState<RequestAction | null>(
-    null,
-  );
-  const [busyUserId, setBusyUserId] = useState<string | null>(null);
-  const [meId, setMeId] = useState<string | null>(null);
-  const [unfriendTarget, setUnfriendTarget] = useState<FriendWithCollections | null>(
-    null,
-  );
-  const [unfriendBusy, setUnfriendBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [searchError, setSearchError] = useState<string | null>(null);
-
-  const friendIds = useMemo(
-    () => new Set(friends.map((friend) => friend.id)),
-    [friends],
-  );
-  const outgoingUserIds = useMemo(
-    () => new Set(outgoingRequests.map((request) => request.to.id)),
-    [outgoingRequests],
-  );
-  const incomingUserIds = useMemo(
-    () => new Set(requests.map((request) => request.from.id)),
-    [requests],
-  );
-  const duplicateSearchNames = useMemo(
-    () => findDuplicateDisplayNames(searchResults),
-    [searchResults],
-  );
-
-  const loadFriendsData = useCallback(async () => {
-    const [me, nextFriends, incoming, outgoing] = await Promise.all([
-      fetchMe(),
-      fetchFriends(),
-      fetchIncomingFriendRequests(),
-      fetchOutgoingFriendRequests(),
-    ]);
-    setFriendCount(me.counts.friends);
-    setMeId(me.id);
-    setRequests(incoming);
-    setOutgoingRequests(outgoing);
-    setFriends(nextFriends);
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        await loadFriendsData();
-      } catch (err) {
-        if (!cancelled) {
-          setLoadError(
-            err instanceof Error ? err.message : "読み込みに失敗しました",
-          );
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [loadFriendsData, reloadToken]);
-
-  useEffect(() => {
-    const query = searchQuery.trim();
-    if (query.length === 0) {
-      return;
-    }
-
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      setSearching(true);
-      void searchUsers(query)
-        .then((results) => {
-          if (!cancelled) {
-            setSearchResults(results);
-            setSearchError(null);
-          }
-        })
-        .catch((err) => {
-          if (!cancelled) {
-            setSearchError(
-              err instanceof Error ? err.message : "検索に失敗しました",
-            );
-            setSearchResults([]);
-          }
-        })
-        .finally(() => {
-          if (!cancelled) {
-            setSearching(false);
-          }
-        });
-    }, 300);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [searchQuery]);
-
-  async function handleAccept(pairId: string) {
-    setBusyPairId(pairId);
-    setBusyRequestAction("accept");
-    setError(null);
-    try {
-      await acceptFriendRequest(pairId);
-      notifyBadgesUpdated();
-      await loadFriendsData();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "承認に失敗しました");
-    } finally {
-      setBusyPairId(null);
-      setBusyRequestAction(null);
-    }
-  }
-
-  async function handleReject(pairId: string) {
-    setBusyPairId(pairId);
-    setBusyRequestAction("reject");
-    setError(null);
-    try {
-      await rejectFriendRequest(pairId);
-      notifyBadgesUpdated();
-      await loadFriendsData();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "拒否に失敗しました");
-    } finally {
-      setBusyPairId(null);
-      setBusyRequestAction(null);
-    }
-  }
-
-  async function handleCancel(pairId: string) {
-    setBusyPairId(pairId);
-    setBusyRequestAction("cancel");
-    setError(null);
-    try {
-      await cancelFriendRequest(pairId);
-      notifyBadgesUpdated();
-      await loadFriendsData();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "取り消しに失敗しました");
-    } finally {
-      setBusyPairId(null);
-      setBusyRequestAction(null);
-    }
-  }
-
-  async function handleConfirmUnfriend() {
-    if (!unfriendTarget || !meId) {
-      return;
-    }
-    setUnfriendBusy(true);
-    setError(null);
-    try {
-      const pairId = friendshipPairIdFromUserIds(meId, unfriendTarget.id);
-      await removeFriend(pairId);
-      notifyBadgesUpdated();
-      setUnfriendTarget(null);
-      await loadFriendsData();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "友達解除に失敗しました");
-    } finally {
-      setUnfriendBusy(false);
-    }
-  }
-
-  async function refreshFriendsData(failureMessage: string) {
-    try {
-      await loadFriendsData();
-    } catch {
-      setError(failureMessage);
-    }
-  }
-
-  async function handleSendRequest(user: FriendUser) {
-    if (
-      busyUserId === user.id ||
-      isAlreadyFriend(user.id, friendIds) ||
-      isOutgoingPending(user.id, outgoingUserIds) ||
-      isIncomingPending(user.id, incomingUserIds)
-    ) {
-      return;
-    }
-
-    setBusyUserId(user.id);
-    setError(null);
-    try {
-      try {
-        await sendFriendRequest(user.id);
-      } catch (err) {
-        const message = formatFriendRequestError(err, "申請に失敗しました");
-        setError(message);
-        if (message === "すでに申請済みです") {
-          await refreshFriendsData("一覧の更新に失敗しました");
-        }
-        return;
-      }
-
-      await refreshFriendsData("申請は送信しましたが、一覧の更新に失敗しました");
-    } finally {
-      setBusyUserId(null);
-    }
-  }
+  const view = useFriendsView();
 
   function renderSendButton(user: FriendUser) {
-    if (isAlreadyFriend(user.id, friendIds)) {
+    if (isAlreadyFriend(user.id, view.friendIds)) {
       return (
         <span className="rounded-full border border-border bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground">
           友達
         </span>
       );
     }
+    const outgoingUserIds = view.outgoingUserIds;
+    const incomingUserIds = view.incomingUserIds;
     if (isOutgoingPending(user.id, outgoingUserIds)) {
       return (
         <span className="rounded-full border border-border bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground">
@@ -296,12 +53,12 @@ export function FriendsView({ fromHome = false }: FriendsViewProps) {
         </span>
       );
     }
-    const sending = busyUserId === user.id;
+    const sending = view.busyUserId === user.id;
     return (
       <button
         type="button"
         disabled={sending}
-        onClick={() => void handleSendRequest(user)}
+        onClick={() => void view.handleSendRequest(user)}
         className="inline-flex min-w-[4.5rem] items-center justify-center gap-1 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium disabled:opacity-50"
       >
         {sending ? (
@@ -316,28 +73,16 @@ export function FriendsView({ fromHome = false }: FriendsViewProps) {
     );
   }
 
-  function handleRetryLoad() {
-    setLoading(true);
-    setLoadError(null);
-    setReloadToken((current) => current + 1);
-  }
-
-  if (loading) {
+  if (view.loading) {
     return <FriendsViewSkeleton />;
   }
 
-  if (loadError) {
+  if (view.loadError) {
     return (
-      <LoadErrorState message={loadError} onRetry={handleRetryLoad} />
+      <LoadErrorState message={view.loadError} onRetry={view.handleRetryLoad} />
     );
   }
 
-  const trimmedQuery = searchQuery.trim();
-  const showSearchEmpty =
-    trimmedQuery.length > 0 &&
-    !searching &&
-    !searchError &&
-    searchResults.length === 0;
   const backNavigation = friendsBackNavigation(fromHome);
 
   return (
@@ -352,202 +97,66 @@ export function FriendsView({ fromHome = false }: FriendsViewProps) {
         </Link>
         <h1 className="flex-1 text-base font-semibold text-foreground">友達</h1>
         <span className="rounded-full border border-border bg-mogu-surface-elevated px-3 py-1 text-xs font-medium text-muted-foreground">
-          {friendCount}人
+          {view.friendCount}人
         </span>
       </header>
 
-      <div className="px-mogu-screen-x">
-        <label className="relative block">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <input
-            type="search"
-            value={searchQuery}
-            onChange={(event) => {
-              const nextQuery = event.target.value;
-              setSearchQuery(nextQuery);
-              if (nextQuery.trim().length === 0) {
-                setSearchResults([]);
-                setSearching(false);
-                setSearchError(null);
-              }
-            }}
-            placeholder="名前で友達を探す"
-            className="h-11 w-full rounded-2xl border border-border bg-mogu-surface-elevated pl-10 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-          />
-        </label>
-      </div>
+      <FriendsSearchSection
+        searchQuery={view.searchQuery}
+        onSearchQueryChange={view.handleSearchQueryChange}
+        searchResults={view.searchResults}
+        searching={view.searching}
+        searchError={view.searchError}
+        showSearchEmpty={view.showSearchEmpty}
+        trimmedQuery={view.trimmedQuery}
+        duplicateSearchNames={view.duplicateSearchNames}
+        renderSendButton={renderSendButton}
+      />
 
-      {error ? (
+      {view.error ? (
         <p className="px-mogu-screen-x text-sm text-destructive" role="alert">
-          {error}
+          {view.error}
         </p>
-      ) : null}
-
-      {searchError ? (
-        <p className="px-mogu-screen-x text-sm text-destructive" role="alert">
-          {searchError}
-        </p>
-      ) : null}
-
-      {searching ? (
-        <p className="px-mogu-screen-x text-sm text-muted-foreground">検索中…</p>
-      ) : null}
-
-      {showSearchEmpty ? (
-        <p className="px-mogu-screen-x text-sm text-muted-foreground">
-          「{trimmedQuery}」に一致するユーザーが見つかりませんでした
-        </p>
-      ) : null}
-
-      {searchResults.length > 0 ? (
-        <section className="space-y-2 px-mogu-screen-x">
-          <h2 className="text-xs font-medium text-muted-foreground">検索結果</h2>
-          <ul className="space-y-2">
-            {searchResults.map((user) => {
-              const showColorHint = duplicateSearchNames.has(user.displayName);
-              return (
-                <li
-                  key={user.id}
-                  className="flex items-center gap-3 rounded-2xl border border-border bg-mogu-surface-elevated p-3"
-                >
-                  <Avatar
-                    {...friendAvatarProps(user, {
-                      emphasizeColor: showColorHint,
-                      showInitial: !showColorHint,
-                    })}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground">
-                      {user.displayName}
-                    </p>
-                    {showColorHint ? (
-                      <p className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <span
-                          className="inline-block size-3 rounded-full border border-border"
-                          style={{ backgroundColor: user.avatarColor }}
-                          aria-hidden
-                        />
-                        {formatAvatarColorLabel(user.avatarColor)}
-                      </p>
-                    ) : null}
-                  </div>
-                  {renderSendButton(user)}
-                </li>
-              );
-            })}
-          </ul>
-        </section>
       ) : null}
 
       <IncomingFriendRequestList
         className="space-y-2 px-mogu-screen-x"
-        requests={requests}
-        busyPairId={busyPairId}
+        requests={view.requests}
+        busyPairId={view.busyPairId}
         busyRequestAction={
-          busyRequestAction === "accept" || busyRequestAction === "reject"
-            ? busyRequestAction
+          view.busyRequestAction === "accept" || view.busyRequestAction === "reject"
+            ? view.busyRequestAction
             : null
         }
-        onAccept={(pairId) => void handleAccept(pairId)}
-        onReject={(pairId) => void handleReject(pairId)}
+        onAccept={(pairId) => void view.handleAccept(pairId)}
+        onReject={(pairId) => void view.handleReject(pairId)}
       />
 
-      {outgoingRequests.length > 0 ? (
-        <section className="space-y-2 px-mogu-screen-x">
-          <h2 className="text-xs font-medium text-muted-foreground">申請(送信)</h2>
-          <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-mogu-surface-elevated">
-            {outgoingRequests.map((request) => {
-              const isBusy = busyPairId === request.pairId;
-              return (
-              <li key={request.pairId} className="flex items-center gap-3 p-4">
-                <Avatar {...friendAvatarProps(request.to)} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground">
-                    {request.to.displayName}
-                  </p>
-                  <p className="text-xs text-muted-foreground">承認待ち</p>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={isBusy}
-                  onClick={() => void handleCancel(request.pairId)}
-                  className="shrink-0 rounded-full"
-                >
-                  {isBusy && busyRequestAction === "cancel" ? (
-                    <>
-                      <Spinner />
-                      処理中…
-                    </>
-                  ) : (
-                    "取り消す"
-                  )}
-                </Button>
-              </li>
-              );
-            })}
-          </ul>
-        </section>
-      ) : null}
+      <FriendsOutgoingSection
+        outgoingRequests={view.outgoingRequests}
+        busyPairId={view.busyPairId}
+        busyRequestAction={view.busyRequestAction}
+        onCancel={(pairId) => void view.handleCancel(pairId)}
+      />
 
-      <section className="space-y-2 px-mogu-screen-x">
-        <h2 className="text-xs font-medium text-muted-foreground">承認済み</h2>
-        {friends.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">
-            まだ友達がいません。名前で検索して申請してみましょう。
-          </p>
-        ) : (
-          <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-mogu-surface-elevated">
-            {friends.map((friend) => (
-              <li key={friend.id} className="flex items-center gap-3 p-4">
-                <Link
-                  href={friendProfilePathWithContext(
-                    friend.id,
-                    fromHome ? { from: FRIENDS_FROM_HOME } : undefined,
-                  )}
-                  className="flex min-w-0 flex-1 items-center gap-3 transition-colors hover:opacity-80"
-                >
-                  <Avatar {...friendAvatarProps(friend)} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground">
-                      {friend.displayName}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      コレクション {friend.collectionCount}
-                    </p>
-                  </div>
-                </Link>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setUnfriendTarget(friend)}
-                  className="shrink-0 rounded-full"
-                >
-                  解除
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <FriendsApprovedSection
+        friends={view.friends}
+        fromHome={fromHome}
+        onUnfriend={view.setUnfriendTarget}
+      />
 
       <ConfirmDialog
-        open={unfriendTarget !== null}
+        open={view.unfriendTarget !== null}
         title="友達を解除"
         description={
-          unfriendTarget
-            ? `${unfriendTarget.displayName}さんとの友達関係を解除しますか？相手のコレクションは見られなくなります。`
+          view.unfriendTarget
+            ? `${view.unfriendTarget.displayName}さんとの友達関係を解除しますか？相手のコレクションは見られなくなります。`
             : ""
         }
         confirmLabel="解除する"
-        busy={unfriendBusy}
-        onConfirm={() => void handleConfirmUnfriend()}
-        onCancel={() => setUnfriendTarget(null)}
+        busy={view.unfriendBusy}
+        onConfirm={() => void view.handleConfirmUnfriend()}
+        onCancel={() => view.setUnfriendTarget(null)}
       />
     </div>
   );

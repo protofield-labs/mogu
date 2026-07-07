@@ -84,9 +84,17 @@ assert(
 );
 
 const agentChat = readSource("components/search/agent-chat.tsx");
+const agentChatHook = readSource("lib/agent/use-agent-chat.ts");
 assert(agentChat.includes("AgentConsultationHistorySheet"), "agent chat renders history sheet");
-assert(agentChat.includes("applyConsultationDetail"), "agent chat resumes consultations");
-assert(agentChat.includes('consultationViewMode === "readonly"'), "readonly consultation mode");
+assert(
+  agentChatHook.includes("applyConsultationDetail"),
+  "agent chat hook resumes consultations",
+);
+assert(
+  agentChatHook.includes('consultationViewMode === "readonly"') ||
+    agentChat.includes('consultationViewMode === "readonly"'),
+  "readonly consultation mode",
+);
 
 const browserApi = readSource("lib/agent/browser-api.ts");
 assert(browserApi.includes("listAgentConsultations"), "browser api lists consultations");

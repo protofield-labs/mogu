@@ -16,12 +16,20 @@ function readSource(relativePath: string): string {
 }
 
 const friendsView = readSource("components/mypage/friends-view.tsx");
+const friendsHook = readSource("lib/mypage/use-friends-view.ts");
 assert(friendsView.includes("friendsBackNavigation"), "friends view resolves contextual back link");
 assert(friendsView.includes("fromHome"), "friends view accepts home entry context");
-assert(friendsView.includes("cancelFriendRequest"), "friends view cancels outgoing requests");
-assert(friendsView.includes("removeFriend"), "friends view removes friends");
+assert(
+  friendsHook.includes("cancelFriendRequest"),
+  "friends hook cancels outgoing requests",
+);
+assert(
+  friendsHook.includes("removeFriend"),
+  "friends hook removes friends",
+);
+const friendsOutgoing = readSource("components/mypage/friends-outgoing-section.tsx");
 assert(friendsView.includes("ConfirmDialog"), "friends view uses confirm dialog for unfriend");
-assert(friendsView.includes("取り消す"), "friends view cancel label");
+assert(friendsOutgoing.includes("取り消す"), "friends outgoing section cancel label");
 assert(
   !friendsView.includes("fetchFriendCollectionCount"),
   "friends view uses bundled collectionCount",

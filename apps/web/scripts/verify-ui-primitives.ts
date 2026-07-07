@@ -39,11 +39,22 @@ const loginSource = readFileSync(
 assert(loginSource.includes('size="cta"'), "login page uses Button cta");
 assert(!loginSource.includes("LoaderCircleIcon"), "login page uses Spinner primitive");
 
-const friendsSource = readFileSync(
-  join(process.cwd(), "src/components/mypage/friends-view.tsx"),
-  "utf8",
+const friendsComponentPaths = [
+  "src/components/mypage/friends-view.tsx",
+  "src/components/mypage/friends-search-section.tsx",
+  "src/components/mypage/friends-outgoing-section.tsx",
+  "src/components/mypage/friends-approved-section.tsx",
+];
+const friendsSources = friendsComponentPaths.map((relativePath) =>
+  readFileSync(join(process.cwd(), relativePath), "utf8"),
 );
-assert(friendsSource.includes("@/components/ui/avatar"), "friends view uses shared Avatar");
-assert(!friendsSource.includes("function UserAvatar"), "friends local avatar removed");
+assert(
+  friendsSources.some((source) => source.includes("@/components/ui/avatar")),
+  "friends view uses shared Avatar",
+);
+assert(
+  !friendsSources.some((source) => source.includes("function UserAvatar")),
+  "friends local avatar removed",
+);
 
 console.log("PASS: UI primitive layer verified");
