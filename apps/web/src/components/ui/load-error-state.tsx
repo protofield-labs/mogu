@@ -1,8 +1,7 @@
 "use client";
 
-import { LoaderCircleIcon } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
 type LoadErrorStateProps = {
@@ -22,7 +21,7 @@ export function LoadErrorState({
 }: LoadErrorStateProps) {
   const retryLabel = retrying ? (
     <>
-      <LoaderCircleIcon className="size-4 animate-spin" aria-hidden />
+      <Spinner />
       読み込み中…
     </>
   ) : (

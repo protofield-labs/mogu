@@ -1,6 +1,5 @@
 "use client";
 
-import { LoaderCircleIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
@@ -12,6 +11,8 @@ import {
   AuthPasswordField,
 } from "@/components/auth/auth-form";
 import { AuthFormSkeleton } from "@/components/loading/skeletons";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/contexts/auth-context";
 import { getAuthErrorMessage, signUpWithEmail } from "@/lib/auth/client-auth";
 
@@ -93,20 +94,16 @@ export default function SignupPage() {
           hint="6文字以上で設定してください"
         />
         {error ? <AuthErrorMessage message={error} /> : null}
-        <button
-          type="submit"
-          disabled={submitting}
-          className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80 disabled:opacity-50"
-        >
+        <Button type="submit" size="cta" disabled={submitting}>
           {submitting ? (
             <>
-              <LoaderCircleIcon className="size-4 animate-spin" aria-hidden />
+              <Spinner />
               アカウント作成中…
             </>
           ) : (
             "アカウントを作成"
           )}
-        </button>
+        </Button>
       </form>
     </AuthFormShell>
   );

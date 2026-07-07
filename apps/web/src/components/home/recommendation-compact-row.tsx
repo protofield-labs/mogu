@@ -4,6 +4,7 @@ import { ChevronRight, Star } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { AuthImage } from "@/components/mypage/auth-image";
+import { Badge } from "@/components/ui/badge";
 import type { Recommendation } from "@/lib/home/types";
 import { stashPendingRecommendation } from "@/lib/home/pending-recommendation";
 
@@ -41,9 +42,11 @@ export function RecommendationCompactRow({
       )}
 
       <span className="min-w-0 flex-1">
-        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[0.65rem] font-semibold text-primary">
-          <Star className="size-3 fill-current" aria-hidden />
-          一推し
+        <span className="inline-flex items-center gap-1">
+          <Badge variant="accent">
+            <Star className="size-3 fill-current" aria-hidden />
+            一推し
+          </Badge>
         </span>
         <span className="mt-1 block truncate text-sm font-medium text-foreground">
           {recommendation.assertion}

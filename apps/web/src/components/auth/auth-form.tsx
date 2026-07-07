@@ -3,10 +3,9 @@
 import { Eye, EyeOff } from "lucide-react";
 import { useState, type InputHTMLAttributes, type ReactNode } from "react";
 
+import { Input } from "@/components/ui/input";
+import { FieldHint, Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-
-const inputClassName =
-  "h-11 w-full rounded-2xl border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50";
 
 type AuthFormFieldProps = {
   label: string;
@@ -21,15 +20,11 @@ export function AuthFormField({
   ...props
 }: AuthFormFieldProps) {
   return (
-    <label className="block space-y-1.5">
-      <span className="text-sm font-medium text-foreground">{label}</span>
-      <input
-        type={type}
-        className={cn(inputClassName, className)}
-        {...props}
-      />
-      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
-    </label>
+    <Label>
+      <span>{label}</span>
+      <Input type={type} className={className} {...props} />
+      {hint ? <FieldHint>{hint}</FieldHint> : null}
+    </Label>
   );
 }
 
@@ -55,10 +50,10 @@ export function AuthPasswordField({
   const [visible, setVisible] = useState(false);
 
   return (
-    <label className="block space-y-1.5">
-      <span className="text-sm font-medium text-foreground">{label}</span>
+    <Label>
+      <span>{label}</span>
       <div className="relative">
-        <input
+        <Input
           type={visible ? "text" : "password"}
           required
           autoComplete={autoComplete}
@@ -66,7 +61,7 @@ export function AuthPasswordField({
           minLength={minLength}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className={cn(inputClassName, "pr-11")}
+          className="pr-11"
         />
         <button
           type="button"
@@ -82,8 +77,8 @@ export function AuthPasswordField({
           )}
         </button>
       </div>
-      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
-    </label>
+      {hint ? <FieldHint>{hint}</FieldHint> : null}
+    </Label>
   );
 }
 
@@ -109,7 +104,7 @@ export function AuthFormShell({
       <div className="flex min-h-dvh w-full max-w-mogu-shell flex-col justify-center px-mogu-screen-x py-10">
         <div
           className={cn(
-            "rounded-3xl border border-border bg-mogu-surface-elevated p-6 shadow-sm transition-opacity sm:p-8",
+            "rounded-mogu-card border border-border bg-mogu-surface-elevated p-6 shadow-sm transition-opacity sm:p-8",
             submitting && "pointer-events-none opacity-60",
           )}
         >

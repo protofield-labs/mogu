@@ -1,12 +1,14 @@
 "use client";
 
-import { ChevronLeft, LoaderCircleIcon, Lock, Search } from "lucide-react";
+import { ChevronLeft, Lock, Search } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { FriendsViewSkeleton } from "@/components/loading/skeletons";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { LoadErrorState } from "@/components/ui/load-error-state";
+import { Spinner } from "@/components/ui/spinner";
 import { notifyBadgesUpdated } from "@/lib/mypage/badge-events";
 import {
   acceptFriendRequest,
@@ -34,30 +36,16 @@ type FriendWithCollections = FriendUser & {
   collectionCount: number;
 };
 
-function UserAvatar({
-  user,
-  className,
-  emphasizeColor = false,
-  showInitial = true,
-}: {
-  user: Pick<FriendUser, "displayName" | "avatarColor">;
-  className?: string;
-  emphasizeColor?: boolean;
-  showInitial?: boolean;
-}) {
-  return (
-    <span
-      className={cn(
-        "flex shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white",
-        emphasizeColor ? "size-12" : "size-10",
-        className,
-      )}
-      style={{ backgroundColor: user.avatarColor }}
-      aria-hidden
-    >
-      {showInitial ? user.displayName.slice(0, 1) : null}
-    </span>
-  );
+function friendAvatarProps(
+  user: Pick<FriendUser, "displayName" | "avatarColor">,
+  options?: { emphasizeColor?: boolean; showInitial?: boolean },
+) {
+  return {
+    displayName: user.displayName,
+    avatarColor: user.avatarColor,
+    size: options?.emphasizeColor ? ("xl" as const) : ("sm" as const),
+    showInitial: options?.showInitial ?? true,
+  };
 }
 
 type RequestAction = "accept" | "reject";
@@ -282,7 +270,7 @@ export function FriendsView() {
       >
         {sending ? (
           <>
-            <LoaderCircleIcon className="size-3.5 animate-spin" aria-hidden />
+            <Spinner size="sm" />
             送信中
           </>
         ) : (
@@ -388,10 +376,11 @@ export function FriendsView() {
                   key={user.id}
                   className="flex items-center gap-3 rounded-2xl border border-border bg-mogu-surface-elevated p-3"
                 >
-                  <UserAvatar
-                    user={user}
-                    emphasizeColor={showColorHint}
-                    showInitial={!showColorHint}
+                  <Avatar
+                    {...friendAvatarProps(user, {
+                      emphasizeColor: showColorHint,
+                      showInitial: !showColorHint,
+                    })}
                   />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-foreground">
@@ -428,7 +417,7 @@ export function FriendsView() {
                 className="rounded-2xl border border-border bg-mogu-surface-elevated p-4"
               >
                 <div className="flex items-center gap-3">
-                  <UserAvatar user={request.from} />
+                  <Avatar {...friendAvatarProps(request.from)} />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-foreground">
                       {request.from.displayName}
@@ -449,7 +438,7 @@ export function FriendsView() {
                   >
                     {isBusy && busyRequestAction === "reject" ? (
                       <>
-                        <LoaderCircleIcon className="size-4 animate-spin" aria-hidden />
+                        <Spinner />
                         処理中…
                       </>
                     ) : (
@@ -464,7 +453,7 @@ export function FriendsView() {
                   >
                     {isBusy && busyRequestAction === "accept" ? (
                       <>
-                        <LoaderCircleIcon className="size-4 animate-spin" aria-hidden />
+                        <Spinner />
                         処理中…
                       </>
                     ) : (
@@ -485,7 +474,7 @@ export function FriendsView() {
           <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-mogu-surface-elevated">
             {outgoingRequests.map((request) => (
               <li key={request.pairId} className="flex items-center gap-3 p-4">
-                <UserAvatar user={request.to} />
+                <Avatar {...friendAvatarProps(request.to)} />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-foreground">
                     {request.to.displayName}
@@ -511,7 +500,7 @@ export function FriendsView() {
           <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-mogu-surface-elevated">
             {friends.map((friend) => (
               <li key={friend.id} className="flex items-center gap-3 p-4">
-                <UserAvatar user={friend} />
+                <Avatar {...friendAvatarProps(friend)} />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-foreground">
                     {friend.displayName}

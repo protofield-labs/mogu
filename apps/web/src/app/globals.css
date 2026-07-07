@@ -49,6 +49,8 @@
     --spacing-mogu-tab-bar: var(--mogu-tab-bar-height);
     --max-width-mogu-shell: var(--mogu-shell-max-width);
     --radius-mogu-card: var(--mogu-radius-card);
+    --text-caption: 0.65rem;
+    --text-caption--line-height: 1rem;
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
     --radius-lg: var(--radius);

@@ -2,6 +2,8 @@
 
 import { Check } from "lucide-react";
 
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ONBOARDING_AVATAR_COLORS } from "@/lib/user-profile";
 import { cn } from "@/lib/utils";
 
@@ -28,16 +30,9 @@ export function ProfileFormFields({
 }: ProfileFormFieldsProps) {
   return (
     <>
-      <label className={cn("block", compact ? "space-y-1" : "space-y-2")}>
-        <span
-          className={cn(
-            "font-medium text-foreground",
-            compact ? "text-xs" : "text-sm",
-          )}
-        >
-          {nameLabel}
-        </span>
-        <input
+      <Label className={compact ? "space-y-1" : undefined}>
+        <span className={compact ? "text-xs" : undefined}>{nameLabel}</span>
+        <Input
           type="text"
           required
           maxLength={100}
@@ -46,13 +41,10 @@ export function ProfileFormFields({
           onChange={(event) =>
             onChange({ ...values, displayName: event.target.value })
           }
-          className={cn(
-            "w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
-            compact ? "h-9" : "h-11 px-4 rounded-2xl",
-          )}
+          fieldSize={compact ? "sm" : "default"}
           placeholder="例: Ken"
         />
-      </label>
+      </Label>
 
       <fieldset className={compact ? "space-y-1.5" : "space-y-3"}>
         <legend

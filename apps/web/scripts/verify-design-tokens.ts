@@ -40,6 +40,10 @@ function main() {
     "elevated surface utility exists",
   );
   assert(
+    globalsCss.includes("--text-caption"),
+    "text-caption token registered",
+  );
+  assert(
     typeof showRecollectSuccessToast === "function",
     "recollect toast helper exported",
   );

@@ -5,6 +5,8 @@ import { useEffect, useState, type FormEvent } from "react";
 
 import { AuthImage } from "@/components/mypage/auth-image";
 import { PhotoUploadField } from "@/components/mypage/photo-upload-field";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { searchPlaces, type PlaceSearchResult } from "@/lib/places/browser-api";
 import { formatRatingChip, formatSavedCountBadge } from "@/lib/home/feed-labels";
 import {
@@ -292,22 +294,19 @@ export function SpotForm({
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
       <div className="flex gap-2">
-        <button
-          type="submit"
-          disabled={busy}
-          className="h-10 flex-1 rounded-2xl bg-primary text-sm font-medium text-primary-foreground disabled:opacity-50"
-        >
+        <Button type="submit" className="h-10 flex-1 rounded-2xl" disabled={busy}>
           {editingSpot ? "保存" : "追加する"}
-        </button>
+        </Button>
         {editingSpot && onCancelEdit ? (
-          <button
+          <Button
             type="button"
+            variant="outline"
+            className="h-10 flex-1 rounded-2xl"
             disabled={busy}
             onClick={onCancelEdit}
-            className="h-10 flex-1 rounded-2xl border border-border bg-background text-sm font-medium"
           >
             キャンセル
-          </button>
+          </Button>
         ) : null}
       </div>
     </form>
@@ -323,9 +322,9 @@ type SpotListProps = {
 export function SpotList({ spots, onEdit, onDelete }: SpotListProps) {
   if (spots.length === 0) {
     return (
-      <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">
+      <EmptyState className="rounded-2xl p-4">
         まだスポットがありません。
-      </p>
+      </EmptyState>
     );
   }
 
