@@ -520,7 +520,11 @@ export function CollectionDetailView({
           footer={
             <div className="flex flex-wrap gap-2">
               <a
-                href={googleMapsPlaceUrl(selectedSpot.placeId)}
+                href={googleMapsPlaceUrl({
+                  placeId: selectedSpot.placeId,
+                  name: placeName,
+                  location: place?.location,
+                })}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex h-7 items-center justify-center rounded-[min(var(--radius-md),12px)] border border-border bg-background px-2.5 text-[0.8rem] font-medium hover:bg-muted hover:text-foreground"

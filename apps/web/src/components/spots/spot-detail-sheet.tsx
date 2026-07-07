@@ -4,10 +4,10 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { XIcon } from "lucide-react";
 
 import { GoogleMapsAttribution } from "@/components/places/google-maps-attribution";
-import { AuthImage } from "@/components/mypage/auth-image";
+import { SpotDetailMedia } from "@/components/spots/spot-detail-media";
 import { Button } from "@/components/ui/button";
 import { openNowLabel } from "@/lib/agent/chat-helpers";
-import type { PlaceDTO } from "@/lib/agent/types";
+import type { PlaceDTO } from "@/lib/places/types";
 import { formatRatingChip, formatSpotTagChips } from "@/lib/home/feed-labels";
 import type { SpotDto } from "@/lib/spot/types";
 
@@ -81,20 +81,17 @@ export function SpotDetailSheet({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-mogu-screen-x py-4">
-          {spot.photoUrls.length > 0 ? (
-            <div className="mb-4 flex snap-x snap-mandatory overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {spot.photoUrls.map((url) => (
-                <AuthImage
-                  key={url}
-                  objectUrl={url}
-                  alt=""
-                  className="aspect-[4/3] w-full shrink-0 snap-center rounded-xl object-cover"
-                />
-              ))}
-            </div>
-          ) : null}
+          <SpotDetailMedia
+            photoUrls={spot.photoUrls}
+            place={place}
+            placeName={placeName}
+          />
 
           <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+
+          {place?.address ? (
+            <p className="mt-1 text-sm text-muted-foreground">{place.address}</p>
+          ) : null}
 
           {openNowLabelText ? (
             <p className="mt-1 text-xs font-medium text-primary">

@@ -30,13 +30,18 @@ function formatPhotoAttributions(
 
 function AlternativeSpotRow({ spot }: { spot: Spot }) {
   const recollect = useRecollect(spot.id);
+  const { place } = usePlace(spot.placeId);
 
   return (
     <li className="rounded-lg border border-border bg-background p-3">
       <SpotSummary spot={spot} compact />
       <div className="mt-2 flex flex-wrap gap-2">
         <a
-          href={googleMapsPlaceUrl(spot.placeId)}
+          href={googleMapsPlaceUrl({
+            placeId: spot.placeId,
+            name: place?.name,
+            location: place?.location,
+          })}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex h-7 items-center justify-center rounded-[min(var(--radius-md),12px)] border border-border bg-background px-2.5 text-[0.8rem] font-medium hover:bg-muted hover:text-foreground"
@@ -126,7 +131,11 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
 
       <div className="mt-3 flex flex-wrap gap-2">
         <a
-          href={googleMapsPlaceUrl(spot.placeId)}
+          href={googleMapsPlaceUrl({
+            placeId: spot.placeId,
+            name: place?.name,
+            location: place?.location,
+          })}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex h-7 items-center justify-center rounded-[min(var(--radius-md),12px)] border border-border bg-background px-2.5 text-[0.8rem] font-medium hover:bg-muted hover:text-foreground"

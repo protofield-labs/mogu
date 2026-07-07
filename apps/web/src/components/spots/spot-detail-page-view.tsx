@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { GoogleMapsAttribution } from "@/components/places/google-maps-attribution";
-import { AuthImage } from "@/components/mypage/auth-image";
+import { SpotDetailMedia } from "@/components/spots/spot-detail-media";
 import { CollectionDetailSkeleton } from "@/components/loading/skeletons";
 import { RecollectPicker } from "@/components/recollect/recollect-picker";
 import { FriendAccessGate } from "@/components/share/friend-access-gate";
@@ -137,17 +137,14 @@ export function SpotDetailPageView({ spotId }: SpotDetailPageViewProps) {
       </header>
 
       <section className="space-y-4 px-mogu-screen-x">
-        {spot.photoUrls.length > 0 ? (
-          <div className="flex snap-x snap-mandatory overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {spot.photoUrls.map((url) => (
-              <AuthImage
-                key={url}
-                objectUrl={url}
-                alt=""
-                className="aspect-[4/3] w-full shrink-0 snap-center rounded-xl object-cover"
-              />
-            ))}
-          </div>
+        <SpotDetailMedia
+          photoUrls={spot.photoUrls}
+          place={place}
+          placeName={placeName}
+        />
+
+        {place?.address ? (
+          <p className="text-sm text-muted-foreground">{place.address}</p>
         ) : null}
 
         {openNowLabelText ? (
@@ -174,7 +171,11 @@ export function SpotDetailPageView({ spotId }: SpotDetailPageViewProps) {
 
         <div className="flex flex-wrap gap-2">
           <a
-            href={googleMapsPlaceUrl(spot.placeId)}
+            href={googleMapsPlaceUrl({
+              placeId: spot.placeId,
+              name: placeName,
+              location: place?.location,
+            })}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex h-8 items-center justify-center rounded-[min(var(--radius-md),12px)] border border-border bg-background px-3 text-sm font-medium hover:bg-muted hover:text-foreground"

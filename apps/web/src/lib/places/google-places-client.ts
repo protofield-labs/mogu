@@ -4,6 +4,8 @@ import type { PlaceDTO, PlaceLocationDTO, PlacePhoto, PlaceSearchResult } from "
 import { buildPlacePhotoProxyUrl } from "./place-photo-url";
 
 const PLACES_BASE = "https://places.googleapis.com/v1";
+const PLACES_LANGUAGE_CODE = "ja";
+const PLACES_REGION_CODE = "JP";
 
 export class PlacesApiNotConfiguredError extends Error {
   constructor() {
@@ -113,12 +115,17 @@ function mapPlaceLocation(place: GooglePlace): PlaceLocationDTO | null {
   };
 }
 
+function withLanguageQuery(path: string): string {
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}languageCode=${PLACES_LANGUAGE_CODE}`;
+}
+
 async function placesFetch<T>(
   path: string,
   init: RequestInit & { fieldMask: string },
 ): Promise<T> {
   const apiKey = readApiKey();
-  const response = await fetch(`${PLACES_BASE}${path}`, {
+  const response = await fetch(`${PLACES_BASE}${withLanguageQuery(path)}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
@@ -172,7 +179,12 @@ export async function searchPlaces(query: string): Promise<PlaceSearchResult[]> 
     {
       method: "POST",
       fieldMask: "places.id,places.displayName,places.formattedAddress",
-      body: JSON.stringify({ textQuery: trimmed, pageSize: 20 }),
+      body: JSON.stringify({
+        textQuery: trimmed,
+        pageSize: 20,
+        languageCode: PLACES_LANGUAGE_CODE,
+        regionCode: PLACES_REGION_CODE,
+      }),
     },
   );
 
