@@ -162,7 +162,15 @@ cd apps/web
 pnpm db:migrate
 ```
 
-**Or run from Cloud Run Job** (works without local VPC access):
+**Automatic (CI)** — when a push to `main` changes
+`apps/web/prisma/migrations/**`, the [Deploy web](../../.github/workflows/deploy-web.yml)
+workflow runs `dev-db-migrate` **before** deploying `dev-web`. Migration failure
+blocks the web deploy. Pushes without migration file changes skip the migrate job.
+
+Manual redeploy without migrations: run the workflow via **Actions → Deploy web →
+Run workflow** and leave **Run pending DB migrations** unchecked.
+
+**Manual (Cloud Run Job)** — same job CI uses; works without local VPC access:
 
 ```bash
 # Build the migrate image once
