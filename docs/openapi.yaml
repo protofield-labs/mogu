@@ -533,6 +533,22 @@ paths:
         default:
           $ref: "#/components/responses/Error"
 
+  /flags/events:
+    get:
+      tags: [flags]
+      summary: フラグ時系列（本人のみ・通知センター用）
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FlagEvent"
+        default:
+          $ref: "#/components/responses/Error"
+
   /flags/read:
     post:
       tags: [flags]
@@ -965,6 +981,38 @@ components:
         weekOf:
           type: string
           format: date
+
+    FlagEvent:
+      type: object
+      required:
+        [id, spotId, collectionId, placeId, spotComment, actor, isAnonymous, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        spotId:
+          type: string
+          format: uuid
+          nullable: true
+        collectionId:
+          type: string
+          format: uuid
+          nullable: true
+        placeId:
+          type: string
+          nullable: true
+        spotComment:
+          type: string
+          nullable: true
+        actor:
+          allOf:
+            - $ref: "#/components/schemas/User"
+          nullable: true
+        isAnonymous:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
 
     AgentMessageRequest:
       type: object

@@ -24,9 +24,13 @@ import { deleteSpot, type Spot } from "@/lib/spots/browser-api";
 
 type CollectionDetailViewProps = {
   collectionId: string;
+  initialSpotId?: string | null;
 };
 
-export function CollectionDetailView({ collectionId }: CollectionDetailViewProps) {
+export function CollectionDetailView({
+  collectionId,
+  initialSpotId = null,
+}: CollectionDetailViewProps) {
   const [detail, setDetail] = useState<CollectionDetail | null>(null);
   const [editingSpot, setEditingSpot] = useState<Spot | null>(null);
   const [selectedSpot, setSelectedSpot] = useState<Spot | null>(null);
@@ -39,6 +43,7 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
   const [reloadToken, setReloadToken] = useState(0);
   const [prevCollectionId, setPrevCollectionId] = useState(collectionId);
   const formSectionRef = useRef<HTMLElement>(null);
+  const initialSpotHandledRef = useRef(false);
 
   const { place, placeName } = usePlace(
     selectedSpot?.placeId ?? "",
@@ -69,6 +74,14 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
         const next = await getCollectionDetail(collectionId);
         if (!cancelled) {
           setDetail(next);
+          if (initialSpotId && !initialSpotHandledRef.current) {
+            const spot = next.spots.find((item) => item.id === initialSpotId);
+            if (spot) {
+              initialSpotHandledRef.current = true;
+              setSelectedSpot(spot);
+              setDetailOpen(true);
+            }
+          }
         }
       } catch (err) {
         if (!cancelled) {
@@ -87,7 +100,7 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
     return () => {
       cancelled = true;
     };
-  }, [collectionId, reloadToken]);
+  }, [collectionId, initialSpotId, reloadToken]);
 
   function handleSpotSaved(spot: Spot) {
     setDetail((current) => {

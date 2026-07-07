@@ -1,10 +1,14 @@
 "use client";
 
-import { ChevronLeft, Lock, Search } from "lucide-react";
+import { ChevronLeft, Search } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { FriendsViewSkeleton } from "@/components/loading/skeletons";
+import {
+  friendAvatarProps,
+  IncomingFriendRequestList,
+} from "@/components/mypage/incoming-friend-request-list";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -40,18 +44,6 @@ import { cn } from "@/lib/utils";
 type FriendWithCollections = FriendUser & {
   collectionCount: number;
 };
-
-function friendAvatarProps(
-  user: Pick<FriendUser, "displayName" | "avatarColor">,
-  options?: { emphasizeColor?: boolean; showInitial?: boolean },
-) {
-  return {
-    displayName: user.displayName,
-    avatarColor: user.avatarColor,
-    size: options?.emphasizeColor ? ("xl" as const) : ("sm" as const),
-    showInitial: options?.showInitial ?? true,
-  };
-}
 
 type RequestAction = "accept" | "reject" | "cancel";
 
@@ -451,68 +443,18 @@ export function FriendsView() {
         </section>
       ) : null}
 
-      {requests.length > 0 ? (
-        <section className="space-y-2 px-mogu-screen-x">
-          <h2 className="text-xs font-medium text-muted-foreground">申請(受信)</h2>
-          <ul className="space-y-3">
-            {requests.map((request) => {
-              const isBusy = busyPairId === request.pairId;
-              return (
-              <li
-                key={request.pairId}
-                className="rounded-2xl border border-border bg-mogu-surface-elevated p-4"
-              >
-                <div className="flex items-center gap-3">
-                  <Avatar {...friendAvatarProps(request.from)} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground">
-                      {request.from.displayName}
-                    </p>
-                    <p className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
-                      <Lock className="size-3.5" aria-hidden />
-                      承認すると見られます
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-4 flex gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={isBusy}
-                    onClick={() => void handleReject(request.pairId)}
-                    className="h-10 flex-1 rounded-2xl"
-                  >
-                    {isBusy && busyRequestAction === "reject" ? (
-                      <>
-                        <Spinner />
-                        処理中…
-                      </>
-                    ) : (
-                      "拒否"
-                    )}
-                  </Button>
-                  <Button
-                    type="button"
-                    disabled={isBusy}
-                    onClick={() => void handleAccept(request.pairId)}
-                    className="h-10 flex-1 rounded-2xl"
-                  >
-                    {isBusy && busyRequestAction === "accept" ? (
-                      <>
-                        <Spinner />
-                        処理中…
-                      </>
-                    ) : (
-                      "承認"
-                    )}
-                  </Button>
-                </div>
-              </li>
-              );
-            })}
-          </ul>
-        </section>
-      ) : null}
+      <IncomingFriendRequestList
+        className="space-y-2 px-mogu-screen-x"
+        requests={requests}
+        busyPairId={busyPairId}
+        busyRequestAction={
+          busyRequestAction === "accept" || busyRequestAction === "reject"
+            ? busyRequestAction
+            : null
+        }
+        onAccept={(pairId) => void handleAccept(pairId)}
+        onReject={(pairId) => void handleReject(pairId)}
+      />
 
       {outgoingRequests.length > 0 ? (
         <section className="space-y-2 px-mogu-screen-x">
