@@ -320,7 +320,57 @@ build args in `apps/web/Dockerfile` and `.github/workflows/deploy-web.yml`
 (GitHub Secrets). Re-deploy after changing secrets (`workflow_dispatch` or push
 to `apps/web/**`).
 
-## 7. Monitoring alerts (Slack)
+## 7. Google Maps & Places API (#130 / #185)
+
+In-app maps (`CollectionSpotMapView`, `/mypage/map`) need **two** keys:
+
+| Variable | Where | Purpose |
+|----------|-------|---------|
+| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Client bundle (build-time) | Maps JavaScript API tiles + pins |
+| `PLACES_API_KEY` | Server only (`apps/web/.env`) | Place coordinates / photos / names via `/api/v1/places/*` |
+
+Both are provisioned when `enable_external_apis = true` in
+`terraform/environments/dev/terraform.tfvars` (requires Maps Platform billing).
+
+**Terraform outputs / secrets** (after apply):
+
+```bash
+# Browser key → local .env / GitHub Secret
+terraform -chdir=terraform/environments/dev output -raw maps_js_api_key
+
+# Server key → local .env only (Cloud Run reads Secret Manager automatically)
+gcloud secrets versions access latest \
+  --secret=dev-places-api-key --project=mogu-501309
+```
+
+**Local `apps/web/.env`** (see `.env.example`):
+
+```bash
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="<maps_js_api_key output>"
+PLACES_API_KEY="<dev-places-api-key secret>"
+```
+
+Restart `pnpm dev` after changing either value (`NEXT_PUBLIC_*` is inlined at
+dev server start).
+
+**dev deploy (GitHub Actions)** — set repository secret (Settings → Secrets → Actions):
+
+| Secret | Source |
+|--------|--------|
+| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | `terraform output -raw maps_js_api_key` |
+
+Re-run **Deploy web** (or push to `main` under `apps/web/**`) after updating the
+secret. `PLACES_API_KEY` on Cloud Run comes from Terraform Secret Manager; no
+GitHub secret needed.
+
+**Referrer restrictions** (Terraform `external_apis.tf`): the browser key allows
+`http://localhost:3000/*` and the Cloud Run service URL. Local dev must use port
+3000 unless you extend `allowed_referrers` in Terraform.
+
+**Load failure UX**: if the key is missing, invalid, or referrer/Billing fails,
+the map shows an `EmptyState` message instead of a blank grey box (#185).
+
+## 8. Monitoring alerts (Slack)
 
 Cloud Monitoring alert policies (Cloud Run 5xx / latency / request spike,
 Cloud SQL CPU / disk) notify Slack via a Monitoring notification channel.

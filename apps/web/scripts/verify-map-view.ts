@@ -34,7 +34,7 @@ assert(
 );
 
 const mapView = readSource("components/collections/collection-spot-map-view.tsx");
-assert(mapView.includes("@vis.gl/react-google-maps"), "map view uses react-google-maps");
+assert(mapView.includes("MapApiProvider"), "map view uses map api provider");
 assert(mapView.includes("mapPinIcon"), "map pins use rating-specific icons");
 assert(mapView.includes("CollectionSpotMapCard"), "map view shows mini card");
 
