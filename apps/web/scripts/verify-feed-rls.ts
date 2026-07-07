@@ -52,7 +52,7 @@ async function verifyFeed() {
       const collection = await scoped.collection.create({
         data: {
           ownerId: UID_VIEWER,
-          name: "Viewer shelf",
+          name: "Viewer collection",
           visibility: "friends",
         },
       });
@@ -63,7 +63,7 @@ async function verifyFeed() {
       const collection = await scoped.collection.create({
         data: {
           ownerId: UID_FRIEND,
-          name: "Friend shelf",
+          name: "Friend collection",
           visibility: "friends",
         },
       });
@@ -74,7 +74,7 @@ async function verifyFeed() {
       const collection = await scoped.collection.create({
         data: {
           ownerId: UID_STRANGER,
-          name: "Secret stranger shelf",
+          name: "Secret stranger collection",
           visibility: "friends",
         },
       });

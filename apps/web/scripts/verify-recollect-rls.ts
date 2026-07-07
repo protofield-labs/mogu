@@ -43,7 +43,7 @@ async function verifyRecollectFlow() {
       const collection = await scoped.collection.create({
         data: {
           ownerId: UID_ORIGIN,
-          name: "Origin shelf",
+          name: "Origin collection",
           visibility: "friends",
         },
       });
@@ -68,7 +68,7 @@ async function verifyRecollectFlow() {
       const collection = await scoped.collection.create({
         data: {
           ownerId: UID_VIEWER,
-          name: "Viewer shelf",
+          name: "Viewer collection",
           visibility: "friends",
         },
       });

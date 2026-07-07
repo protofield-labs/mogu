@@ -18,7 +18,7 @@ export async function saveSpotToCollection(
       return { ok: false, error: "保存に失敗しました" };
     }
     if (savedSpot.collectionId !== collectionId) {
-      return { ok: false, error: "既に別の棚に保存済みです" };
+      return { ok: false, error: "既に別のコレクションに保存済みです" };
     }
     setLastRecollectTarget({ collectionId, collectionName });
     return { ok: true, collectionId, collectionName };

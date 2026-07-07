@@ -82,7 +82,7 @@ export async function listCollections(
   return collections.map(toCollectionDto);
 }
 
-/** Create the default onboarding shelf when the user has none (#117). */
+/** Create the default onboarding collection when the user has none (#117). */
 export async function ensureDefaultCollection(uid: string): Promise<CollectionDto | null> {
   return withAuthRls(uid, async (tx) => {
     const existingCount = await tx.collection.count({ where: { ownerId: uid } });

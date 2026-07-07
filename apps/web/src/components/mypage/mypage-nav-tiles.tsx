@@ -16,7 +16,7 @@ type MypageNavTilesProps = {
 
 /**
  * Airbnb-style 2-column navigation tiles (#101):
- * コレクション (scrolls to shelf grid) and 友達 (/mypage/friends).
+ * コレクション (scrolls to collection grid) and 友達 (/mypage/friends).
  */
 export function MypageNavTiles({
   collectionCount,

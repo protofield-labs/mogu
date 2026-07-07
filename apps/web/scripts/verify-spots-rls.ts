@@ -22,7 +22,7 @@ async function verifySpotCrudRls() {
       const collection = await scoped.collection.create({
         data: {
           ownerId: UID_OWNER,
-          name: "Owner shelf",
+          name: "Owner collection",
           visibility: "friends",
         },
       });
@@ -33,7 +33,7 @@ async function verifySpotCrudRls() {
       const collection = await scoped.collection.create({
         data: {
           ownerId: UID_OTHER,
-          name: "Other shelf",
+          name: "Other collection",
           visibility: "friends",
         },
       });
