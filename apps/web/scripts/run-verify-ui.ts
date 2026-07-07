@@ -22,6 +22,8 @@ const scripts = [
   "verify-deeplink-share.ts",
   "verify-map-view.ts",
   "verify-branding-ui.ts",
+  "verify-places-photos.ts",
+  "verify-agent-recommendation.ts",
   "verify-recollect.ts",
   "verify-photo-url.ts",
   "verify-feed-helpers.ts",

@@ -18,6 +18,7 @@ import {
   openNowLabel,
   parseSseBuffer,
 } from "../src/lib/agent/chat-helpers";
+import { isAgentAssertionTurn } from "../src/lib/agent/assertion-turn";
 import {
   AGENT_CHAT_SESSION_TTL_MS,
   isAgentReplyPending,
@@ -91,6 +92,10 @@ function main() {
     "recommendation guard accepts shape",
   );
   assert(!isRecommendation({ text: "nope" }), "reject non recommendation");
+  assert(
+    isAgentAssertionTurn("今夜は中目黒のこの店がおすすめです。"),
+    "assertion turn heuristic available",
+  );
 
   assert(
     formatAgentUserError(

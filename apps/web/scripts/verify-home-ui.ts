@@ -20,6 +20,10 @@ import {
   formatSpotTagChips,
   formatViaLabel,
 } from "../src/lib/home/feed-labels";
+import {
+  HOME_RECOMMENDATION_LABEL,
+  HOME_RECOMMENDATION_LOAD_ERROR,
+} from "../src/lib/home/recommendation-labels";
 import { saveSpotToCollection } from "../src/lib/recollect/save-spot";
 
 const friends = [
@@ -118,6 +122,11 @@ function main() {
   assert(typeof saveSpotToCollection === "function", "save spot helper exported");
   assert(typeof markFeedRead === "function", "markFeedRead exported");
   assert(typeof getLastReadFeedAt === "function", "getLastReadFeedAt exported");
+  assert(HOME_RECOMMENDATION_LABEL === "おすすめ！", "home recommendation label");
+  assert(
+    HOME_RECOMMENDATION_LOAD_ERROR.includes("おすすめ！"),
+    "home recommendation load error copy",
+  );
 
   console.log("PASS: home UI helpers verified");
 }

@@ -3,6 +3,7 @@
 import { ChevronDownIcon } from "lucide-react";
 
 import { GoogleMapsAttribution } from "@/components/places/google-maps-attribution";
+import { PlacePhotoImage } from "@/components/places/place-photo-image";
 import { SpotPlaceName } from "@/components/places/spot-place-name";
 import { AuthImage } from "@/components/mypage/auth-image";
 import { RecollectPicker } from "@/components/recollect/recollect-picker";
@@ -13,11 +14,19 @@ import {
   openNowLabel,
 } from "@/lib/agent/chat-helpers";
 import type { Recommendation, Spot } from "@/lib/agent/types";
+import { resolveSpotHeroPhoto } from "@/lib/places/resolve-spot-hero-photo";
 import { usePlace } from "@/lib/places/use-place";
 
 type RecommendationCardProps = {
   recommendation: Recommendation;
 };
+
+function formatPhotoAttributions(
+  attributions: Array<{ name: string; uri: string }>,
+): string | null {
+  const names = attributions.map((attr) => attr.name).filter(Boolean);
+  return names.length > 0 ? names.join(", ") : null;
+}
 
 function AlternativeSpotRow({ spot }: { spot: Spot }) {
   const recollect = useRecollect(spot.id);
@@ -78,14 +87,25 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
     recommendation;
   const { place } = usePlace(spot.placeId);
   const recollect = useRecollect(spot.id, { initialSaved: savedByMe });
+  const heroPhoto = resolveSpotHeroPhoto(spot, place);
+  const photoAttribution =
+    heroPhoto?.source === "place"
+      ? formatPhotoAttributions(heroPhoto.authorAttributions)
+      : null;
 
   const openNowText = openNowLabel(place?.openNow);
 
   return (
     <div className="mogu-elevated mt-2 w-full max-w-full rounded-xl border border-border p-mogu-screen-x py-3">
-      {spot.photoUrls[0] ? (
+      {heroPhoto?.source === "spot" ? (
         <AuthImage
-          objectUrl={spot.photoUrls[0]}
+          objectUrl={heroPhoto.url}
+          alt=""
+          className="mb-3 aspect-[16/10] w-full rounded-lg object-cover"
+        />
+      ) : heroPhoto?.source === "place" ? (
+        <PlacePhotoImage
+          url={heroPhoto.url}
           alt=""
           className="mb-3 aspect-[16/10] w-full rounded-lg object-cover"
         />
@@ -128,6 +148,11 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
         <p className="mt-2 text-xs text-destructive">{recollect.error}</p>
       ) : null}
 
+      {photoAttribution ? (
+        <p className="mt-2 text-caption text-muted-foreground">
+          Photo: {photoAttribution}
+        </p>
+      ) : null}
       <GoogleMapsAttribution className="mt-2" />
 
       {alternatives.length > 0 ? (

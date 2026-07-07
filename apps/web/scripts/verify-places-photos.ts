@@ -1,0 +1,44 @@
+/**
+ * Place Photos verification (#161 / guardrail 7).
+ * Run via: pnpm exec tsx scripts/verify-places-photos.ts
+ */
+import { assert } from "./test-helpers/assert";
+
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+const root = join(process.cwd(), "src");
+
+function readSource(relativePath: string): string {
+  return readFileSync(join(root, relativePath), "utf8");
+}
+
+const placesClient = readSource("lib/places/google-places-client.ts");
+assert(placesClient.includes("photos"), "places client requests photos field");
+assert(placesClient.includes("mapPhotos"), "places client maps photo metadata");
+assert(
+  placesClient.includes("fetchPlacePhotoMedia"),
+  "places client streams photo media",
+);
+
+const photoRoute = readSource("app/api/v1/places/[placeId]/photos/[index]/route.ts");
+assert(photoRoute.includes("fetchPlacePhotoMedia"), "photo route proxies media");
+
+const recommendationCard = readSource("components/search/recommendation-card.tsx");
+assert(
+  recommendationCard.includes("resolveSpotHeroPhoto"),
+  "recommendation card resolves hero photo",
+);
+assert(
+  recommendationCard.includes("PlacePhotoImage"),
+  "recommendation card uses place photo fallback",
+);
+
+const compactRow = readSource("components/home/recommendation-compact-row.tsx");
+assert(
+  compactRow.includes("HOME_RECOMMENDATION_LABEL"),
+  "compact row uses updated recommendation label",
+);
+assert(compactRow.includes("evidence"), "compact row shows evidence");
+
+console.log("PASS: place photos verified");
