@@ -25,7 +25,7 @@ export function RecommendationEmptyRow({
 }: RecommendationEmptyRowProps) {
   if (friendCount === 0) {
     return (
-      <div className="mx-mogu-screen-x rounded-2xl border border-dashed border-border bg-mogu-surface-elevated px-4 py-3 text-sm text-muted-foreground">
+      <div className="mx-mogu-screen-x shrink-0 rounded-2xl border border-dashed border-border bg-mogu-surface-elevated px-4 py-3 text-sm text-muted-foreground">
         {HOME_RECOMMENDATION_SOLO_HINT}
       </div>
     );
@@ -33,7 +33,7 @@ export function RecommendationEmptyRow({
 
   if (ownSpotCount < MIN_SPOTS_FOR_RECOMMENDATION_EMPTY) {
     return (
-      <div className="mx-mogu-screen-x rounded-2xl border border-dashed border-border bg-mogu-surface-elevated px-4 py-3 text-sm text-muted-foreground">
+      <div className="mx-mogu-screen-x shrink-0 rounded-2xl border border-dashed border-border bg-mogu-surface-elevated px-4 py-3 text-sm text-muted-foreground">
         {HOME_RECOMMENDATION_OWN_HINT}
       </div>
     );
@@ -42,7 +42,7 @@ export function RecommendationEmptyRow({
   return (
     <Link
       href="/search"
-      className="mx-mogu-screen-x flex items-center justify-between rounded-2xl border border-dashed border-border bg-mogu-surface-elevated px-4 py-3 text-sm text-foreground"
+      className="mx-mogu-screen-x flex shrink-0 items-center justify-between rounded-2xl border border-dashed border-border bg-mogu-surface-elevated px-4 py-3 text-sm text-foreground"
     >
       <span>今夜どこ行く？ 検索で断言を見る</span>
       <ChevronRight className="size-4 text-muted-foreground" aria-hidden />

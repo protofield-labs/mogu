@@ -4,6 +4,9 @@
  */
 import { assert } from "./test-helpers/assert";
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import {
   filterFeedByActor,
   friendHasUnreadFeed,
@@ -25,6 +28,12 @@ import {
   HOME_RECOMMENDATION_LOAD_ERROR,
 } from "../src/lib/home/recommendation-labels";
 import { saveSpotToCollection } from "../src/lib/recollect/save-spot";
+
+const root = join(process.cwd(), "src");
+
+function readSource(relativePath: string): string {
+  return readFileSync(join(root, relativePath), "utf8");
+}
 
 const friends = [
   { id: "f-ken", displayName: "Ken", avatarColor: "#336699" },
@@ -126,6 +135,13 @@ function main() {
   assert(
     HOME_RECOMMENDATION_LOAD_ERROR.includes("おすすめ！"),
     "home recommendation load error copy",
+  );
+
+  const avatarRow = readSource("components/home/avatar-row.tsx");
+  assert(avatarRow.includes("shrink-0"), "avatar row resists flex shrink");
+  assert(
+    readSource("components/home/recommendation-empty-row.tsx").includes("shrink-0"),
+    "recommendation empty row resists flex shrink",
   );
 
   console.log("PASS: home UI helpers verified");

@@ -33,7 +33,7 @@ export function AvatarRow({
   return (
     <section
       aria-label="友達"
-      className="flex gap-3 overflow-x-auto px-mogu-screen-x pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="flex shrink-0 gap-3 overflow-x-auto px-mogu-screen-x pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {sorted.map((friend) => {
         const selected = selectedFriendId === friend.id;
@@ -89,7 +89,7 @@ type FeedFilterChipProps = {
 
 export function FeedFilterChip({ displayName, onClear }: FeedFilterChipProps) {
   return (
-    <div className="flex px-mogu-screen-x">
+    <div className="flex px-mogu-screen-x shrink-0">
       <button
         type="button"
         onClick={onClear}

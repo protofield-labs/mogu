@@ -204,7 +204,7 @@ export function HomeView() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5 py-mogu-screen-y">
-      <header className="flex items-center justify-between px-mogu-screen-x">
+      <header className="flex shrink-0 items-center justify-between px-mogu-screen-x">
         <div className="flex items-center gap-2">
           <MoguBrandIcon className="size-5" />
           <MoguWordmark as="h1" />
@@ -228,11 +228,13 @@ export function HomeView() {
       ) : null}
 
       {recommendation.status === "ready" && recommendation.value ? (
-        <RecommendationCompactRow recommendation={recommendation.value} />
+        <div className="shrink-0">
+          <RecommendationCompactRow recommendation={recommendation.value} />
+        </div>
       ) : recommendation.status === "error" ? (
         <LoadErrorState
           variant="inline"
-          className="mx-mogu-screen-x"
+          className="mx-mogu-screen-x shrink-0"
           message={HOME_RECOMMENDATION_LOAD_ERROR}
           onRetry={() => void handleRetryRecommendation()}
         />
@@ -240,7 +242,7 @@ export function HomeView() {
         <Skeleton
           aria-busy="true"
           aria-label={HOME_RECOMMENDATION_LOADING_ARIA}
-          className="mx-mogu-screen-x h-14 rounded-2xl"
+          className="mx-mogu-screen-x h-14 shrink-0 rounded-2xl"
         />
       ) : (
         <RecommendationEmptyRow
