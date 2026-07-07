@@ -126,7 +126,16 @@ jobs:
         run: pnpm build
 
       - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+        run: |
+          # Pre-installed Microsoft/Azure apt sources on ubuntu-latest can break
+          # apt-get update; disable them before installing postgresql-client.
+          for repo in /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*; do
+            if [ -f "${repo}" ]; then
+              sudo mv "${repo}" "${repo}.disabled"
+            fi
+          done
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
 
       - name: Prepare test database
         working-directory: ${{ github.workspace }}
