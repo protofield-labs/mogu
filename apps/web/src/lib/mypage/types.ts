@@ -12,6 +12,17 @@ export type FlagNotification = {
   weekOf: string;
 };
 
+export type FlagEvent = {
+  id: string;
+  spotId: string | null;
+  collectionId: string | null;
+  placeId: string | null;
+  spotComment: string | null;
+  actor: FriendUser | null;
+  isAnonymous: boolean;
+  createdAt: string;
+};
+
 export type FriendUser = {
   id: string;
   displayName: string;

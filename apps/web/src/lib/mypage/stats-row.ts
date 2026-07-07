@@ -27,13 +27,10 @@ export function shouldShowMypageTabBadge(badges: {
   return badges.pendingFriendRequests > 0 || badges.unreadFlags > 0;
 }
 
-/** Home bell tap target: friend requests first, then flag inbox on mypage (#82). */
-export function getNotificationHref(badges: {
+/** Home bell tap target (#119 notification center). */
+export function getNotificationHref(_badges: {
   pendingFriendRequests: number;
   unreadFlags: number;
-}): "/mypage/friends" | "/mypage" {
-  if (badges.pendingFriendRequests > 0) {
-    return "/mypage/friends";
-  }
-  return "/mypage";
+}): "/notifications" {
+  return "/notifications";
 }

@@ -432,6 +432,7 @@ DBはRLS対象の制限ロールで接続する(superuser / BYPASSRLS 不可)。
 | | POST | `/agent/sessions/{id}/messages` | `{text, chips?}` | `AgentMessage` |
 | | GET | `/agent/sessions/{id}/events` | SSE or ポーリング | 思考進行イベント |
 | フラグ | GET | `/flags?weekOf=` | — | `FlagNotification[]`(集計) |
+| | GET | `/flags/events` | — | `FlagEvent[]`(時系列) |
 | | POST | `/flags/read` | `{ids?}` | `{updated:int}` |
 | Places(参照) | GET | `/places/search?q=` | — | `PlaceSearchResult[]`(都度取得・非保存) |
 | | GET | `/places/{placeId}` | — | `PlaceDTO`(都度取得・非保存) |

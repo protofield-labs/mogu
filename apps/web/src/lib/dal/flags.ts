@@ -1,12 +1,28 @@
 import "server-only";
 
 import { withAuthRls } from "@/lib/auth/with-auth-rls";
+import { toUserDto, userSelect } from "@/lib/dal/users";
 
 export type FlagNotificationDto = {
   type: "recollected";
   count: number;
   isAnonymous: boolean;
   weekOf: string;
+};
+
+export type FlagEventDto = {
+  id: string;
+  spotId: string | null;
+  collectionId: string | null;
+  placeId: string | null;
+  spotComment: string | null;
+  actor: {
+    id: string;
+    displayName: string;
+    avatarColor: string;
+  } | null;
+  isAnonymous: boolean;
+  createdAt: string;
 };
 
 /** Validate a real calendar date; DB-side date_trunc snaps it to the week start. */
@@ -81,6 +97,46 @@ export async function listFlagNotifications(
       weekOf: row.week_of.toISOString().slice(0, 10),
     }));
   });
+}
+
+const DEFAULT_FLAG_EVENTS_LIMIT = 50;
+
+/** Chronological flag events for notification center (#119). */
+export async function listFlagEvents(
+  uid: string,
+  limit: number = DEFAULT_FLAG_EVENTS_LIMIT,
+): Promise<FlagEventDto[]> {
+  const safeLimit = Math.min(Math.max(limit, 1), 100);
+
+  return withAuthRls(uid, (tx) =>
+    tx.flag.findMany({
+      where: { recipientId: uid },
+      orderBy: { createdAt: "desc" },
+      take: safeLimit,
+      include: {
+        actor: { select: userSelect },
+        spot: {
+          select: {
+            id: true,
+            collectionId: true,
+            placeId: true,
+            comment: true,
+          },
+        },
+      },
+    }),
+  ).then((rows) =>
+    rows.map((row) => ({
+      id: row.id,
+      spotId: row.spotId,
+      collectionId: row.spot?.collectionId ?? null,
+      placeId: row.spot?.placeId ?? null,
+      spotComment: row.spot?.comment ?? null,
+      actor: row.isAnonymous || !row.actor ? null : toUserDto(row.actor),
+      isAnonymous: row.isAnonymous,
+      createdAt: row.createdAt.toISOString(),
+    })),
+  );
 }
 
 /** Mark flag notifications read (#38). Empty ids marks all unread for recipient. */

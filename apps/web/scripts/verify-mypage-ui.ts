@@ -82,13 +82,13 @@ function main() {
   );
   assert(
     getNotificationHref({ pendingFriendRequests: 2, unreadFlags: 1 }) ===
-      "/mypage/friends",
-    "bell links to friends when requests pending",
+      "/notifications",
+    "bell links to notification center",
   );
   assert(
     getNotificationHref({ pendingFriendRequests: 0, unreadFlags: 3 }) ===
-      "/mypage",
-    "bell links to mypage for flag inbox when no requests",
+      "/notifications",
+    "bell always links to notification center",
   );
 
   assert(

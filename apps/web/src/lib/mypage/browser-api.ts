@@ -3,6 +3,7 @@
 import { apiJson, apiVoid, parseApiJson } from "@/lib/api/browser-client";
 import { collectionSchema } from "@/lib/api/schemas/collection";
 import {
+  flagEventListSchema,
   flagNotificationListSchema,
   flagsReadResponseSchema,
   friendRequestListSchema,
@@ -13,6 +14,7 @@ import { meProfileSchema, userSchema } from "@/lib/users/types";
 import { authFetch } from "@/lib/auth/auth-fetch";
 import { z } from "zod";
 import type {
+  FlagEvent,
   FlagNotification,
   FriendRequest,
   FriendUser,
@@ -51,7 +53,15 @@ export async function fetchFlagNotifications(): Promise<FlagNotification[]> {
   );
 }
 
-export async function markFlagsRead(): Promise<number> {
+export async function fetchFlagEvents(): Promise<FlagEvent[]> {
+  return apiJson(
+    "/api/v1/flags/events",
+    flagEventListSchema,
+    "フラグを読み込めませんでした",
+  );
+}
+
+export async function markFlagsRead(ids?: string[]): Promise<number> {
   const body = await apiJson(
     "/api/v1/flags/read",
     flagsReadResponseSchema,
@@ -60,7 +70,7 @@ export async function markFlagsRead(): Promise<number> {
       init: {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify(ids && ids.length > 0 ? { ids } : {}),
       },
     },
   );
