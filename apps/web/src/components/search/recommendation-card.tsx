@@ -19,6 +19,39 @@ type RecommendationCardProps = {
   recommendation: Recommendation;
 };
 
+function AlternativeSpotRow({ spot }: { spot: Spot }) {
+  const recollect = useRecollect(spot.id);
+
+  return (
+    <li className="rounded-lg border border-border bg-background p-3">
+      <SpotSummary spot={spot} compact />
+      <div className="mt-2 flex flex-wrap gap-2">
+        <a
+          href={googleMapsPlaceUrl(spot.placeId)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex h-7 items-center justify-center rounded-[min(var(--radius-md),12px)] border border-border bg-background px-2.5 text-[0.8rem] font-medium hover:bg-muted hover:text-foreground"
+        >
+          地図で開く
+        </a>
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={recollect.busy}
+          aria-pressed={recollect.saved}
+          {...recollect.saveHandlers}
+        >
+          {recollect.saved ? "保存済み" : "リコレクション"}
+        </Button>
+      </div>
+      {recollect.error ? (
+        <p className="mt-2 text-xs text-destructive">{recollect.error}</p>
+      ) : null}
+      <RecollectPicker spotId={spot.id} recollect={recollect} />
+    </li>
+  );
+}
+
 function SpotSummary({ spot, compact = false }: { spot: Spot; compact?: boolean }) {
   return (
     <div className={compact ? "text-sm text-muted-foreground" : undefined}>
@@ -105,12 +138,7 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
           </summary>
           <ul className="mt-2 flex flex-col gap-3">
             {alternatives.map((alt) => (
-              <li
-                key={alt.id}
-                className="rounded-lg border border-border bg-background p-3"
-              >
-                <SpotSummary spot={alt} compact />
-              </li>
+              <AlternativeSpotRow key={alt.id} spot={alt} />
             ))}
           </ul>
         </details>

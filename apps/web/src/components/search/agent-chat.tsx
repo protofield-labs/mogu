@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { LoaderCircleIcon, SparklesIcon } from "lucide-react";
+import { LoaderCircleIcon, MessageSquarePlusIcon, SparklesIcon } from "lucide-react";
 
 import {
   Bubble,
@@ -33,14 +33,22 @@ import {
   createWelcomeEntry,
   formatAgentUserError,
   formatUserBubbleText,
+  isAgentSessionUnavailableError,
   type ChatEntry,
 } from "@/lib/agent/chat-helpers";
+import {
+  clearAgentChatSession,
+  loadAgentChatSession,
+  saveAgentChatSession,
+} from "@/lib/agent/session-storage";
 import {
   consumePendingRecommendation,
 } from "@/lib/home/pending-recommendation";
 import type { Recommendation } from "@/lib/agent/types";
 import { AgentChatSkeleton } from "@/components/loading/skeletons";
+import { AgentStructuredChips } from "@/components/search/agent-structured-chips";
 import { RecommendationCard } from "@/components/search/recommendation-card";
+import { useAuth } from "@/contexts/auth-context";
 
 type SessionStatus = "loading" | "ready" | "error";
 
@@ -132,6 +140,8 @@ function AgentBubble({
 }
 
 export function AgentChat() {
+  const { user, loading: authLoading } = useAuth();
+  const userId = user?.uid ?? null;
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>("loading");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [entries, setEntries] = useState<ChatEntry[]>([]);
@@ -141,67 +151,102 @@ export function AgentChat() {
   const [sendError, setSendError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [retryingSession, setRetryingSession] = useState(false);
+  const [resettingConsultation, setResettingConsultation] = useState(false);
   const pendingRecommendationRef = useRef<Recommendation | null | undefined>(
     undefined,
   );
   const sendingRef = useRef(false);
   const mountInitStartedRef = useRef(false);
   const connectGenerationRef = useRef(0);
+  const sessionPersistEnabledRef = useRef(true);
 
-  async function connectAgentChatSession({ isRetry = false } = {}) {
-    const generation = ++connectGenerationRef.current;
+  const invalidateStoredSession = useCallback(() => {
+    clearAgentChatSession();
+    sessionPersistEnabledRef.current = false;
+  }, []);
 
-    if (isRetry) {
-      setSessionStatus("loading");
-      setInitError(null);
-      setSendError(null);
-    }
+  const connectAgentChatSession = useCallback(
+    async ({ isRetry = false } = {}) => {
+      const generation = ++connectGenerationRef.current;
 
-    if (pendingRecommendationRef.current === undefined) {
-      pendingRecommendationRef.current = consumePendingRecommendation();
-    }
-
-    try {
-      const id = await createAgentSession();
-      if (generation !== connectGenerationRef.current) {
-        return;
+      if (isRetry) {
+        setSessionStatus("loading");
+        setInitError(null);
+        setSendError(null);
       }
-      const initialEntries: ChatEntry[] = [createWelcomeEntry()];
+
+      if (pendingRecommendationRef.current === undefined) {
+        pendingRecommendationRef.current = consumePendingRecommendation();
+      }
       const pending = pendingRecommendationRef.current;
-      if (pending) {
-        initialEntries.push(
-          createAgentEntry({
-            text: pending.assertion,
-            recommendation: pending,
-          }),
+
+      if (!pending && userId) {
+        const stored = loadAgentChatSession(userId);
+        if (stored && generation === connectGenerationRef.current) {
+          setSessionId(stored.sessionId);
+          setEntries(stored.entries);
+          setSessionStatus("ready");
+          sessionPersistEnabledRef.current = true;
+          return;
+        }
+      }
+
+      try {
+        const id = await createAgentSession();
+        if (generation !== connectGenerationRef.current) {
+          return;
+        }
+        const initialEntries: ChatEntry[] = [createWelcomeEntry()];
+        if (pending) {
+          initialEntries.push(
+            createAgentEntry({
+              text: pending.assertion,
+              recommendation: pending,
+            }),
+          );
+          pendingRecommendationRef.current = null;
+        }
+        setSessionId(id);
+        setEntries(initialEntries);
+        setSessionStatus("ready");
+        sessionPersistEnabledRef.current = true;
+      } catch (err) {
+        if (generation !== connectGenerationRef.current) {
+          return;
+        }
+        setSessionId(null);
+        setInitError(
+          formatAgentUserError(err, "セッションの開始に失敗しました"),
         );
-        pendingRecommendationRef.current = null;
+        setEntries([createWelcomeEntry()]);
+        setSessionStatus("error");
       }
-      setSessionId(id);
-      setEntries(initialEntries);
-      setSessionStatus("ready");
-    } catch (err) {
-      if (generation !== connectGenerationRef.current) {
-        return;
-      }
-      setSessionId(null);
-      setInitError(
-        formatAgentUserError(err, "セッションの開始に失敗しました"),
-      );
-      setEntries([createWelcomeEntry()]);
-      setSessionStatus("error");
-    }
-  }
+    },
+    [userId],
+  );
 
   useEffect(() => {
-    if (mountInitStartedRef.current) {
+    if (authLoading || mountInitStartedRef.current) {
       return;
     }
     mountInitStartedRef.current = true;
     queueMicrotask(() => {
       void connectAgentChatSession();
     });
-  }, []);
+  }, [authLoading, connectAgentChatSession]);
+
+  useEffect(() => {
+    if (
+      !sessionPersistEnabledRef.current ||
+      sessionStatus !== "ready" ||
+      !sessionId ||
+      !userId ||
+      entries.length === 0
+    ) {
+      return;
+    }
+    saveAgentChatSession(userId, sessionId, entries);
+  }, [sessionStatus, sessionId, userId, entries]);
 
   async function handleRetrySession() {
     if (retryingSession) {
@@ -212,6 +257,20 @@ export function AgentChat() {
       await connectAgentChatSession({ isRetry: true });
     } finally {
       setRetryingSession(false);
+    }
+  }
+
+  async function handleNewConsultation() {
+    if (resettingConsultation || retryingSession || sending) {
+      return;
+    }
+    setResettingConsultation(true);
+    invalidateStoredSession();
+    pendingRecommendationRef.current = null;
+    try {
+      await connectAgentChatSession({ isRetry: true });
+    } finally {
+      setResettingConsultation(false);
     }
   }
 
@@ -268,9 +327,16 @@ export function AgentChat() {
       } catch (err) {
         setEntries((prev) => prev.filter((entry) => entry.id !== userEntry.id));
         setInput(trimmed);
-        setSendError(
-          formatAgentUserError(err, "メッセージの送信に失敗しました"),
-        );
+        if (isAgentSessionUnavailableError(err)) {
+          invalidateStoredSession();
+          setSendError(
+            "セッションの有効期限が切れました。「新しい相談」から再度お試しください。",
+          );
+        } else {
+          setSendError(
+            formatAgentUserError(err, "メッセージの送信に失敗しました"),
+          );
+        }
       } finally {
         abort.abort();
         setThinkingMessages([]);
@@ -278,7 +344,7 @@ export function AgentChat() {
         setSending(false);
       }
     },
-    [sessionId],
+    [sessionId, invalidateStoredSession],
   );
 
   function handleSubmit(event: React.FormEvent) {
@@ -291,9 +357,27 @@ export function AgentChat() {
   }
 
   const inputDisabled =
-    sessionStatus !== "ready" || sending || retryingSession || !sessionId;
+    sessionStatus !== "ready" ||
+    sending ||
+    retryingSession ||
+    resettingConsultation ||
+    !sessionId;
   const showInitialSkeleton =
-    sessionStatus === "loading" && entries.length === 0 && !retryingSession;
+    sessionStatus === "loading" &&
+    entries.length === 0 &&
+    !retryingSession &&
+    !resettingConsultation;
+  const hasUserMessages = entries.some((entry) => entry.kind === "user");
+  const isWelcomeOnly =
+    entries.length === 1 &&
+    entries[0]?.kind === "agent" &&
+    entries[0]?.id === "welcome";
+  const showStructuredChips =
+    sessionStatus === "ready" &&
+    isWelcomeOnly &&
+    !hasUserMessages &&
+    !sending &&
+    !resettingConsultation;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -302,6 +386,28 @@ export function AgentChat() {
           <SparklesIcon className="size-4" aria-hidden />
           mogu
         </div>
+        {sessionStatus === "ready" ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={resettingConsultation || sending}
+            onClick={() => void handleNewConsultation()}
+            className="text-muted-foreground"
+          >
+            {resettingConsultation ? (
+              <>
+                <LoaderCircleIcon className="size-4 animate-spin" aria-hidden />
+                開始中…
+              </>
+            ) : (
+              <>
+                <MessageSquarePlusIcon className="size-4" aria-hidden />
+                新しい相談
+              </>
+            )}
+          </Button>
+        ) : null}
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col">
@@ -321,11 +427,26 @@ export function AgentChat() {
                     {entry.kind === "user" ? (
                       <UserBubble entry={entry} />
                     ) : (
-                      <AgentBubble
-                        entry={entry}
-                        onChipSelect={handleChipSelect}
-                        disabled={inputDisabled}
-                      />
+                      <>
+                        <AgentBubble
+                          entry={entry}
+                          onChipSelect={handleChipSelect}
+                          disabled={inputDisabled}
+                        />
+                        {entry.id === "welcome" && showStructuredChips ? (
+                          <Message align="start">
+                            <AgentAvatar />
+                            <MessageContent>
+                              <AgentStructuredChips
+                                disabled={inputDisabled}
+                                onSend={(text, chips) => {
+                                  void sendMessage(text, chips);
+                                }}
+                              />
+                            </MessageContent>
+                          </Message>
+                        ) : null}
+                      </>
                     )}
                   </MessageGroup>
                 </MessageScrollerItem>

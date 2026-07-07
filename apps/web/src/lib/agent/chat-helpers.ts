@@ -31,6 +31,20 @@ export function formatAgentUserError(error: unknown, fallback: string): string {
   return message;
 }
 
+/** Client-side signal that a restored Vertex session is no longer usable. */
+export function isAgentSessionUnavailableError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  const message = error.message;
+  return (
+    message.includes("イベントストリーム") ||
+    message.includes("メッセージを送信") ||
+    message === "対象が見つかりません" ||
+    message === "この操作は許可されていません"
+  );
+}
+
 export type ChatEntry =
   | { id: string; kind: "user"; text: string; chips?: string[] }
   | { id: string; kind: "agent"; text: string; recommendation?: Recommendation; quickReplies?: string[] };
