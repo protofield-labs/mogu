@@ -1,8 +1,9 @@
 "use client";
 
-import { ChevronLeft, Plus, X } from "lucide-react";
+import { ChevronLeft, LocateFixed, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { CollectionSpotMapView } from "@/components/collections/collection-spot-map-view";
 import {
@@ -32,8 +33,11 @@ import { pickAutoCoverUrls } from "@/lib/collections/cover";
 import { googleMapsPlaceUrl } from "@/lib/agent/chat-helpers";
 import { formatRatingChip } from "@/lib/home/feed-labels";
 import { formatCollectionVisibility } from "@/lib/labels/collection-labels";
+import { sortSpotsByDistance, spotDistanceLabels } from "@/lib/places/geo";
 import { usePlace } from "@/lib/places/use-place";
+import { usePlaceLocations } from "@/lib/places/use-place-locations";
 import { usePlaceNames } from "@/lib/places/use-place-names";
+import { useUserLocation } from "@/lib/places/use-user-location";
 import { deleteSpot, type Spot } from "@/lib/spots/browser-api";
 import { collectionShareUrl, spotShareUrl } from "@/lib/share/share-url";
 
@@ -86,6 +90,7 @@ export function CollectionDetailView({
     [detail?.spots],
   );
   const placeNames = usePlaceNames(spotPlaceIds);
+  const userLocation = useUserLocation();
   const filteredSpots = useMemo(
     () =>
       filterCollectionSpots(
@@ -96,6 +101,58 @@ export function CollectionDetailView({
       ),
     [detail?.spots, spotSearchQuery, ratingFilter, placeNames],
   );
+  const filteredPlaceIds = useMemo(
+    () => filteredSpots.map((spot) => spot.placeId),
+    [filteredSpots],
+  );
+  const { locations: spotLocations, loading: spotLocationsLoading, error: spotLocationsError } =
+    usePlaceLocations(filteredPlaceIds, userLocation.location !== null);
+  const locationPoints = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(spotLocations).map(([placeId, location]) => [
+          placeId,
+          { lat: location.lat, lng: location.lng },
+        ]),
+      ),
+    [spotLocations],
+  );
+  const orderedSpots = useMemo(() => {
+    if (!userLocation.location || spotLocationsLoading) {
+      return filteredSpots;
+    }
+    return sortSpotsByDistance(filteredSpots, userLocation.location, locationPoints);
+  }, [
+    filteredSpots,
+    userLocation.location,
+    locationPoints,
+    spotLocationsLoading,
+  ]);
+  const spotDistanceLabelsMap = useMemo(() => {
+    if (!userLocation.location || spotLocationsLoading) {
+      return {};
+    }
+    return spotDistanceLabels(orderedSpots, userLocation.location, locationPoints);
+  }, [
+    orderedSpots,
+    userLocation.location,
+    locationPoints,
+    spotLocationsLoading,
+  ]);
+
+  useEffect(() => {
+    if (!userLocation.error) {
+      return;
+    }
+    toast.error(userLocation.error);
+  }, [userLocation.error]);
+
+  useEffect(() => {
+    if (!spotLocationsError || !userLocation.location) {
+      return;
+    }
+    toast.error(spotLocationsError);
+  }, [spotLocationsError, userLocation.location]);
 
   if (collectionId !== prevCollectionId || initialSpotId !== prevInitialSpotId) {
     setPrevCollectionId(collectionId);
@@ -395,6 +452,17 @@ export function CollectionDetailView({
                   {option.label}
                 </Button>
               ))}
+              <Button
+                type="button"
+                size="sm"
+                variant={userLocation.location && !spotLocationsLoading ? "default" : "outline"}
+                className="rounded-full"
+                disabled={userLocation.pending || spotLocationsLoading}
+                onClick={() => userLocation.requestLocation()}
+              >
+                <LocateFixed className="size-3.5" aria-hidden />
+                近い順
+              </Button>
             </div>
           </div>
         ) : null}
@@ -415,8 +483,9 @@ export function CollectionDetailView({
           </EmptyState>
         ) : spotViewMode === "map" ? (
           <CollectionSpotMapView
-            spots={filteredSpots}
+            spots={orderedSpots}
             placeNames={placeNames}
+            userLocation={userLocation}
             selectedSpotId={mapSelectedSpotId}
             onSelectSpot={(spot) => setMapSelectedSpotId(spot.id)}
             onClearSelection={() => setMapSelectedSpotId(null)}
@@ -424,9 +493,10 @@ export function CollectionDetailView({
           />
         ) : (
           <SpotList
-            spots={filteredSpots}
+            spots={orderedSpots}
             onSelect={handleSelectSpot}
             placeNames={placeNames}
+            distanceLabels={spotDistanceLabelsMap}
           />
         )}
       </section>
