@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { AvatarRow, FeedFilterChip } from "@/components/home/avatar-row";
+import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
 import { MoguWordmark } from "@/components/brand/mogu-wordmark";
 import { FeedCompactRow } from "@/components/home/feed-compact-row";
 import { FeedHeroCard } from "@/components/home/feed-hero-card";
@@ -204,7 +205,10 @@ export function HomeView() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5 py-mogu-screen-y">
       <header className="flex items-center justify-between px-mogu-screen-x">
-        <MoguWordmark as="h1" />
+        <div className="flex items-center gap-2">
+          <MoguBrandIcon className="size-5" />
+          <MoguWordmark as="h1" />
+        </div>
         <HomeNotificationButton />
       </header>
 
