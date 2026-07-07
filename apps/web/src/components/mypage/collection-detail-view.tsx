@@ -42,6 +42,7 @@ export function CollectionDetailView({
   const [deletingSpot, setDeletingSpot] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
   const [prevCollectionId, setPrevCollectionId] = useState(collectionId);
+  const [prevInitialSpotId, setPrevInitialSpotId] = useState(initialSpotId);
   const formSectionRef = useRef<HTMLElement>(null);
   const initialSpotHandledRef = useRef(false);
 
@@ -55,8 +56,9 @@ export function CollectionDetailView({
   );
   const placeNames = usePlaceNames(spotPlaceIds);
 
-  if (collectionId !== prevCollectionId) {
+  if (collectionId !== prevCollectionId || initialSpotId !== prevInitialSpotId) {
     setPrevCollectionId(collectionId);
+    setPrevInitialSpotId(initialSpotId);
     setLoading(true);
     setLoadError(null);
     setDetail(null);
@@ -65,6 +67,10 @@ export function CollectionDetailView({
     setDetailOpen(false);
     setDeleteSpotTarget(null);
   }
+
+  useEffect(() => {
+    initialSpotHandledRef.current = false;
+  }, [collectionId, initialSpotId]);
 
   useEffect(() => {
     let cancelled = false;

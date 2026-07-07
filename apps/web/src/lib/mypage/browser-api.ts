@@ -61,7 +61,7 @@ export async function fetchFlagEvents(): Promise<FlagEvent[]> {
   );
 }
 
-export async function markFlagsRead(): Promise<number> {
+export async function markFlagsRead(ids?: string[]): Promise<number> {
   const body = await apiJson(
     "/api/v1/flags/read",
     flagsReadResponseSchema,
@@ -70,7 +70,7 @@ export async function markFlagsRead(): Promise<number> {
       init: {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify(ids && ids.length > 0 ? { ids } : {}),
       },
     },
   );

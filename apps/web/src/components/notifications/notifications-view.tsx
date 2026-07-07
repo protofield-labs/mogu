@@ -18,7 +18,6 @@ import {
   acceptFriendRequest,
   fetchFlagEvents,
   fetchIncomingFriendRequests,
-  fetchMeBadges,
   markFlagsRead,
   rejectFriendRequest,
 } from "@/lib/mypage/browser-api";
@@ -105,10 +104,9 @@ export function NotificationsView() {
 
     async function load() {
       try {
-        const [incoming, events, badges] = await Promise.all([
+        const [incoming, events] = await Promise.all([
           fetchIncomingFriendRequests(),
           fetchFlagEvents(),
-          fetchMeBadges().catch(() => null),
         ]);
 
         if (cancelled) {
@@ -118,9 +116,9 @@ export function NotificationsView() {
         setRequests(incoming);
         setFlagEvents(events);
 
-        if (badges && badges.unreadFlags > 0) {
+        if (events.length > 0) {
           try {
-            await markFlagsRead();
+            await markFlagsRead(events.map((event) => event.id));
             notifyBadgesUpdated();
           } catch {
             // Best-effort read state; timeline remains visible.
