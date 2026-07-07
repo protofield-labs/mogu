@@ -13,10 +13,12 @@ function collectionInitials(name: string): string {
 
 function CollectionTile({
   collection,
+  href,
   onEdit,
   onDelete,
 }: {
   collection: Collection;
+  href: string;
   onEdit?: (collection: Collection) => void;
   onDelete?: (collection: Collection) => void;
 }) {
@@ -24,7 +26,7 @@ function CollectionTile({
 
   return (
     <article className="space-y-2">
-      <Link href={`/mypage/collections/${collection.id}`} className="block">
+      <Link href={href} className="block">
         <div className="relative aspect-square overflow-hidden rounded-2xl bg-gradient-to-br from-muted to-background shadow-sm transition-shadow hover:shadow-md">
         {collection.coverUrl ? (
           <div
@@ -82,25 +84,30 @@ type CollectionGridProps = {
   collections: Collection[];
   onEdit?: (collection: Collection) => void;
   onDelete?: (collection: Collection) => void;
+  getCollectionHref?: (collection: Collection) => string;
+  showUpsell?: boolean;
+  emptyMessage?: string;
 };
 
 export function CollectionGrid({
   collections,
   onEdit,
   onDelete,
+  getCollectionHref = (collection) => `/mypage/collections/${collection.id}`,
+  showUpsell = true,
+  emptyMessage = "まだコレクションがありません。最初のコレクションを作ってみましょう。",
 }: CollectionGridProps) {
   return (
     <section className="space-y-4 px-mogu-screen-x">
       {collections.length === 0 ? (
-        <EmptyState>
-          まだコレクションがありません。最初のコレクションを作ってみましょう。
-        </EmptyState>
+        <EmptyState>{emptyMessage}</EmptyState>
       ) : (
         <div className="grid grid-cols-2 gap-3">
           {collections.map((collection) => (
             <CollectionTile
               key={collection.id}
               collection={collection}
+              href={getCollectionHref(collection)}
               onEdit={onEdit}
               onDelete={onDelete}
             />
@@ -108,15 +115,17 @@ export function CollectionGrid({
         </div>
       )}
 
-      <EmptyState className="p-5">
-        <p className="inline-flex items-center justify-center gap-2 text-sm font-medium text-foreground">
-          <Sparkles className="size-4" aria-hidden />
-          + このコレクションに合いそうなお店
-        </p>
-        <p className="mt-2 text-xs text-muted-foreground">
-          スポットが増えるほど、断言が鋭くなります
-        </p>
-      </EmptyState>
+      {showUpsell ? (
+        <EmptyState className="p-5">
+          <p className="inline-flex items-center justify-center gap-2 text-sm font-medium text-foreground">
+            <Sparkles className="size-4" aria-hidden />
+            + このコレクションに合いそうなお店
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            スポットが増えるほど、断言が鋭くなります
+          </p>
+        </EmptyState>
+      ) : null}
     </section>
   );
 }

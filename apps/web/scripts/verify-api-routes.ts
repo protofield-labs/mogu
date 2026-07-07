@@ -14,6 +14,7 @@ import {
   friendRequestsQuerySchema,
   pairIdRouteParamsSchema,
   provisionBodySchema,
+  userIdRouteParamsSchema,
   userSearchQuerySchema,
 } from "../src/lib/api/route-schemas";
 
@@ -72,6 +73,7 @@ assert(
 assert(feedQuerySchema.safeParse({}).success, "feed query allows empty");
 assert(collectionsListQuerySchema.safeParse({ ownerId: "me" }).success, "collections ownerId query");
 assert(userSearchQuerySchema.safeParse({ q: "Ken" }).success, "user search query");
+assert(userIdRouteParamsSchema.safeParse({ id: "uid-1" }).success, "user id route param");
 assert(friendRequestsQuerySchema.safeParse({ box: "in" }).success, "friend requests query");
 assert(provisionBodySchema.safeParse({ displayName: "Ken" }).success, "provision body");
 

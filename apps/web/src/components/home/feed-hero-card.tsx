@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 import { FeedSpotDetailSheet } from "@/components/home/feed-spot-detail-sheet";
@@ -14,14 +15,16 @@ import {
 } from "@/lib/home/feed-labels";
 import { recollectFeedSpot } from "@/lib/home/recollect-spot";
 import type { FeedItem } from "@/lib/home/types";
+import { actorProfilePath } from "@/lib/friends/paths";
 import { showRecollectSuccessToast } from "@/lib/ui/recollect-toast";
 import { usePlace } from "@/lib/places/use-place";
 
 type FeedHeroCardProps = {
   item: FeedItem;
+  viewerId?: string | null;
 };
 
-export function FeedHeroCard({ item }: FeedHeroCardProps) {
+export function FeedHeroCard({ item, viewerId }: FeedHeroCardProps) {
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,36 +82,37 @@ export function FeedHeroCard({ item }: FeedHeroCardProps) {
           ) : null}
         </div>
 
-        <button
-          type="button"
-          className="block w-full text-left"
-          onClick={openDetail}
-        >
-          <div className="space-y-2 p-mogu-screen-x py-3">
-            <div className="flex items-start gap-2">
-              <UserAvatar
-                displayName={item.actor.displayName}
-                avatarColor={item.actor.avatarColor}
-                size="md"
+        <div className="space-y-2 p-mogu-screen-x py-3">
+          <Link
+            href={actorProfilePath(item.actor.id, viewerId)}
+            className="flex items-start gap-2"
+          >
+            <UserAvatar
+              displayName={item.actor.displayName}
+              avatarColor={item.actor.avatarColor}
+              size="md"
+            />
+            <p className="pt-1 text-xs text-muted-foreground">
+              {formatViaLabel(item.actor.displayName)}
+            </p>
+          </Link>
+          <button
+            type="button"
+            className="block w-full text-left"
+            onClick={openDetail}
+          >
+            <p className="text-sm font-semibold text-foreground">
+              <SpotPlaceName
+                placeId={item.spot.placeId}
+                fallback={titleFallback}
+                placeName={placeName}
               />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-foreground">
-                  <SpotPlaceName
-                    placeId={item.spot.placeId}
-                    fallback={titleFallback}
-                    placeName={placeName}
-                  />
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {formatViaLabel(item.actor.displayName)}
-                </p>
-                {placeName && item.spot.comment ? (
-                  <p className="mt-1 text-sm text-foreground">{item.spot.comment}</p>
-                ) : null}
-              </div>
-            </div>
-          </div>
-        </button>
+            </p>
+            {placeName && item.spot.comment ? (
+              <p className="mt-1 text-sm text-foreground">{item.spot.comment}</p>
+            ) : null}
+          </button>
+        </div>
 
         <div className="space-y-3 px-mogu-screen-x pb-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -143,6 +147,7 @@ export function FeedHeroCard({ item }: FeedHeroCardProps) {
         saved={saved}
         busy={busy}
         error={error}
+        viewerId={viewerId}
         onSave={() => void handleSave()}
       />
     </>

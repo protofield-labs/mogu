@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 import { FeedSpotDetailSheet } from "@/components/home/feed-spot-detail-sheet";
@@ -9,14 +10,16 @@ import { Button } from "@/components/ui/button";
 import { formatViaLabel } from "@/lib/home/feed-labels";
 import { recollectFeedSpot } from "@/lib/home/recollect-spot";
 import type { FeedItem } from "@/lib/home/types";
+import { friendProfilePath, actorProfilePath } from "@/lib/friends/paths";
 import { showRecollectSuccessToast } from "@/lib/ui/recollect-toast";
 import { usePlace } from "@/lib/places/use-place";
 
 type FeedCompactRowProps = {
   item: FeedItem;
+  viewerId?: string | null;
 };
 
-export function FeedCompactRow({ item }: FeedCompactRowProps) {
+export function FeedCompactRow({ item, viewerId }: FeedCompactRowProps) {
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,40 +51,50 @@ export function FeedCompactRow({ item }: FeedCompactRowProps) {
       <article className="mogu-elevated flex items-center gap-3 rounded-2xl border border-border p-3">
         <button
           type="button"
-          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+          className="shrink-0"
           onClick={openDetail}
+          aria-label="スポット詳細を開く"
         >
           {photo ? (
             <AuthImage
               objectUrl={photo}
               alt=""
-              className="size-12 shrink-0 rounded-xl object-cover"
+              className="size-12 rounded-xl object-cover"
             />
           ) : (
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-muted text-xs text-muted-foreground">
+            <span className="flex size-12 items-center justify-center rounded-xl bg-muted text-xs text-muted-foreground">
               店
             </span>
           )}
-
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-foreground">
-              <SpotPlaceName
-                placeId={item.spot.placeId}
-                fallback={titleFallback}
-                placeName={placeName}
-              />
-            </p>
-            <p className="truncate text-xs text-muted-foreground">
-              {formatViaLabel(item.actor.displayName)}
-              {placeName && item.spot.comment ? ` · ${item.spot.comment}` : ""}
-            </p>
-            {error ? (
-              <p className="mt-1 text-xs text-destructive" role="alert">
-                {error}
-              </p>
-            ) : null}
-          </div>
         </button>
+
+        <div className="min-w-0 flex-1">
+          <button
+            type="button"
+            className="block w-full truncate text-left text-sm font-medium text-foreground"
+            onClick={openDetail}
+          >
+            <SpotPlaceName
+              placeId={item.spot.placeId}
+              fallback={titleFallback}
+              placeName={placeName}
+            />
+          </button>
+          <p className="truncate text-xs text-muted-foreground">
+            <Link
+              href={actorProfilePath(item.actor.id, viewerId)}
+              className="hover:underline"
+            >
+              {formatViaLabel(item.actor.displayName)}
+            </Link>
+            {placeName && item.spot.comment ? ` · ${item.spot.comment}` : ""}
+          </p>
+          {error ? (
+            <p className="mt-1 text-xs text-destructive" role="alert">
+              {error}
+            </p>
+          ) : null}
+        </div>
 
         <Button
           type="button"
@@ -104,6 +117,7 @@ export function FeedCompactRow({ item }: FeedCompactRowProps) {
         saved={saved}
         busy={busy}
         error={error}
+        viewerId={viewerId}
         onSave={() => void handleSave()}
       />
     </>

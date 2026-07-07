@@ -1,6 +1,7 @@
 import "server-only";
 
 import { withAuthRls } from "@/lib/auth/with-auth-rls";
+import { normalizeFriendshipPair } from "@/lib/friendship/pair";
 
 export type UserDto = {
   id: string;
@@ -13,6 +14,13 @@ export type MeDto = UserDto & {
     collections: number;
     spots: number;
     friends: number;
+  };
+};
+
+export type FriendProfileDto = UserDto & {
+  counts: {
+    collections: number;
+    spots: number;
   };
 };
 
@@ -77,6 +85,51 @@ export type MeBadgesDto = {
   pendingFriendRequests: number;
   unreadFlags: number;
 };
+
+/** Fetch an accepted friend's public profile for the viewer (#116). */
+export async function getFriendProfile(
+  viewerUid: string,
+  targetUid: string,
+): Promise<FriendProfileDto | null> {
+  if (viewerUid === targetUid) {
+    return null;
+  }
+
+  const result = await withAuthRls(viewerUid, async (tx) => {
+    const pair = normalizeFriendshipPair(viewerUid, targetUid);
+    const friendship = await tx.friendship.findUnique({
+      where: { userLow_userHigh: pair },
+      select: { status: true },
+    });
+    if (!friendship || friendship.status !== "accepted") {
+      return null;
+    }
+
+    const user = await tx.user.findUnique({
+      where: { firebaseUid: targetUid },
+      select: userSelect,
+    });
+    if (!user) {
+      return null;
+    }
+
+    const [collections, spots] = await Promise.all([
+      tx.collection.count({ where: { ownerId: targetUid } }),
+      tx.spot.count({ where: { addedBy: targetUid } }),
+    ]);
+
+    return { user, counts: { collections, spots } };
+  });
+
+  if (!result) {
+    return null;
+  }
+
+  return {
+    ...toUserDto(result.user),
+    counts: result.counts,
+  };
+}
 
 /** Fetch lightweight badge counts for mypage/tab indicators. */
 export async function getMeBadges(uid: string): Promise<MeBadgesDto> {

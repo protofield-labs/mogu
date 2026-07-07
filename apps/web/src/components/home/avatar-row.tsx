@@ -9,6 +9,7 @@ import {
   sortFriendsForAvatarRow,
 } from "@/lib/home/feed-read";
 import type { FeedItem } from "@/lib/home/types";
+import { friendProfilePath } from "@/lib/friends/paths";
 import type { FriendUser } from "@/lib/mypage/types";
 
 type AvatarRowProps = {
@@ -26,8 +27,9 @@ export function AvatarRow({ friends, feedItems, lastReadAt }: AvatarRowProps) {
       className="flex gap-3 overflow-x-auto px-mogu-screen-x pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {sorted.map((friend) => (
-        <div
+        <Link
           key={friend.id}
+          href={friendProfilePath(friend.id)}
           className="flex w-14 shrink-0 flex-col items-center gap-1"
         >
           <UserAvatar
@@ -38,7 +40,7 @@ export function AvatarRow({ friends, feedItems, lastReadAt }: AvatarRowProps) {
           <span className="w-full truncate text-center text-xs text-muted-foreground">
             {friend.displayName}
           </span>
-        </div>
+        </Link>
       ))}
 
       <Link

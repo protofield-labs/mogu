@@ -18,6 +18,10 @@ export const userSearchQuerySchema = z.object({
   q: z.string().trim().min(1).max(100),
 });
 
+export const userIdRouteParamsSchema = z.object({
+  id: z.string().trim().min(1).max(128),
+});
+
 export const friendRequestsQuerySchema = z.object({
   box: z.enum(["in", "out"]),
 });

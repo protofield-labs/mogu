@@ -14,6 +14,13 @@ export const meProfileSchema = userSchema.extend({
   }),
 });
 
+export const friendProfileSchema = userSchema.extend({
+  counts: z.object({
+    collections: z.number(),
+    spots: z.number(),
+  }),
+});
+
 export const meBadgesSchema = z.object({
   pendingFriendRequests: z.number(),
   unreadFlags: z.number(),
