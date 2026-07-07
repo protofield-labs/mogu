@@ -1,6 +1,5 @@
 "use client";
 
-import { LoaderCircleIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
@@ -14,6 +13,8 @@ import {
 } from "@/components/auth/auth-form";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { AuthFormSkeleton } from "@/components/loading/skeletons";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/contexts/auth-context";
 import {
   getAuthErrorMessage,
@@ -108,20 +109,16 @@ export default function LoginPage() {
           onChange={setPassword}
         />
         {error ? <AuthErrorMessage message={error} /> : null}
-        <button
-          type="submit"
-          disabled={busy}
-          className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80 disabled:opacity-50"
-        >
+        <Button type="submit" size="cta" disabled={busy}>
           {submitting ? (
             <>
-              <LoaderCircleIcon className="size-4 animate-spin" aria-hidden />
+              <Spinner />
               ログイン中…
             </>
           ) : (
             "メールアドレスでログイン"
           )}
-        </button>
+        </Button>
       </form>
     </AuthFormShell>
   );

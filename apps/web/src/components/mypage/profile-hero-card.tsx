@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { LoaderCircleIcon } from "lucide-react";
 import { useId, useState, type FormEvent } from "react";
 
 import {
   ProfileFormFields,
   type ProfileFormValues,
 } from "@/components/profile/profile-form-fields";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { SurfaceCard } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 import {
   formatStatsRow,
   shouldShowFriendRequestBadge,
@@ -119,13 +121,11 @@ export function ProfileHeroCard({
             )}
           >
             <div className="flex flex-1 flex-col items-center justify-center gap-3 py-2">
-              <span
-                className="flex size-24 items-center justify-center rounded-full text-3xl font-semibold text-white shadow-sm"
-                style={{ backgroundColor: me.avatarColor }}
-                aria-hidden
-              >
-                {me.displayName.slice(0, 1) || "?"}
-              </span>
+              <Avatar
+                displayName={me.displayName}
+                avatarColor={me.avatarColor}
+                size="hero"
+              />
               <div className="min-w-0 text-center">
                 <h2 className="truncate text-lg font-semibold text-foreground">
                   {me.displayName}
@@ -179,11 +179,11 @@ export function ProfileHeroCard({
             </dl>
           </div>
 
-          <div
+          <SurfaceCard
             id={editPanelId}
             inert={!editing}
             className={cn(
-              "absolute inset-0 overflow-hidden rounded-mogu-card bg-mogu-surface-elevated shadow-sm [backface-visibility:hidden] [transform:rotateY(180deg)]",
+              "absolute inset-0 overflow-hidden [backface-visibility:hidden] [transform:rotateY(180deg)]",
               !editing && "pointer-events-none",
             )}
           >
@@ -229,7 +229,7 @@ export function ProfileHeroCard({
                 >
                   {busy ? (
                     <>
-                      <LoaderCircleIcon className="size-3.5 animate-spin" aria-hidden />
+                      <Spinner size="sm" />
                       保存中…
                     </>
                   ) : (
@@ -238,7 +238,7 @@ export function ProfileHeroCard({
                 </Button>
               </div>
             </form>
-          </div>
+          </SurfaceCard>
         </div>
       </div>
     </section>

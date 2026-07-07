@@ -4,8 +4,8 @@ import { Lock, Pencil, Sparkles, Trash2 } from "lucide-react";
 import Link from "next/link";
 
 import type { Collection } from "@/lib/collections/browser-api";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatCollectionVisibility } from "@/lib/labels/collection-labels";
-import { cn } from "@/lib/utils";
 
 function collectionInitials(name: string): string {
   return name.trim().slice(0, 1) || "コ";
@@ -92,9 +92,9 @@ export function CollectionGrid({
   return (
     <section className="space-y-4 px-mogu-screen-x">
       {collections.length === 0 ? (
-        <div className="rounded-mogu-card border border-dashed border-border bg-mogu-surface-elevated p-8 text-center text-sm text-muted-foreground">
+        <EmptyState>
           まだコレクションがありません。最初のコレクションを作ってみましょう。
-        </div>
+        </EmptyState>
       ) : (
         <div className="grid grid-cols-2 gap-3">
           {collections.map((collection) => (
@@ -108,11 +108,7 @@ export function CollectionGrid({
         </div>
       )}
 
-      <div
-        className={cn(
-          "rounded-mogu-card border border-dashed border-border bg-mogu-surface-elevated p-5 text-center",
-        )}
-      >
+      <EmptyState className="p-5">
         <p className="inline-flex items-center justify-center gap-2 text-sm font-medium text-foreground">
           <Sparkles className="size-4" aria-hidden />
           + このコレクションに合いそうなお店
@@ -120,7 +116,7 @@ export function CollectionGrid({
         <p className="mt-2 text-xs text-muted-foreground">
           スポットが増えるほど、断言が鋭くなります
         </p>
-      </div>
+      </EmptyState>
     </section>
   );
 }

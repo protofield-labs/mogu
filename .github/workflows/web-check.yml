@@ -95,6 +95,9 @@ jobs:
       - name: Verify dead code cleanup
         run: pnpm exec tsx scripts/verify-dead-code.ts
 
+      - name: Verify UI primitives
+        run: pnpm exec tsx scripts/verify-ui-primitives.ts
+
       - name: Verify agent engine config
         run: pnpm exec tsx scripts/verify-agent-config.ts
 

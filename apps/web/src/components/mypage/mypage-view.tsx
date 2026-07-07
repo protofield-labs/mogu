@@ -5,8 +5,13 @@ import { Plus, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { MypageViewSkeleton } from "@/components/loading/skeletons";
-import { LoadErrorState } from "@/components/ui/load-error-state";
+import { Button } from "@/components/ui/button";
+import { SurfaceCard } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Input, Select } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { LoadErrorState } from "@/components/ui/load-error-state";
+import { Textarea } from "@/components/ui/textarea";
 import { CollectionGrid } from "@/components/mypage/collection-grid";
 import { FlagInboxCard } from "@/components/mypage/flag-inbox-card";
 import { MypageNavTiles } from "@/components/mypage/mypage-nav-tiles";
@@ -309,20 +314,18 @@ export function MypageView() {
           </button>
         </div>
         {showCreateForm ? (
-          <form
-            onSubmit={(event) => void handleCreate(event)}
-            className="space-y-3 rounded-mogu-card bg-mogu-surface-elevated p-4 shadow-sm"
-          >
-            <CollectionFormFields form={createForm} onChange={setCreateForm} />
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
-            <button
-              type="submit"
-              disabled={busy}
-              className="h-10 w-full rounded-2xl bg-primary text-sm font-medium text-primary-foreground disabled:opacity-50"
+          <SurfaceCard className="p-4">
+            <form
+              className="space-y-3"
+              onSubmit={(event) => void handleCreate(event)}
             >
-              作成する
-            </button>
-          </form>
+              <CollectionFormFields form={createForm} onChange={setCreateForm} />
+              {error ? <p className="text-sm text-destructive">{error}</p> : null}
+              <Button type="submit" size="cta" disabled={busy}>
+                作成する
+              </Button>
+            </form>
+          </SurfaceCard>
         ) : null}
       </section>
 
@@ -331,32 +334,31 @@ export function MypageView() {
           <h2 className="text-sm font-semibold text-foreground">
             「{editingCollection.name}」を編集
           </h2>
-          <form
-            onSubmit={(event) => void handleSaveEdit(event)}
-            className="space-y-3 rounded-mogu-card bg-mogu-surface-elevated p-4 shadow-sm"
-          >
-            <CollectionFormFields form={editForm} onChange={setEditForm} />
-            {shelfError ? (
-              <p className="text-sm text-destructive">{shelfError}</p>
-            ) : null}
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                disabled={busy}
-                className="h-10 flex-1 rounded-2xl bg-primary text-sm font-medium text-primary-foreground disabled:opacity-50"
-              >
-                保存
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => setEditingCollection(null)}
-                className="h-10 flex-1 rounded-2xl border border-border bg-background text-sm font-medium"
-              >
-                キャンセル
-              </button>
-            </div>
-          </form>
+          <SurfaceCard className="p-4">
+            <form
+              className="space-y-3"
+              onSubmit={(event) => void handleSaveEdit(event)}
+            >
+              <CollectionFormFields form={editForm} onChange={setEditForm} />
+              {shelfError ? (
+                <p className="text-sm text-destructive">{shelfError}</p>
+              ) : null}
+              <div className="flex gap-2">
+                <Button type="submit" className="h-10 flex-1 rounded-2xl" disabled={busy}>
+                  保存
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 flex-1 rounded-2xl"
+                  disabled={busy}
+                  onClick={() => setEditingCollection(null)}
+                >
+                  キャンセル
+                </Button>
+              </div>
+            </form>
+          </SurfaceCard>
         </section>
       ) : null}
 
@@ -396,34 +398,32 @@ function CollectionFormFields({
 }) {
   return (
     <div className="space-y-3">
-      <label className="block space-y-1.5">
-        <span className="text-sm font-medium text-foreground">名前</span>
-        <input
+      <Label>
+        <span>名前</span>
+        <Input
           type="text"
           required
           maxLength={80}
           value={form.name}
           onChange={(event) => onChange({ ...form, name: event.target.value })}
-          className="h-10 w-full rounded-2xl border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           placeholder="週末に行きたい店"
         />
-      </label>
-      <label className="block space-y-1.5">
-        <span className="text-sm font-medium text-foreground">説明</span>
-        <textarea
+      </Label>
+      <Label>
+        <span>説明</span>
+        <Textarea
           maxLength={240}
           value={form.description}
           onChange={(event) =>
             onChange({ ...form, description: event.target.value })
           }
-          className="min-h-20 w-full resize-none rounded-2xl border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           placeholder="どんなコレクションかメモ"
         />
-      </label>
+      </Label>
       <div className="grid grid-cols-2 gap-3">
-        <label className="block space-y-1.5">
-          <span className="text-sm font-medium text-foreground">公開範囲</span>
-          <select
+        <Label>
+          <span>公開範囲</span>
+          <Select
             value={form.visibility}
             onChange={(event) =>
               onChange({
@@ -431,23 +431,21 @@ function CollectionFormFields({
                 visibility: event.target.value as CollectionVisibility,
               })
             }
-            className="h-10 w-full rounded-2xl border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             <option value="friends">{formatCollectionVisibility("friends")}</option>
             <option value="secret">{formatCollectionVisibility("secret")}</option>
-          </select>
-        </label>
-        <label className="block space-y-1.5">
-          <span className="text-sm font-medium text-foreground">テーマ</span>
-          <input
+          </Select>
+        </Label>
+        <Label>
+          <span>テーマ</span>
+          <Input
             type="text"
             maxLength={80}
             value={form.theme}
             onChange={(event) => onChange({ ...form, theme: event.target.value })}
-            className="h-10 w-full rounded-2xl border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-          placeholder="デート"
+            placeholder="デート"
           />
-        </label>
+        </Label>
       </div>
     </div>
   );
