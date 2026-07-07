@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { LibraryBig, Users } from "lucide-react";
 
+import { AuthImage } from "@/components/mypage/auth-image";
 import { Badge } from "@/components/ui/badge";
 
 type MypageNavTilesProps = {
@@ -39,11 +40,13 @@ export function MypageNavTiles({
                 className="absolute size-16 -rotate-6 rounded-2xl bg-muted shadow-sm"
                 aria-hidden
               />
-              <span
-                className="relative size-16 rotate-3 rounded-2xl bg-cover bg-center shadow-sm"
-                style={{ backgroundImage: `url(${coverUrl})` }}
-                aria-hidden
-              />
+              <span className="relative size-16 rotate-3 overflow-hidden rounded-2xl shadow-sm">
+                <AuthImage
+                  objectUrl={coverUrl}
+                  alt=""
+                  className="size-full object-cover"
+                />
+              </span>
             </>
           ) : (
             <>

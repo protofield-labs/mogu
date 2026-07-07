@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { CollectionDetailSkeleton } from "@/components/loading/skeletons";
+import { CollectionCover } from "@/components/mypage/collection-cover";
 import { LoadErrorState } from "@/components/ui/load-error-state";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SpotForm, SpotList } from "@/components/mypage/spot-form";
@@ -12,15 +13,32 @@ import { SpotDetailSheet } from "@/components/spots/spot-detail-sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
 import {
   getCollectionDetail,
   type CollectionDetail,
 } from "@/lib/collections/browser-api";
+import {
+  filterCollectionSpots,
+  type CollectionSpotRatingFilter,
+} from "@/lib/collections/spot-filter";
+import { pickAutoCoverUrls } from "@/lib/collections/cover";
 import { googleMapsPlaceUrl } from "@/lib/agent/chat-helpers";
+import { formatRatingChip } from "@/lib/home/feed-labels";
 import { formatCollectionVisibility } from "@/lib/labels/collection-labels";
 import { usePlace } from "@/lib/places/use-place";
 import { usePlaceNames } from "@/lib/places/use-place-names";
 import { deleteSpot, type Spot } from "@/lib/spots/browser-api";
+
+const ratingFilterOptions: Array<{
+  value: CollectionSpotRatingFilter;
+  label: string;
+}> = [
+  { value: "all", label: "すべて" },
+  { value: "again", label: formatRatingChip("again") },
+  { value: "either", label: formatRatingChip("either") },
+  { value: "no", label: formatRatingChip("no") },
+];
 
 type CollectionDetailViewProps = {
   collectionId: string;
@@ -41,6 +59,9 @@ export function CollectionDetailView({
   const [deleteSpotTarget, setDeleteSpotTarget] = useState<Spot | null>(null);
   const [deletingSpot, setDeletingSpot] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
+  const [spotSearchQuery, setSpotSearchQuery] = useState("");
+  const [ratingFilter, setRatingFilter] =
+    useState<CollectionSpotRatingFilter>("all");
   const [prevCollectionId, setPrevCollectionId] = useState(collectionId);
   const [prevInitialSpotId, setPrevInitialSpotId] = useState(initialSpotId);
   const formSectionRef = useRef<HTMLElement>(null);
@@ -55,6 +76,16 @@ export function CollectionDetailView({
     [detail?.spots],
   );
   const placeNames = usePlaceNames(spotPlaceIds);
+  const filteredSpots = useMemo(
+    () =>
+      filterCollectionSpots(
+        detail?.spots ?? [],
+        spotSearchQuery,
+        ratingFilter,
+        placeNames,
+      ),
+    [detail?.spots, spotSearchQuery, ratingFilter, placeNames],
+  );
 
   if (collectionId !== prevCollectionId || initialSpotId !== prevInitialSpotId) {
     setPrevCollectionId(collectionId);
@@ -66,6 +97,8 @@ export function CollectionDetailView({
     setSelectedSpot(null);
     setDetailOpen(false);
     setDeleteSpotTarget(null);
+    setSpotSearchQuery("");
+    setRatingFilter("all");
   }
 
   useEffect(() => {
@@ -120,6 +153,9 @@ export function CollectionDetailView({
       return {
         ...current,
         spotCount: exists ? current.spotCount : current.spotCount + 1,
+        autoCoverUrls: current.coverUrl
+          ? current.autoCoverUrls
+          : pickAutoCoverUrls(spots),
         spots,
       };
     });
@@ -169,6 +205,11 @@ export function CollectionDetailView({
               ...current,
               spotCount: Math.max(0, current.spotCount - 1),
               spots: current.spots.filter((item) => item.id !== spot.id),
+              autoCoverUrls: current.coverUrl
+                ? current.autoCoverUrls
+                : pickAutoCoverUrls(
+                    current.spots.filter((item) => item.id !== spot.id),
+                  ),
             }
           : current,
       );
@@ -238,6 +279,17 @@ export function CollectionDetailView({
         {detail.description ? (
           <p className="pl-12 text-sm text-muted-foreground">{detail.description}</p>
         ) : null}
+
+        <div className="pl-12">
+          <div className="relative aspect-[16/10] max-w-xs overflow-hidden rounded-2xl border border-border shadow-sm">
+            <CollectionCover
+              name={detail.name}
+              coverUrl={detail.coverUrl}
+              autoCoverUrls={detail.autoCoverUrls}
+              className="size-full"
+            />
+          </div>
+        </div>
       </header>
 
       <section ref={formSectionRef} className="space-y-3 px-mogu-screen-x">
@@ -252,6 +304,31 @@ export function CollectionDetailView({
 
       <section className="space-y-3 px-mogu-screen-x">
         <h2 className="text-sm font-semibold text-foreground">スポット一覧</h2>
+        {detail.spots.length > 0 ? (
+          <div className="space-y-3">
+            <Input
+              type="search"
+              value={spotSearchQuery}
+              onChange={(event) => setSpotSearchQuery(event.target.value)}
+              placeholder="店名・タグ・一言で検索"
+              aria-label="スポットを検索"
+            />
+            <div className="flex flex-wrap gap-2">
+              {ratingFilterOptions.map((option) => (
+                <Button
+                  key={option.value}
+                  type="button"
+                  size="sm"
+                  variant={ratingFilter === option.value ? "default" : "outline"}
+                  className="rounded-full"
+                  onClick={() => setRatingFilter(option.value)}
+                >
+                  {option.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+        ) : null}
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         {detail.spots.length === 0 ? (
           <EmptyState className="space-y-4 p-6">
@@ -263,9 +340,13 @@ export function CollectionDetailView({
               エージェントに相談して最初のスポットを追加
             </Link>
           </EmptyState>
+        ) : filteredSpots.length === 0 ? (
+          <EmptyState className="p-6">
+            条件に合うスポットがありません。
+          </EmptyState>
         ) : (
           <SpotList
-            spots={detail.spots}
+            spots={filteredSpots}
             onSelect={handleSelectSpot}
             placeNames={placeNames}
           />

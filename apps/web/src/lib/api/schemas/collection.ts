@@ -10,6 +10,8 @@ export const collectionSchema = z.object({
   name: z.string(),
   description: z.string().nullable(),
   coverUrl: z.string().nullable(),
+  autoCoverUrls: z.array(z.string()),
+  sortOrder: z.number(),
   visibility: collectionVisibilitySchema,
   theme: z.string().nullable(),
   spotCount: z.number(),
@@ -33,7 +35,12 @@ export const updateCollectionBodySchema = z
     name: z.string().trim().min(1).max(80).optional(),
     description: z.string().trim().max(240).nullable().optional(),
     coverUrl: z.string().trim().url().max(2048).nullable().optional(),
+    sortOrder: z.number().int().min(0).max(9999).optional(),
     visibility: collectionVisibilitySchema.optional(),
     theme: z.string().trim().max(80).nullable().optional(),
   })
   .refine((body) => Object.keys(body).length > 0);
+
+export const reorderCollectionsBodySchema = z.object({
+  orderedIds: z.array(z.string().uuid()).min(1).max(200),
+});

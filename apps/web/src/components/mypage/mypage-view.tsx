@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Plus, Sparkles } from "lucide-react";
+import { ArrowDownUp, Plus, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { MypageViewSkeleton } from "@/components/loading/skeletons";
+import { CollectionCoverPicker } from "@/components/mypage/collection-cover-picker";
 import { Button } from "@/components/ui/button";
 import { SurfaceCard } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -20,11 +21,14 @@ import { ProfileHeroCard } from "@/components/mypage/profile-hero-card";
 import {
   createCollection,
   deleteCollection,
+  getCollectionDetail,
   listMyCollections,
+  reorderMyCollections,
   updateCollection,
   type Collection,
   type CollectionVisibility,
 } from "@/lib/collections/browser-api";
+import { resolveDisplayCoverUrl } from "@/lib/collections/cover";
 import { formatCollectionVisibility } from "@/lib/labels/collection-labels";
 import { notifyBadgesUpdated } from "@/lib/mypage/badge-events";
 import {
@@ -67,7 +71,12 @@ export function MypageView() {
   const [reloadToken, setReloadToken] = useState(0);
   const [collectionError, setCollectionError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Collection | null>(null);
+  const [editCoverUrl, setEditCoverUrl] = useState<string | null>(null);
+  const [editPhotoUrls, setEditPhotoUrls] = useState<string[]>([]);
+  const [loadingEditPhotos, setLoadingEditPhotos] = useState(false);
+  const [reorderMode, setReorderMode] = useState(false);
   const collectionsRef = useRef<HTMLElement>(null);
+  const editPhotosRequestRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -143,7 +152,7 @@ export function MypageView() {
           : {}),
         ...(createForm.theme.trim() ? { theme: createForm.theme } : {}),
       });
-      setCollections((current) => [collection, ...current]);
+      setCollections((current) => [...current, collection]);
       setCreateForm(emptyForm);
       setShowCreateForm(false);
       setMe((current) =>
@@ -165,6 +174,7 @@ export function MypageView() {
   }
 
   function startEdit(collection: Collection) {
+    const requestId = ++editPhotosRequestRef.current;
     setEditingCollection(collection);
     setEditForm({
       name: collection.name,
@@ -172,6 +182,76 @@ export function MypageView() {
       visibility: collection.visibility,
       theme: collection.theme ?? "",
     });
+    setEditCoverUrl(collection.coverUrl);
+    setEditPhotoUrls([]);
+    setLoadingEditPhotos(true);
+    void getCollectionDetail(collection.id)
+      .then((detail) => {
+        if (editPhotosRequestRef.current !== requestId) {
+          return;
+        }
+        const urls = detail.spots.flatMap((spot) => spot.photoUrls);
+        setEditPhotoUrls([...new Set(urls)]);
+      })
+      .catch(() => {
+        if (editPhotosRequestRef.current !== requestId) {
+          return;
+        }
+        setEditPhotoUrls([]);
+      })
+      .finally(() => {
+        if (editPhotosRequestRef.current !== requestId) {
+          return;
+        }
+        setLoadingEditPhotos(false);
+      });
+  }
+
+  async function persistCollectionOrder(nextCollections: Collection[]) {
+    if (busy) {
+      return;
+    }
+    setBusy(true);
+    setCollectionError(null);
+    try {
+      const reordered = await reorderMyCollections(
+        nextCollections.map((collection) => collection.id),
+      );
+      setCollections(reordered);
+    } catch (err) {
+      setCollectionError(err instanceof Error ? err.message : "並べ替えに失敗しました");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function moveCollection(collection: Collection, direction: "up" | "down") {
+    if (busy) {
+      return;
+    }
+    const index = collections.findIndex((item) => item.id === collection.id);
+    if (index < 0) {
+      return;
+    }
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= collections.length) {
+      return;
+    }
+    const next = [...collections];
+    const [removed] = next.splice(index, 1);
+    next.splice(targetIndex, 0, removed!);
+    void persistCollectionOrder(next);
+  }
+
+  function pinCollectionToTop(collection: Collection) {
+    if (busy) {
+      return;
+    }
+    const next = [
+      collection,
+      ...collections.filter((item) => item.id !== collection.id),
+    ];
+    void persistCollectionOrder(next);
   }
 
   async function handleSaveEdit(event: FormEvent<HTMLFormElement>) {
@@ -188,6 +268,7 @@ export function MypageView() {
         description: editForm.description.trim() ? editForm.description : null,
         visibility: editForm.visibility,
         theme: editForm.theme.trim() ? editForm.theme : null,
+        coverUrl: editCoverUrl,
       });
       setCollections((current) =>
         current.map((item) => (item.id === collection.id ? collection : item)),
@@ -266,7 +347,13 @@ export function MypageView() {
         collectionCount={me.counts.collections}
         friendCount={me.counts.friends}
         showFriendBadge={shouldShowFriendRequestBadge(pendingFriendRequests)}
-        coverUrl={collections.find((collection) => collection.coverUrl)?.coverUrl ?? null}
+        coverUrl={
+          resolveDisplayCoverUrl(
+            collections.find((collection) =>
+              collection.coverUrl || collection.autoCoverUrls.length > 0,
+            ) ?? { coverUrl: null, autoCoverUrls: [] },
+          )
+        }
         onCollectionsClick={() =>
           collectionsRef.current?.scrollIntoView({
             behavior: "smooth",
@@ -302,16 +389,28 @@ export function MypageView() {
         ref={collectionsRef}
         className="scroll-mt-4 space-y-3 px-mogu-screen-x pt-2"
       >
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <h2 className="text-lg font-semibold text-foreground">コレクション</h2>
-          <button
-            type="button"
-            onClick={() => setShowCreateForm((current) => !current)}
-            className="inline-flex items-center gap-1 rounded-full bg-mogu-surface-elevated px-3 py-1.5 text-xs font-medium shadow-sm transition-shadow hover:shadow-md"
-          >
-            <Plus className="size-3.5" aria-hidden />
-            新しいコレクション
-          </button>
+          <div className="flex items-center gap-2">
+            {collections.length > 1 ? (
+              <button
+                type="button"
+                onClick={() => setReorderMode((current) => !current)}
+                className="inline-flex items-center gap-1 rounded-full bg-mogu-surface-elevated px-3 py-1.5 text-xs font-medium shadow-sm transition-shadow hover:shadow-md"
+              >
+                <ArrowDownUp className="size-3.5" aria-hidden />
+                {reorderMode ? "完了" : "並べ替え"}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setShowCreateForm((current) => !current)}
+              className="inline-flex items-center gap-1 rounded-full bg-mogu-surface-elevated px-3 py-1.5 text-xs font-medium shadow-sm transition-shadow hover:shadow-md"
+            >
+              <Plus className="size-3.5" aria-hidden />
+              新しいコレクション
+            </button>
+          </div>
         </div>
         {showCreateForm ? (
           <SurfaceCard className="p-4">
@@ -340,6 +439,19 @@ export function MypageView() {
               onSubmit={(event) => void handleSaveEdit(event)}
             >
               <CollectionFormFields form={editForm} onChange={setEditForm} />
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">カバー画像</p>
+                {loadingEditPhotos ? (
+                  <p className="text-xs text-muted-foreground">写真を読み込み中…</p>
+                ) : (
+                  <CollectionCoverPicker
+                    photoUrls={editPhotoUrls}
+                    selectedUrl={editCoverUrl}
+                    disabled={busy}
+                    onSelect={setEditCoverUrl}
+                  />
+                )}
+              </div>
               {collectionError ? (
                 <p className="text-sm text-destructive">{collectionError}</p>
               ) : null}
@@ -368,8 +480,14 @@ export function MypageView() {
 
       <CollectionGrid
         collections={collections}
-        onEdit={startEdit}
-        onDelete={setDeleteTarget}
+        onEdit={reorderMode ? undefined : startEdit}
+        onDelete={reorderMode ? undefined : setDeleteTarget}
+        reorderMode={reorderMode}
+        reorderBusy={busy}
+        onMoveUp={(collection) => moveCollection(collection, "up")}
+        onMoveDown={(collection) => moveCollection(collection, "down")}
+        onPinTop={pinCollectionToTop}
+        showUpsell={!reorderMode}
       />
 
       <ConfirmDialog

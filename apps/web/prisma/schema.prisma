@@ -73,6 +73,7 @@ model Collection {
   name        String
   description String?
   coverUrl    String?            @map("cover_url")
+  sortOrder   Int                @default(0) @map("sort_order")
   visibility  CollectionVisibility @default(friends)
   theme       String?
   createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -82,6 +83,7 @@ model Collection {
   spots Spot[]
 
   @@index([ownerId], map: "idx_collections_owner")
+  @@index([ownerId, sortOrder], map: "idx_collections_owner_sort")
   @@map("collections")
 }
 
