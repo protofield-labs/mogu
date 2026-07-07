@@ -122,6 +122,15 @@ export async function sendAgentMessage(
 
   const thinkingMessages: string[] = [];
   const seenThinking = new Set<string>();
+  let publishChain = Promise.resolve();
+
+  const publishEventBestEffort = async (event: AgentEvent) => {
+    try {
+      await publishAgentEvent(input.userId, input.sessionId, event);
+    } catch {
+      // SSE persistence is best-effort; the Vertex turn already succeeded.
+    }
+  };
 
   const publishThinking = (event: AgentEvent) => {
     if (seenThinking.has(event.message)) {
@@ -129,7 +138,7 @@ export async function sendAgentMessage(
     }
     seenThinking.add(event.message);
     thinkingMessages.push(event.message);
-    publishAgentEvent(input.userId, input.sessionId, event);
+    publishChain = publishChain.then(() => publishEventBestEffort(event));
   };
 
   let text: string;
@@ -141,7 +150,8 @@ export async function sendAgentMessage(
       }
     });
   } finally {
-    publishAgentEvent(input.userId, input.sessionId, createDoneEvent());
+    await publishChain;
+    await publishEventBestEffort(createDoneEvent());
   }
 
   const recommendation = isAgentAssertionTurn(text)

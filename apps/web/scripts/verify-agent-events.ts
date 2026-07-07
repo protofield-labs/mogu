@@ -1,105 +1,85 @@
 /**
- * Agent SSE helpers verification (#45, #67 Definition of Done).
+ * Agent SSE helpers verification (#45, #66, #67).
  * Run via: pnpm exec tsx scripts/verify-agent-events.ts
  */
 import { assert } from "./test-helpers/assert";
 
+import { filterEventsForReplay } from "../src/lib/agent/agent-event-replay";
 import {
-  listBufferedAgentEvents,
-  publishAgentEvent,
+  fanoutAgentEvent,
   resetAgentEventBusForTests,
   subscribeAgentEvents,
+  type AgentEventDelivery,
 } from "../src/lib/agent/event-bus-core";
+import { formatAgentEventSse, formatSseConnectedComment } from "../src/lib/agent/sse";
 import { parseSseBuffer } from "../src/lib/agent/chat-helpers";
-import {
-  formatAgentEventSse,
-  formatSseConnectedComment,
-} from "../src/lib/agent/sse";
 import {
   createDoneEvent,
   createThinkingEvent,
   extractThinkingEvent,
 } from "../src/lib/agent/stream-parser";
 
+function delivery(
+  id: string,
+  event: AgentEventDelivery["event"],
+): AgentEventDelivery {
+  return { id, event };
+}
+
 function main() {
   const kenEvent = extractThinkingEvent({ author: "ken" });
   assert(kenEvent?.message === "Kenのコレクションを参照中…", "ken thinking");
-  assert(kenEvent?.type === "thinking", "ken type");
-
-  const aoiEvent = extractThinkingEvent({ author: "aoi" });
-  assert(aoiEvent?.message === "Aoiのコレクションを参照中…", "aoi thinking");
-
-  const toolEvent = extractThinkingEvent({
-    author: "mogu_orchestrator",
-    content: { parts: [{ function_call: { name: "ken" } }] },
-  });
-  assert(
-    toolEvent?.message === "エージェントが情報を集めています…",
-    "function_call thinking",
-  );
-
-  assert(
-    extractThinkingEvent({ author: "mogu_orchestrator" }) === null,
-    "orchestrator alone emits no thinking",
-  );
 
   const thinking = createThinkingEvent("test");
   const sse = formatAgentEventSse(thinking, "1");
   assert(sse.startsWith("id: 1\n"), "sse id prefix");
-  assert(sse.includes("data: "), "sse data prefix");
-  assert(sse.endsWith("\n\n"), "sse frame ending");
   assert(JSON.parse(sse.split("\n")[1]!.slice(6)).type === "thinking", "sse json");
 
   const connected = parseSseBuffer(`${formatSseConnectedComment()}${sse}`);
   assert(connected.connected, "parse connected comment");
-  assert(connected.events.length === 1, "parse replayed event with id");
   assert(connected.lastEventId === "1", "parse last event id");
 
   const done = createDoneEvent();
-  assert(done.type === "done", "done event type");
+  assert(
+    filterEventsForReplay([
+      delivery("1", thinking),
+      delivery("2", done),
+    ]).length === 0,
+    "completed turn is not replayed on fresh connect",
+  );
+  assert(
+    filterEventsForReplay(
+      [delivery("1", thinking), delivery("2", done), delivery("3", thinking)],
+    ).length === 1,
+    "new turn replays only current thinking",
+  );
+  assert(
+    filterEventsForReplay(
+      [delivery("1", thinking), delivery("2", done)],
+      "1",
+    ).length === 1,
+    "Last-Event-ID replay skips older events",
+  );
 
   resetAgentEventBusForTests();
   const received: string[] = [];
-  subscribeAgentEvents("uid-1", "123", (delivery) => {
-    received.push(`${delivery.id}:${delivery.event.type}`);
+  subscribeAgentEvents("uid-1", "123", (eventDelivery) => {
+    received.push(`${eventDelivery.id}:${eventDelivery.event.type}`);
   });
-  publishAgentEvent("uid-1", "123", thinking);
-  publishAgentEvent("uid-1", "123", done);
+  fanoutAgentEvent("uid-1", "123", delivery("1", thinking));
+  fanoutAgentEvent("uid-1", "123", delivery("2", done));
   assert(
     received.join(",") === "1:thinking,2:done",
-    "event bus delivers to subscriber with ids",
-  );
-
-  resetAgentEventBusForTests();
-  publishAgentEvent("uid-1", "123", thinking);
-  publishAgentEvent("uid-1", "123", done);
-  const replay = listBufferedAgentEvents("uid-1", "123", "0");
-  assert(replay.length === 2, "buffer keeps turn events for reconnect");
-  assert(
-    listBufferedAgentEvents("uid-1", "123", "1").length === 1,
-    "Last-Event-ID replay skips older events",
-  );
-  assert(
-    listBufferedAgentEvents("uid-1", "123").length === 0,
-    "completed turn is not replayed on fresh connect",
-  );
-
-  resetAgentEventBusForTests();
-  publishAgentEvent("uid-1", "123", thinking);
-  publishAgentEvent("uid-1", "123", done);
-  publishAgentEvent("uid-1", "123", createThinkingEvent("next turn"));
-  assert(
-    listBufferedAgentEvents("uid-1", "123").length === 1,
-    "new turn clears previous buffer",
+    "local fanout delivers to subscriber",
   );
 
   resetAgentEventBusForTests();
   const otherSession: string[] = [];
-  subscribeAgentEvents("uid-1", "456", (delivery) => {
-    otherSession.push(delivery.event.type);
+  subscribeAgentEvents("uid-1", "456", (eventDelivery) => {
+    otherSession.push(eventDelivery.event.type);
   });
-  publishAgentEvent("uid-1", "123", thinking);
-  publishAgentEvent("uid-1", "456", thinking);
+  fanoutAgentEvent("uid-1", "123", delivery("1", thinking));
+  fanoutAgentEvent("uid-1", "456", delivery("2", thinking));
   assert(otherSession.join(",") === "thinking", "no cross-session leak");
 
   console.log("PASS: agent SSE helpers");

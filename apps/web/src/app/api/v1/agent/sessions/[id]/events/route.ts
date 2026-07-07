@@ -5,6 +5,7 @@ import {
 } from "@/lib/agent/errors";
 import {
   listBufferedAgentEvents,
+  pollAgentSessionEvents,
   subscribeAgentEvents,
 } from "@/lib/agent/event-bus";
 import { assertAgentSessionOwnership } from "@/lib/agent/session-client";
@@ -12,6 +13,7 @@ import { isValidSessionId } from "@/lib/agent/session-id";
 import {
   AGENT_SSE_HEADERS,
   AGENT_SSE_KEEPALIVE_MS,
+  AGENT_SSE_POLL_MS,
   formatAgentEventSse,
   formatSseConnectedComment,
   formatSseKeepalive,
@@ -28,9 +30,17 @@ type RouteParams = {
   params: Promise<{ id: string }>;
 };
 
+function parseEventId(id: string): bigint {
+  try {
+    return BigInt(id);
+  } catch {
+    return BigInt(-1);
+  }
+}
+
 /**
  * SSE stream of thinking/done events for an agent session (#45).
- * Replays buffered events after Last-Event-ID (#67).
+ * Replays from Cloud SQL; polls for cross-instance delivery (#66, #67).
  */
 export async function GET(
   request: Request,
@@ -68,6 +78,10 @@ export async function GET(
       start(controller) {
         const encoder = new TextEncoder();
         let closed = false;
+        let lastSentId = lastEventId ? parseEventId(lastEventId) : BigInt(0);
+        let keepalive: ReturnType<typeof setInterval> | undefined;
+        let pollTimer: ReturnType<typeof setInterval> | undefined;
+        let unsubscribe: (() => void) | undefined;
 
         const push = (chunk: string) => {
           if (closed) {
@@ -80,13 +94,30 @@ export async function GET(
           }
         };
 
+        const pushDelivery = (delivery: {
+          id: string;
+          event: Parameters<typeof formatAgentEventSse>[0];
+        }) => {
+          const deliveryId = parseEventId(delivery.id);
+          if (deliveryId <= lastSentId) {
+            return;
+          }
+          push(formatAgentEventSse(delivery.event, delivery.id));
+          lastSentId = deliveryId;
+        };
+
         const close = () => {
           if (closed) {
             return;
           }
           closed = true;
-          clearInterval(keepalive);
-          unsubscribe();
+          if (keepalive) {
+            clearInterval(keepalive);
+          }
+          if (pollTimer) {
+            clearInterval(pollTimer);
+          }
+          unsubscribe?.();
           try {
             controller.close();
           } catch {
@@ -94,23 +125,57 @@ export async function GET(
           }
         };
 
-        for (const delivery of listBufferedAgentEvents(
-          uid,
-          sessionId,
-          lastEventId,
-        )) {
-          push(formatAgentEventSse(delivery.event, delivery.id));
-        }
+        void (async () => {
+          try {
+            const replay = await listBufferedAgentEvents(
+              uid,
+              sessionId,
+              lastEventId,
+            );
+            if (closed) {
+              return;
+            }
 
-        push(formatSseConnectedComment());
+            for (const delivery of replay) {
+              pushDelivery(delivery);
+            }
 
-        const unsubscribe = subscribeAgentEvents(uid, sessionId, (delivery) => {
-          push(formatAgentEventSse(delivery.event, delivery.id));
-        });
+            push(formatSseConnectedComment());
+            if (closed) {
+              return;
+            }
 
-        const keepalive = setInterval(() => {
-          push(formatSseKeepalive());
-        }, AGENT_SSE_KEEPALIVE_MS);
+            unsubscribe = subscribeAgentEvents(uid, sessionId, pushDelivery);
+
+            pollTimer = setInterval(() => {
+              if (closed) {
+                return;
+              }
+              void pollAgentSessionEvents(
+                uid,
+                sessionId,
+                lastSentId.toString(),
+              )
+                .then((deliveries) => {
+                  if (closed) {
+                    return;
+                  }
+                  for (const delivery of deliveries) {
+                    pushDelivery(delivery);
+                  }
+                })
+                .catch(() => {
+                  // Best-effort polling; local fanout may still deliver events.
+                });
+            }, AGENT_SSE_POLL_MS);
+
+            keepalive = setInterval(() => {
+              push(formatSseKeepalive());
+            }, AGENT_SSE_KEEPALIVE_MS);
+          } catch {
+            close();
+          }
+        })();
 
         req.signal.addEventListener("abort", close, { once: true });
       },
