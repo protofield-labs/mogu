@@ -1,5 +1,6 @@
 import { parseJsonBody } from "@/lib/api/parse-json-body";
 import { withAuthRoute } from "@/lib/auth/require-auth";
+import { ensureDefaultCollection } from "@/lib/dal/collections";
 import { upsertOnboardingUser } from "@/lib/dal/users";
 import {
   normalizeAvatarColor,
@@ -18,6 +19,7 @@ export async function POST(request: Request): Promise<Response> {
       parsed.data.displayName,
       normalizeAvatarColor(parsed.data.avatarColor),
     );
+    await ensureDefaultCollection(uid);
 
     return Response.json(user);
   });

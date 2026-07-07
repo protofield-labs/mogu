@@ -1,21 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { ChevronDownIcon } from "lucide-react";
 
 import { GoogleMapsAttribution } from "@/components/places/google-maps-attribution";
 import { SpotPlaceName } from "@/components/places/spot-place-name";
 import { AuthImage } from "@/components/mypage/auth-image";
+import { RecollectPicker } from "@/components/recollect/recollect-picker";
+import { useRecollect } from "@/lib/recollect/use-recollect";
 import { Button } from "@/components/ui/button";
-import { recollectSpot } from "@/lib/agent/browser-api";
 import {
   googleMapsPlaceUrl,
   openNowLabel,
 } from "@/lib/agent/chat-helpers";
 import type { Recommendation, Spot } from "@/lib/agent/types";
-import { listMyCollections } from "@/lib/collections/browser-api";
 import { usePlace } from "@/lib/places/use-place";
-import { showRecollectSuccessToast } from "@/lib/ui/recollect-toast";
 
 type RecommendationCardProps = {
   recommendation: Recommendation;
@@ -42,104 +40,13 @@ function SpotSummary({ spot, compact = false }: { spot: Spot; compact?: boolean 
   );
 }
 
-type CollectionsState =
-  | { status: "loading" }
-  | { status: "error" }
-  | {
-      status: "ready";
-      targetCollectionId: string | null;
-      targetCollectionName: string | null;
-    };
-
 export function RecommendationCard({ recommendation }: RecommendationCardProps) {
-  const { spot, assertion, evidence, alternatives } = recommendation;
+  const { spot, assertion, evidence, alternatives, savedByMe = false } =
+    recommendation;
   const { place } = usePlace(spot.placeId);
-  const [collections, setCollections] = useState<CollectionsState>({
-    status: "loading",
-  });
-  const [recollecting, setRecollecting] = useState(false);
-  const [recollected, setRecollected] = useState(false);
-  const [recollectError, setRecollectError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void listMyCollections()
-      .then((result) => {
-        if (!cancelled) {
-          setCollections({
-            status: "ready",
-            targetCollectionId: result[0]?.id ?? null,
-            targetCollectionName: result[0]?.name ?? null,
-          });
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setCollections({ status: "error" });
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const recollect = useRecollect(spot.id, { initialSaved: savedByMe });
 
   const openNowText = openNowLabel(place?.openNow);
-  const hasNoCollection =
-    collections.status === "ready" && collections.targetCollectionId === null;
-
-  async function resolveTargetCollection(): Promise<{
-    id: string;
-    name: string;
-  } | null> {
-    if (collections.status === "ready") {
-      if (!collections.targetCollectionId || !collections.targetCollectionName) {
-        return null;
-      }
-      return {
-        id: collections.targetCollectionId,
-        name: collections.targetCollectionName,
-      };
-    }
-    try {
-      const result = await listMyCollections();
-      const target = result[0] ?? null;
-      setCollections({
-        status: "ready",
-        targetCollectionId: target?.id ?? null,
-        targetCollectionName: target?.name ?? null,
-      });
-      return target ? { id: target.id, name: target.name } : null;
-    } catch {
-      setCollections({ status: "error" });
-      return null;
-    }
-  }
-
-  async function handleRecollect() {
-    setRecollecting(true);
-    setRecollectError(null);
-    try {
-      const target = await resolveTargetCollection();
-      if (!target) {
-        setRecollectError(
-          collections.status === "error"
-            ? "コレクションを読み込めませんでした。もう一度お試しください"
-            : "保存先のコレクションがありません",
-        );
-        return;
-      }
-
-      const ok = await recollectSpot(spot.id, target.id);
-      if (ok) {
-        setRecollected(true);
-        showRecollectSuccessToast(target.name);
-      } else {
-        setRecollectError("リコレクションに失敗しました");
-      }
-    } finally {
-      setRecollecting(false);
-    }
-  }
 
   return (
     <div className="mogu-elevated mt-2 w-full max-w-full rounded-xl border border-border p-mogu-screen-x py-3">
@@ -176,20 +83,16 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
         <Button
           variant="secondary"
           size="sm"
-          disabled={recollecting || recollected || hasNoCollection}
-          onClick={() => void handleRecollect()}
+          disabled={recollect.busy}
+          aria-pressed={recollect.saved}
+          {...recollect.saveHandlers}
         >
-          {recollected ? "保存済み" : "リコレクション"}
+          {recollect.saved ? "保存済み" : "リコレクション"}
         </Button>
       </div>
 
-      {recollectError ? (
-        <p className="mt-2 text-xs text-destructive">{recollectError}</p>
-      ) : null}
-      {hasNoCollection && !recollected ? (
-        <p className="mt-2 text-xs text-muted-foreground">
-          マイページでコレクションを作成すると保存できます
-        </p>
+      {recollect.error ? (
+        <p className="mt-2 text-xs text-destructive">{recollect.error}</p>
       ) : null}
 
       <GoogleMapsAttribution className="mt-2" />
@@ -212,6 +115,8 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
           </ul>
         </details>
       ) : null}
+
+      <RecollectPicker spotId={spot.id} recollect={recollect} />
     </div>
   );
 }

@@ -6,6 +6,7 @@ export type FeedItem = {
   actor: FriendUser;
   collectionName: string;
   createdAt: string;
+  savedByMe: boolean;
 };
 
 export type FeedPage = {

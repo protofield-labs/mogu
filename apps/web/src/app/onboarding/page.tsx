@@ -11,6 +11,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/contexts/auth-context";
+import { listMyCollections } from "@/lib/collections/browser-api";
+import { setLastRecollectTarget } from "@/lib/recollect/last-target";
+import { DEFAULT_COLLECTION_NAME } from "@/lib/recollect/constants";
 import {
   DEFAULT_AVATAR_COLOR,
   ONBOARDING_AVATAR_COLORS,
@@ -116,6 +119,21 @@ function OnboardingContent() {
 
     try {
       await createUserProfile(form);
+      try {
+        const collections = await listMyCollections();
+        const defaultCollection =
+          collections.find((item) => item.name === DEFAULT_COLLECTION_NAME) ??
+          collections[0] ??
+          null;
+        if (defaultCollection) {
+          setLastRecollectTarget({
+            collectionId: defaultCollection.id,
+            collectionName: defaultCollection.name,
+          });
+        }
+      } catch {
+        // profile saved; default shelf seeding is best-effort on client
+      }
       router.replace(nextPath);
     } catch (err) {
       setError(err instanceof Error ? err.message : "プロフィールを保存できませんでした");

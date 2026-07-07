@@ -6,12 +6,12 @@ import { useState } from "react";
 import { FeedSpotDetailSheet } from "@/components/home/feed-spot-detail-sheet";
 import { SpotPlaceName } from "@/components/places/spot-place-name";
 import { AuthImage } from "@/components/mypage/auth-image";
+import { RecollectPicker } from "@/components/recollect/recollect-picker";
+import { useRecollect } from "@/lib/recollect/use-recollect";
 import { Button } from "@/components/ui/button";
 import { formatViaLabel } from "@/lib/home/feed-labels";
-import { recollectFeedSpot } from "@/lib/home/recollect-spot";
 import type { FeedItem } from "@/lib/home/types";
-import { friendProfilePath, actorProfilePath } from "@/lib/friends/paths";
-import { showRecollectSuccessToast } from "@/lib/ui/recollect-toast";
+import { actorProfilePath } from "@/lib/friends/paths";
 import { usePlace } from "@/lib/places/use-place";
 
 type FeedCompactRowProps = {
@@ -20,29 +20,13 @@ type FeedCompactRowProps = {
 };
 
 export function FeedCompactRow({ item, viewerId }: FeedCompactRowProps) {
-  const [saved, setSaved] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const recollect = useRecollect(item.spot.id, { initialSaved: item.savedByMe });
   const [detailOpen, setDetailOpen] = useState(false);
   const { place, placeName } = usePlace(item.spot.placeId);
   const photo = item.spot.photoUrls[0];
   const titleFallback = item.spot.comment || item.collectionName;
 
-  async function handleSave() {
-    setBusy(true);
-    setError(null);
-    const result = await recollectFeedSpot(item.spot.id);
-    setBusy(false);
-    if (result.ok) {
-      setSaved(true);
-      showRecollectSuccessToast(result.collectionName);
-    } else {
-      setError(result.error);
-    }
-  }
-
   function openDetail() {
-    setError(null);
     setDetailOpen(true);
   }
 
@@ -89,9 +73,9 @@ export function FeedCompactRow({ item, viewerId }: FeedCompactRowProps) {
             </Link>
             {placeName && item.spot.comment ? ` · ${item.spot.comment}` : ""}
           </p>
-          {error ? (
+          {recollect.error ? (
             <p className="mt-1 text-xs text-destructive" role="alert">
-              {error}
+              {recollect.error}
             </p>
           ) : null}
         </div>
@@ -101,10 +85,11 @@ export function FeedCompactRow({ item, viewerId }: FeedCompactRowProps) {
           variant="secondary"
           size="sm"
           className="shrink-0"
-          disabled={busy || saved}
-          onClick={() => void handleSave()}
+          disabled={recollect.busy}
+          aria-pressed={recollect.saved}
+          {...recollect.saveHandlers}
         >
-          {saved ? "保存済み" : "保存"}
+          {recollect.saved ? "保存済み" : "保存"}
         </Button>
       </article>
 
@@ -114,12 +99,14 @@ export function FeedCompactRow({ item, viewerId }: FeedCompactRowProps) {
         placeName={placeName}
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
-        saved={saved}
-        busy={busy}
-        error={error}
+        saved={recollect.saved}
+        busy={recollect.busy}
+        error={recollect.error}
         viewerId={viewerId}
-        onSave={() => void handleSave()}
+        saveHandlers={recollect.saveHandlers}
       />
+
+      <RecollectPicker spotId={item.spot.id} recollect={recollect} />
     </>
   );
 }

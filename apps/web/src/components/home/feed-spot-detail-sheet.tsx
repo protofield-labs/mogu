@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ComponentProps } from "react";
 import { XIcon } from "lucide-react";
 
 import { UserAvatar } from "@/components/home/user-avatar";
@@ -31,7 +31,14 @@ type FeedSpotDetailSheetProps = {
   busy: boolean;
   error: string | null;
   viewerId?: string | null;
-  onSave: () => void;
+  saveHandlers: Pick<
+    ComponentProps<typeof Button>,
+    | "onPointerDown"
+    | "onPointerUp"
+    | "onPointerLeave"
+    | "onPointerCancel"
+    | "onKeyDown"
+  >;
 };
 
 export function FeedSpotDetailSheet({
@@ -44,7 +51,7 @@ export function FeedSpotDetailSheet({
   busy,
   error,
   viewerId,
-  onSave,
+  saveHandlers,
 }: FeedSpotDetailSheetProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const openNowLabelText = openNowLabel(place?.openNow);
@@ -153,8 +160,9 @@ export function FeedSpotDetailSheet({
               type="button"
               variant="secondary"
               size="sm"
-              disabled={busy || saved}
-              onClick={onSave}
+              disabled={busy}
+              aria-pressed={saved}
+              {...saveHandlers}
             >
               {saved ? "保存済み" : "保存"}
             </Button>

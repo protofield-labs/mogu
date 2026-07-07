@@ -8,6 +8,7 @@ export const feedItemSchema = z.object({
   actor: friendUserSchema,
   collectionName: z.string(),
   createdAt: z.string(),
+  savedByMe: z.boolean(),
 });
 
 export const feedPageSchema = z.object({
@@ -20,4 +21,5 @@ export const recommendationSchema = z.object({
   assertion: z.string(),
   evidence: z.string(),
   alternatives: z.array(spotSchema),
+  savedByMe: z.boolean(),
 });
