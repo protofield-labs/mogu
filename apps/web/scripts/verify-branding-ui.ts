@@ -30,5 +30,6 @@ assert(agentChat.includes("MoguWordmark"), "agent chat uses shared wordmark");
 
 const homeView = readSource("components/home/home-view.tsx");
 assert(homeView.includes("MoguWordmark"), "home header uses shared wordmark");
+assert(homeView.includes("MoguBrandIcon"), "home header uses brand icon");
 
 console.log("PASS: branding UI verified");
