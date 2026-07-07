@@ -183,4 +183,36 @@
   .mogu-touch-target {
     @apply inline-flex min-h-11 min-w-11 items-center justify-center;
   }
+
+  .mogu-shimmer {
+    @apply relative overflow-hidden bg-muted;
+  }
+
+  .mogu-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      105deg,
+      transparent 35%,
+      color-mix(in oklch, var(--foreground) 7%, transparent) 50%,
+      transparent 65%
+    );
+    transform: translateX(-100%);
+    animation: mogu-shimmer-slide 1.4s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mogu-shimmer::after {
+      animation: none;
+      transform: none;
+      opacity: 0.35;
+    }
+  }
+}
+
+@keyframes mogu-shimmer-slide {
+  100% {
+    transform: translateX(100%);
+  }
 }
