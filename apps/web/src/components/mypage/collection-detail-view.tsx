@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -61,6 +61,7 @@ export function CollectionDetailView({
   const [deleteSpotTarget, setDeleteSpotTarget] = useState<Spot | null>(null);
   const [deletingSpot, setDeletingSpot] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
+  const [showSpotForm, setShowSpotForm] = useState(false);
   const [spotSearchQuery, setSpotSearchQuery] = useState("");
   const [ratingFilter, setRatingFilter] =
     useState<CollectionSpotRatingFilter>("all");
@@ -99,6 +100,7 @@ export function CollectionDetailView({
     setSelectedSpot(null);
     setDetailOpen(false);
     setDeleteSpotTarget(null);
+    setShowSpotForm(false);
     setSpotSearchQuery("");
     setRatingFilter("all");
   }
@@ -162,7 +164,18 @@ export function CollectionDetailView({
       };
     });
     setEditingSpot(null);
+    setShowSpotForm(false);
     setSelectedSpot((current) => (current?.id === spot.id ? spot : current));
+  }
+
+  function handleOpenSpotForm() {
+    setEditingSpot(null);
+    setShowSpotForm(true);
+  }
+
+  function handleCancelSpotForm() {
+    setEditingSpot(null);
+    setShowSpotForm(false);
   }
 
   function handleSelectSpot(spot: Spot) {
@@ -180,6 +193,7 @@ export function CollectionDetailView({
     }
     setDetailOpen(false);
     setEditingSpot(selectedSpot);
+    setShowSpotForm(true);
     formSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -296,13 +310,39 @@ export function CollectionDetailView({
       </header>
 
       <section ref={formSectionRef} className="space-y-3 px-mogu-screen-x">
-        <SpotForm
-          key={editingSpot?.id ?? "new"}
-          collectionId={detail.id}
-          editingSpot={editingSpot}
-          onSaved={handleSpotSaved}
-          onCancelEdit={() => setEditingSpot(null)}
-        />
+        {showSpotForm ? (
+          <div className="space-y-2">
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleCancelSpotForm}
+                className="text-muted-foreground"
+              >
+                <X className="size-4" aria-hidden />
+                閉じる
+              </Button>
+            </div>
+            <SpotForm
+              key={editingSpot?.id ?? "new"}
+              collectionId={detail.id}
+              editingSpot={editingSpot}
+              onSaved={handleSpotSaved}
+              onCancelEdit={handleCancelSpotForm}
+            />
+          </div>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={handleOpenSpotForm}
+          >
+            <Plus className="size-4" aria-hidden />
+            スポットを追加
+          </Button>
+        )}
       </section>
 
       <section className="space-y-3 px-mogu-screen-x">
