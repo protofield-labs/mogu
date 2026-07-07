@@ -147,6 +147,7 @@ function main() {
     inviteLinkIndex < friendListIndex,
     "invite action appears before friend avatars",
   );
+  assert(avatarRow.includes("touchRowClass"), "avatar row has press feedback");
   assert(
     readSource("components/home/recommendation-empty-row.tsx").includes("shrink-0"),
     "recommendation empty row resists flex shrink",

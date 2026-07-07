@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { touchCardClass } from "@/lib/ui/touch-feedback";
 
 export function SurfaceCard({
   className,
@@ -22,7 +23,7 @@ export function SurfaceCardInteractive({
 }: React.ComponentProps<"div">) {
   return (
     <SurfaceCard
-      className={cn("transition-shadow hover:shadow-md", className)}
+      className={cn("transition-shadow hover:shadow-md", touchCardClass, className)}
       {...props}
     />
   );

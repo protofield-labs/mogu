@@ -5,6 +5,8 @@ import { LibraryBig, Users } from "lucide-react";
 
 import { AuthImage } from "@/components/mypage/auth-image";
 import { Badge } from "@/components/ui/badge";
+import { touchCardClass } from "@/lib/ui/touch-feedback";
+import { cn } from "@/lib/utils";
 
 type MypageNavTilesProps = {
   collectionCount: number;
@@ -31,7 +33,10 @@ export function MypageNavTiles({
       <button
         type="button"
         onClick={onCollectionsClick}
-        className="group flex flex-col items-center gap-3 rounded-mogu-card bg-mogu-surface-elevated p-4 pb-5 text-center shadow-sm transition-shadow hover:shadow-md"
+        className={cn(
+          "group flex flex-col items-center gap-3 rounded-mogu-card bg-mogu-surface-elevated p-4 pb-5 text-center shadow-sm transition-shadow hover:shadow-md",
+          touchCardClass,
+        )}
       >
         <span className="relative mt-2 flex h-20 items-center justify-center">
           {coverUrl ? (
@@ -72,7 +77,10 @@ export function MypageNavTiles({
 
       <Link
         href="/mypage/friends"
-        className="group relative flex flex-col items-center gap-3 rounded-mogu-card bg-mogu-surface-elevated p-4 pb-5 text-center shadow-sm transition-shadow hover:shadow-md"
+        className={cn(
+          "group relative flex flex-col items-center gap-3 rounded-mogu-card bg-mogu-surface-elevated p-4 pb-5 text-center shadow-sm transition-shadow hover:shadow-md",
+          touchCardClass,
+        )}
       >
         {showFriendBadge ? (
           <Badge variant="alert" className="absolute right-3 top-3">

@@ -11,6 +11,8 @@ import { HOME_RECOMMENDATION_LABEL } from "@/lib/home/recommendation-labels";
 import { stashPendingRecommendation } from "@/lib/home/pending-recommendation";
 import { resolveSpotHeroPhoto } from "@/lib/places/resolve-spot-hero-photo";
 import { usePlace } from "@/lib/places/use-place";
+import { touchCardClass } from "@/lib/ui/touch-feedback";
+import { cn } from "@/lib/utils";
 
 type RecommendationCompactRowProps = {
   recommendation: Recommendation;
@@ -32,7 +34,10 @@ export function RecommendationCompactRow({
     <button
       type="button"
       onClick={handleOpenSearch}
-      className="mogu-elevated mx-mogu-screen-x flex w-[calc(100%-2*var(--mogu-spacing-screen-x))] items-center gap-3 rounded-2xl border border-border p-3 text-left transition-colors hover:bg-muted/40"
+      className={cn(
+        "mogu-elevated mx-mogu-screen-x flex w-[calc(100%-2*var(--mogu-spacing-screen-x))] items-center gap-3 rounded-2xl border border-border p-3 text-left transition-colors hover:bg-muted/40",
+        touchCardClass,
+      )}
     >
       {heroPhoto?.source === "spot" ? (
         <AuthImage

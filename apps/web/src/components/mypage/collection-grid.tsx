@@ -8,6 +8,8 @@ import type { Collection } from "@/lib/collections/browser-api";
 import { collectionPath } from "@/lib/share/paths";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatCollectionVisibility } from "@/lib/labels/collection-labels";
+import { touchCardClass, touchRowClass } from "@/lib/ui/touch-feedback";
+import { cn } from "@/lib/utils";
 
 type CollectionGridProps = {
   collections: Collection[];
@@ -57,7 +59,12 @@ function CollectionTile({
           event.preventDefault();
         }
       }}>
-        <div className="relative aspect-square overflow-hidden rounded-2xl bg-gradient-to-br from-muted to-background shadow-sm transition-shadow hover:shadow-md">
+        <div
+          className={cn(
+            "relative aspect-square overflow-hidden rounded-2xl bg-gradient-to-br from-muted to-background shadow-sm transition-shadow hover:shadow-md",
+            touchCardClass,
+          )}
+        >
           <CollectionCover
             name={collection.name}
             coverUrl={collection.coverUrl}
@@ -81,7 +88,10 @@ function CollectionTile({
             type="button"
             disabled={disableMoveUp || reorderBusy}
             onClick={() => onPinTop?.(collection)}
-            className="inline-flex h-7 flex-1 items-center justify-center gap-1 rounded-xl bg-mogu-surface-elevated text-xs font-medium shadow-sm disabled:opacity-40"
+            className={cn(
+              "inline-flex min-h-11 flex-1 items-center justify-center gap-1 rounded-xl bg-mogu-surface-elevated text-xs font-medium shadow-sm disabled:opacity-40",
+              touchRowClass,
+            )}
           >
             <Pin className="size-3" aria-hidden />
             先頭
@@ -90,7 +100,10 @@ function CollectionTile({
             type="button"
             disabled={disableMoveUp || reorderBusy}
             onClick={() => onMoveUp?.(collection)}
-            className="inline-flex size-7 items-center justify-center rounded-xl bg-mogu-surface-elevated shadow-sm disabled:opacity-40"
+            className={cn(
+              "inline-flex size-11 items-center justify-center rounded-xl bg-mogu-surface-elevated shadow-sm disabled:opacity-40",
+              touchRowClass,
+            )}
             aria-label="上へ"
           >
             <ChevronUp className="size-4" aria-hidden />
@@ -99,7 +112,10 @@ function CollectionTile({
             type="button"
             disabled={disableMoveDown || reorderBusy}
             onClick={() => onMoveDown?.(collection)}
-            className="inline-flex size-7 items-center justify-center rounded-xl bg-mogu-surface-elevated shadow-sm disabled:opacity-40"
+            className={cn(
+              "inline-flex size-11 items-center justify-center rounded-xl bg-mogu-surface-elevated shadow-sm disabled:opacity-40",
+              touchRowClass,
+            )}
             aria-label="下へ"
           >
             <ChevronDown className="size-4" aria-hidden />
@@ -111,7 +127,10 @@ function CollectionTile({
             <button
               type="button"
               onClick={() => onEdit(collection)}
-              className="inline-flex h-7 flex-1 items-center justify-center gap-1 rounded-xl bg-mogu-surface-elevated text-xs font-medium shadow-sm"
+              className={cn(
+                "inline-flex min-h-11 flex-1 items-center justify-center gap-1 rounded-xl bg-mogu-surface-elevated text-xs font-medium shadow-sm",
+                touchRowClass,
+              )}
             >
               <Pencil className="size-3" aria-hidden />
               編集
@@ -121,7 +140,10 @@ function CollectionTile({
             <button
               type="button"
               onClick={() => onDelete(collection)}
-              className="inline-flex h-7 flex-1 items-center justify-center gap-1 rounded-xl bg-mogu-surface-elevated text-xs font-medium text-destructive shadow-sm"
+              className={cn(
+                "inline-flex min-h-11 flex-1 items-center justify-center gap-1 rounded-xl bg-mogu-surface-elevated text-xs font-medium text-destructive shadow-sm",
+                touchRowClass,
+              )}
             >
               <Trash2 className="size-3" aria-hidden />
               削除

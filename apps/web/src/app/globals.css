@@ -155,10 +155,32 @@
   html {
     @apply font-sans;
     }
+  a,
+  button,
+  [role="button"],
+  summary {
+    -webkit-tap-highlight-color: transparent;
+  }
 }
 
 @layer utilities {
   .mogu-elevated {
     @apply bg-mogu-surface-elevated shadow-sm;
+  }
+
+  .mogu-touch-card {
+    @apply transition-transform duration-100 ease-out active:scale-[0.97] motion-reduce:transform-none motion-reduce:transition-none;
+  }
+
+  .mogu-touch-row {
+    @apply transition-opacity duration-100 active:opacity-60 motion-reduce:transition-none;
+  }
+
+  .mogu-touch-icon {
+    @apply transition-transform duration-150 ease-out active:scale-90 motion-reduce:transform-none motion-reduce:transition-none;
+  }
+
+  .mogu-touch-target {
+    @apply inline-flex min-h-11 min-w-11 items-center justify-center;
   }
 }

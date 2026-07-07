@@ -12,6 +12,8 @@ import { formatViaLabel } from "@/lib/home/feed-labels";
 import type { FeedItem } from "@/lib/home/types";
 import { actorProfilePath } from "@/lib/friends/paths";
 import { usePlace } from "@/lib/places/use-place";
+import { touchCardClass, touchRowClass } from "@/lib/ui/touch-feedback";
+import { cn } from "@/lib/utils";
 
 type FeedCompactRowProps = {
   item: FeedItem;
@@ -29,10 +31,15 @@ export function FeedCompactRow({ item, viewerId }: FeedCompactRowProps) {
 
   return (
     <>
-      <article className="mogu-elevated flex items-center gap-3 rounded-2xl border border-border p-3">
+      <article
+        className={cn(
+          "mogu-elevated flex items-center gap-3 rounded-2xl border border-border p-3",
+          touchCardClass,
+        )}
+      >
         <button
           type="button"
-          className="shrink-0"
+          className={cn("shrink-0", touchRowClass)}
           onClick={openDetail}
           aria-label="スポット詳細を開く"
         >
@@ -52,7 +59,10 @@ export function FeedCompactRow({ item, viewerId }: FeedCompactRowProps) {
         <div className="min-w-0 flex-1">
           <button
             type="button"
-            className="block w-full truncate text-left text-sm font-medium text-foreground"
+            className={cn(
+              "block w-full truncate text-left text-sm font-medium text-foreground",
+              touchRowClass,
+            )}
             onClick={openDetail}
           >
             <SpotPlaceName

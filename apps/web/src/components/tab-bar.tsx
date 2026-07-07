@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Home, User } from "lucide-react";
 
 import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
+import { touchIconClass } from "@/lib/ui/touch-feedback";
 import { cn } from "@/lib/utils";
 
 type TabBarProps = {
@@ -21,7 +22,7 @@ type TabItem = {
 
 function TabIcon({ tab, active }: { tab: TabItem; active: boolean }) {
   const className = cn(
-    "size-7 transition-colors",
+    "size-7 transition-colors transition-transform",
     active ? "text-primary" : "text-muted-foreground",
   );
 
@@ -75,7 +76,12 @@ export function TabBar({ showMypageBadge = false }: TabBarProps) {
               aria-label={tab.label}
               className="relative flex flex-1 items-center justify-center"
             >
-              <span className="relative flex size-11 items-center justify-center">
+              <span
+                className={cn(
+                  "relative flex size-11 items-center justify-center",
+                  touchIconClass,
+                )}
+              >
                 <TabIcon tab={tab} active={active} />
                 {tab.showBadge ? (
                   <span

@@ -11,6 +11,7 @@ import {
 import type { FeedItem } from "@/lib/home/types";
 import { FRIENDS_FROM_HOME, friendsPagePath } from "@/lib/friends/paths";
 import type { FriendUser } from "@/lib/mypage/types";
+import { touchRowClass } from "@/lib/ui/touch-feedback";
 import { cn } from "@/lib/utils";
 
 type AvatarRowProps = {
@@ -37,7 +38,10 @@ export function AvatarRow({
     >
       <Link
         href={friendsPagePath({ from: FRIENDS_FROM_HOME })}
-        className="flex w-14 shrink-0 flex-col items-center gap-1"
+        className={cn(
+          "flex w-14 shrink-0 flex-col items-center gap-1",
+          touchRowClass,
+        )}
       >
         <span className="flex size-11 items-center justify-center rounded-full border border-dashed border-border bg-mogu-surface-elevated text-muted-foreground">
           <Plus className="size-4" aria-hidden />
@@ -53,7 +57,10 @@ export function AvatarRow({
             type="button"
             aria-pressed={selected}
             onClick={() => onSelectFriend(friend.id)}
-            className="flex w-14 shrink-0 flex-col items-center gap-1"
+            className={cn(
+              "flex w-14 shrink-0 flex-col items-center gap-1",
+              touchRowClass,
+            )}
           >
             <UserAvatar
               displayName={friend.displayName}
@@ -93,7 +100,10 @@ export function FeedFilterChip({ displayName, onClear }: FeedFilterChipProps) {
       <button
         type="button"
         onClick={onClear}
-        className="inline-flex items-center gap-1.5 rounded-full border border-border bg-mogu-surface-elevated px-3 py-1.5 text-sm font-medium text-foreground"
+        className={cn(
+          "inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border bg-mogu-surface-elevated px-3 py-2 text-sm font-medium text-foreground",
+          touchRowClass,
+        )}
       >
         <span>{displayName}さんの新着</span>
         <X className="size-3.5 text-muted-foreground" aria-hidden />
