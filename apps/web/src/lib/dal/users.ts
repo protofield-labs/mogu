@@ -9,6 +9,10 @@ export type UserDto = {
   avatarColor: string;
 };
 
+export type FriendListItemDto = UserDto & {
+  collectionCount: number;
+};
+
 export type MeDto = UserDto & {
   counts: {
     collections: number;

@@ -231,7 +231,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/User"
+                  $ref: "#/components/schemas/FriendListItem"
         default:
           $ref: "#/components/responses/Error"
 
@@ -760,6 +760,17 @@ components:
           type: string
         avatarColor:
           type: string
+
+    FriendListItem:
+      allOf:
+        - $ref: "#/components/schemas/User"
+        - type: object
+          required: [collectionCount]
+          properties:
+            collectionCount:
+              type: integer
+              minimum: 0
+              description: RLS 可視範囲内のコレクション件数
 
     Me:
       allOf:

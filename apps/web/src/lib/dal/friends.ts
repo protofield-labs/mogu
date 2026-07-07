@@ -5,7 +5,7 @@ import {
 } from "@/lib/dal/friendship-delete";
 import { withAuthRls } from "@/lib/auth/with-auth-rls";
 import type { PrismaTransaction } from "@/lib/db/prisma";
-import { toUserDto, userSelect, type UserDto } from "@/lib/dal/users";
+import { toUserDto, userSelect, type FriendListItemDto, type UserDto } from "@/lib/dal/users";
 import {
   decodeFriendshipPairId,
   encodeFriendshipPairId,
@@ -290,23 +290,42 @@ export async function removeFriend(
   return result;
 }
 
-export async function listFriends(uid: string): Promise<UserDto[]> {
-  const friendships = await withAuthRls(uid, (tx) =>
-    tx.friendship.findMany({
+export async function listFriends(uid: string): Promise<FriendListItemDto[]> {
+  return withAuthRls(uid, async (tx) => {
+    const friendships = await tx.friendship.findMany({
       where: {
         status: "accepted",
         OR: [{ userLow: uid }, { userHigh: uid }],
       },
       include: friendshipInclude,
       orderBy: [{ acceptedAt: "desc" }, { createdAt: "desc" }],
-    }),
-  );
+    });
 
-  return friendships.map((friendship) => {
-    const friendUser =
-      friendship.userLow === uid
-        ? friendship.userHighUser
-        : friendship.userLowUser;
-    return toUserDto(friendUser);
+    const friends = friendships.map((friendship) => {
+      const friendUser =
+        friendship.userLow === uid
+          ? friendship.userHighUser
+          : friendship.userLowUser;
+      return toUserDto(friendUser);
+    });
+
+    if (friends.length === 0) {
+      return [];
+    }
+
+    const friendIds = friends.map((friend) => friend.id);
+    const grouped = await tx.collection.groupBy({
+      by: ["ownerId"],
+      where: { ownerId: { in: friendIds } },
+      _count: { _all: true },
+    });
+    const countByOwnerId = new Map(
+      grouped.map((row) => [row.ownerId, row._count._all]),
+    );
+
+    return friends.map((friend) => ({
+      ...friend,
+      collectionCount: countByOwnerId.get(friend.id) ?? 0,
+    }));
   });
 }

@@ -22,6 +22,10 @@ assert(friendsView.includes("cancelFriendRequest"), "friends view cancels outgoi
 assert(friendsView.includes("removeFriend"), "friends view removes friends");
 assert(friendsView.includes("ConfirmDialog"), "friends view uses confirm dialog for unfriend");
 assert(friendsView.includes("取り消す"), "friends view cancel label");
+assert(
+  !friendsView.includes("fetchFriendCollectionCount"),
+  "friends view uses bundled collectionCount",
+);
 
 const avatarRow = readSource("components/home/avatar-row.tsx");
 assert(avatarRow.includes("friendsPagePath"), "avatar row links to friends with entry context");
@@ -48,6 +52,17 @@ assert(
 
 const browserApi = readSource("lib/mypage/browser-api.ts");
 assert(browserApi.includes('method: "DELETE"'), "browser api supports friend DELETE");
+assert(
+  browserApi.includes("friendListItemListSchema"),
+  "friends api validates collectionCount in list response",
+);
+assert(
+  !browserApi.includes("fetchFriendCollectionCount"),
+  "friends list no longer fetches collections per friend",
+);
+
+const friendsDal = readSource("lib/dal/friends.ts");
+assert(friendsDal.includes("collection.groupBy"), "friends dal batches collection counts");
 
 const pairId = friendshipPairIdFromUserIds("user-a", "user-b");
 assert(typeof pairId === "string" && pairId.length > 0, "pair id encodes from user ids");

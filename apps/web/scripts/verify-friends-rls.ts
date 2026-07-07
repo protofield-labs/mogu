@@ -232,6 +232,65 @@ async function verifyFirebaseUidPairInsert() {
   });
 }
 
+async function verifyFriendCollectionCountRls() {
+  await runInRollbackTransaction(async (tx) => {
+    await upsertUser(tx, UID_A, "RLS Friend A");
+    await upsertUser(tx, UID_B, "RLS Friend B");
+
+    const pair = await resolveFriendshipPair(tx, UID_A, UID_B);
+    await withRls(tx, UID_A, (scoped) =>
+      scoped.friendship.create({
+        data: {
+          ...pair,
+          status: "accepted",
+          requestedBy: UID_A,
+          acceptedAt: new Date(),
+        },
+      }),
+    );
+
+    await withRls(tx, UID_B, async (scoped) => {
+      await scoped.collection.create({
+        data: {
+          ownerId: UID_B,
+          name: "Visible to friends",
+          visibility: "friends",
+        },
+      });
+      await scoped.collection.create({
+        data: {
+          ownerId: UID_B,
+          name: "Secret shelf",
+          visibility: "secret",
+        },
+      });
+    });
+
+    const visibleCount = await withRls(tx, UID_A, (scoped) =>
+      scoped.collection.count({ where: { ownerId: UID_B } }),
+    );
+    if (visibleCount !== 1) {
+      throw new Error(
+        `Friend should see only friends-visible collections, got ${visibleCount}`,
+      );
+    }
+
+    const grouped = await withRls(tx, UID_A, (scoped) =>
+      scoped.collection.groupBy({
+        by: ["ownerId"],
+        where: { ownerId: UID_B },
+        _count: { _all: true },
+      }),
+    );
+    const groupedCount = grouped[0]?._count._all ?? 0;
+    if (groupedCount !== 1) {
+      throw new Error(
+        `groupBy count must exclude secret collections, got ${groupedCount}`,
+      );
+    }
+  });
+}
+
 async function main() {
   await verifyFriendshipRlsBoundary();
   console.log("PASS: friends RLS pending/accepted boundary verified");
@@ -241,6 +300,8 @@ async function main() {
   console.log("PASS: friends RLS unfriend delete verified");
   await verifyFirebaseUidPairInsert();
   console.log("PASS: friends CHECK constraint with Firebase-like UIDs");
+  await verifyFriendCollectionCountRls();
+  console.log("PASS: friends collectionCount excludes secret collections");
 }
 
 runVerifyScript(main, prisma);
