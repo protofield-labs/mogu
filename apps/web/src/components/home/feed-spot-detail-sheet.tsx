@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { XIcon } from "lucide-react";
 
@@ -18,6 +19,7 @@ import {
   formatViaLabel,
 } from "@/lib/home/feed-labels";
 import type { FeedItem } from "@/lib/home/types";
+import { actorProfilePath } from "@/lib/friends/paths";
 
 type FeedSpotDetailSheetProps = {
   item: FeedItem;
@@ -28,6 +30,7 @@ type FeedSpotDetailSheetProps = {
   saved: boolean;
   busy: boolean;
   error: string | null;
+  viewerId?: string | null;
   onSave: () => void;
 };
 
@@ -40,6 +43,7 @@ export function FeedSpotDetailSheet({
   saved,
   busy,
   error,
+  viewerId,
   onSave,
 }: FeedSpotDetailSheetProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -71,7 +75,11 @@ export function FeedSpotDetailSheet({
     >
       <div className="flex max-h-[inherit] flex-col">
         <div className="flex items-center justify-between border-b border-border px-mogu-screen-x py-3">
-          <div className="flex min-w-0 items-center gap-2">
+          <Link
+            href={actorProfilePath(actor.id, viewerId)}
+            className="flex min-w-0 items-center gap-2"
+            onClick={onClose}
+          >
             <UserAvatar
               displayName={actor.displayName}
               avatarColor={actor.avatarColor}
@@ -80,7 +88,7 @@ export function FeedSpotDetailSheet({
             <p className="truncate text-sm text-muted-foreground">
               {formatViaLabel(actor.displayName)}
             </p>
-          </div>
+          </Link>
           <Button
             type="button"
             variant="ghost"

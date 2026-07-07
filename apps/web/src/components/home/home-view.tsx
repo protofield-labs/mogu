@@ -223,12 +223,12 @@ export function HomeView() {
             </p>
           ) : null}
 
-          {heroItem ? <FeedHeroCard item={heroItem} /> : null}
+          {heroItem ? <FeedHeroCard item={heroItem} viewerId={me?.id} /> : null}
 
           {compactItems.length > 0 ? (
             <div className="space-y-2">
               {compactItems.map((item) => (
-                <FeedCompactRow key={item.spot.id} item={item} />
+                <FeedCompactRow key={item.spot.id} item={item} viewerId={me?.id} />
               ))}
             </div>
           ) : null}

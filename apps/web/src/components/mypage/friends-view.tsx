@@ -30,6 +30,7 @@ import {
   isOutgoingPending,
 } from "@/lib/mypage/friend-request-ui";
 import type { FriendRequest, FriendUser } from "@/lib/mypage/types";
+import { friendProfilePath } from "@/lib/friends/paths";
 import { cn } from "@/lib/utils";
 
 type FriendWithCollections = FriendUser & {
@@ -499,16 +500,21 @@ export function FriendsView() {
         ) : (
           <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-mogu-surface-elevated">
             {friends.map((friend) => (
-              <li key={friend.id} className="flex items-center gap-3 p-4">
-                <Avatar {...friendAvatarProps(friend)} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground">
-                    {friend.displayName}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    コレクション {friend.collectionCount}
-                  </p>
-                </div>
+              <li key={friend.id}>
+                <Link
+                  href={friendProfilePath(friend.id)}
+                  className="flex items-center gap-3 p-4 transition-colors hover:bg-muted/40"
+                >
+                  <Avatar {...friendAvatarProps(friend)} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground">
+                      {friend.displayName}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      コレクション {friend.collectionCount}
+                    </p>
+                  </div>
+                </Link>
               </li>
             ))}
           </ul>
