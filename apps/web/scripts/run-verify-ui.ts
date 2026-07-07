@@ -31,6 +31,7 @@ const scripts = [
   "verify-photo-url.ts",
   "verify-feed-helpers.ts",
   "verify-home-ui.ts",
+  "verify-touch-feedback.ts",
 ];
 
 for (const script of scripts) {

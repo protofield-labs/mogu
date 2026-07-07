@@ -18,6 +18,8 @@ import {
 import type { FeedItem } from "@/lib/home/types";
 import { actorProfilePath } from "@/lib/friends/paths";
 import { usePlace } from "@/lib/places/use-place";
+import { touchCardClass, touchRowClass } from "@/lib/ui/touch-feedback";
+import { cn } from "@/lib/utils";
 
 type FeedHeroCardProps = {
   item: FeedItem;
@@ -55,7 +57,12 @@ export function FeedHeroCard({ item, viewerId }: FeedHeroCardProps) {
 
   return (
     <>
-      <article className="mogu-elevated overflow-hidden rounded-2xl border border-border">
+      <article
+        className={cn(
+          "mogu-elevated overflow-hidden rounded-2xl border border-border",
+          touchCardClass,
+        )}
+      >
         <div className="relative">
           {item.spot.photoUrls.length > 0 ? (
             <div
@@ -87,7 +94,10 @@ export function FeedHeroCard({ item, viewerId }: FeedHeroCardProps) {
           ) : (
             <button
               type="button"
-              className="flex aspect-[4/3] w-full items-center justify-center bg-muted text-sm text-muted-foreground"
+              className={cn(
+                "flex aspect-[4/3] w-full items-center justify-center bg-muted text-sm text-muted-foreground",
+                touchRowClass,
+              )}
               onClick={openDetail}
             >
               写真なし
@@ -103,7 +113,7 @@ export function FeedHeroCard({ item, viewerId }: FeedHeroCardProps) {
         <div className="space-y-2 p-mogu-screen-x py-3">
           <Link
             href={actorProfilePath(item.actor.id, viewerId)}
-            className="flex items-start gap-2"
+            className={cn("flex items-start gap-2", touchRowClass)}
           >
             <UserAvatar
               displayName={item.actor.displayName}
@@ -116,7 +126,7 @@ export function FeedHeroCard({ item, viewerId }: FeedHeroCardProps) {
           </Link>
           <button
             type="button"
-            className="block w-full text-left"
+            className={cn("block w-full text-left", touchRowClass)}
             onClick={openDetail}
           >
             <p className="text-sm font-semibold text-foreground">

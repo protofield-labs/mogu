@@ -21,6 +21,8 @@ import {
 } from "@/lib/mypage/friend-request-ui";
 import { useFriendsView } from "@/lib/mypage/use-friends-view";
 import type { FriendUser } from "@/lib/mypage/types";
+import { touchRowClass } from "@/lib/ui/touch-feedback";
+import { cn } from "@/lib/utils";
 
 type FriendsViewProps = {
   fromHome?: boolean;
@@ -59,7 +61,10 @@ export function FriendsView({ fromHome = false }: FriendsViewProps) {
         type="button"
         disabled={sending}
         onClick={() => void view.handleSendRequest(user)}
-        className="inline-flex min-w-[4.5rem] items-center justify-center gap-1 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+        className={cn(
+          "inline-flex min-h-11 min-w-[4.5rem] items-center justify-center gap-1 rounded-full border border-border bg-background px-3 py-2 text-xs font-medium disabled:opacity-50",
+          touchRowClass,
+        )}
       >
         {sending ? (
           <>
@@ -90,7 +95,10 @@ export function FriendsView({ fromHome = false }: FriendsViewProps) {
       <header className="flex items-center gap-3 px-mogu-screen-x pt-3">
         <Link
           href={backNavigation.href}
-          className="flex size-9 items-center justify-center rounded-full border border-border bg-mogu-surface-elevated"
+          className={cn(
+            "flex size-11 items-center justify-center rounded-full border border-border bg-mogu-surface-elevated",
+            touchRowClass,
+          )}
           aria-label={backNavigation.ariaLabel}
         >
           <ChevronLeft className="size-5" aria-hidden />
