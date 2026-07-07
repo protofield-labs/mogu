@@ -9,9 +9,15 @@ type SpotListProps = {
   spots: Spot[];
   onSelect: (spot: Spot) => void;
   placeNames?: Record<string, string | null>;
+  distanceLabels?: Record<string, string>;
 };
 
-export function SpotList({ spots, onSelect, placeNames }: SpotListProps) {
+export function SpotList({
+  spots,
+  onSelect,
+  placeNames,
+  distanceLabels,
+}: SpotListProps) {
   if (spots.length === 0) {
     return null;
   }
@@ -52,6 +58,7 @@ export function SpotList({ spots, onSelect, placeNames }: SpotListProps) {
                   {[formatRatingChip(spot.rating), formatSavedCountBadge(spot.savedCount)]
                     .filter(Boolean)
                     .join(" ・ ")}
+                  {distanceLabels?.[spot.id] ? ` ・ ${distanceLabels[spot.id]}` : ""}
                 </p>
               </div>
             </div>

@@ -9,6 +9,7 @@ import { MypageViewSkeleton } from "@/components/loading/skeletons";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadErrorState } from "@/components/ui/load-error-state";
 import { loadAllMySpots } from "@/lib/mypage/load-all-my-spots";
+import { useUserLocation } from "@/lib/places/use-user-location";
 import { spotPath } from "@/lib/share/paths";
 import { touchRowClass } from "@/lib/ui/touch-feedback";
 import type { Spot } from "@/lib/spots/browser-api";
@@ -24,6 +25,7 @@ export function MypageAllSpotsMapView() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
+  const userLocation = useUserLocation();
 
   useEffect(() => {
     let cancelled = false;
@@ -107,6 +109,7 @@ export function MypageAllSpotsMapView() {
           <CollectionSpotMapView
             spots={mapSpots}
             spotLabels={collectionNameBySpotId}
+            userLocation={userLocation}
             selectedSpotId={selectedSpotId}
             onSelectSpot={(spot) => setSelectedSpotId(spot.id)}
             onClearSelection={() => setSelectedSpotId(null)}

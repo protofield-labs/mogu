@@ -1,19 +1,32 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { APIProvider, Map, Marker, useMap } from "@vis.gl/react-google-maps";
+import { toast } from "sonner";
 
 import { CollectionSpotMapCard } from "@/components/collections/collection-spot-map-card";
+import { MapCurrentLocationButton } from "@/components/collections/map-current-location-button";
+import { MapNearbySpotList } from "@/components/collections/map-nearby-spot-list";
 import { EmptyState } from "@/components/ui/empty-state";
 import { mapPinIcon } from "@/lib/collections/map-pin-icon";
+import {
+  sortSpotsByDistance,
+  spotDistanceLabels,
+  type GeoPoint,
+} from "@/lib/places/geo";
 import {
   DEFAULT_MAP_CENTER,
   readGoogleMapsApiKey,
 } from "@/lib/places/maps-config";
 import { usePlaceLocations } from "@/lib/places/use-place-locations";
+import { useUserLocation } from "@/lib/places/use-user-location";
+import type { UserGeoPoint } from "@/lib/places/use-user-location";
+import { userLocationMarkerIcon } from "@/lib/places/user-location-marker";
 import type { PlaceLocationDTO } from "@/lib/places/types";
 import type { Spot } from "@/lib/spots/browser-api";
 import { cn } from "@/lib/utils";
+
+type UserLocationControl = ReturnType<typeof useUserLocation>;
 
 type CollectionSpotMapViewProps = {
   spots: Spot[];
@@ -25,12 +38,18 @@ type CollectionSpotMapViewProps = {
   onOpenDetail?: (spot: Spot) => void;
   detailHrefForSpot?: (spot: Spot) => string;
   mapClassName?: string;
+  /** Show nearby list after user grants location (default true). */
+  showNearbyList?: boolean;
+  /** Share geolocation state with a parent (e.g. list/map tabs). */
+  userLocation?: UserLocationControl;
 };
 
 type MapMarkerSpot = {
   spot: Spot;
   location: PlaceLocationDTO;
 };
+
+type PanTarget = GeoPoint & { key: number };
 
 function computeMapViewport(points: Array<{ lat: number; lng: number }>): {
   center: { lat: number; lng: number };
@@ -59,11 +78,17 @@ function computeMapViewport(points: Array<{ lat: number; lng: number }>): {
   return { center, zoom };
 }
 
-function FitMapViewport({ markerKey }: { markerKey: string }) {
+function FitMapViewport({
+  markerKey,
+  enabled,
+}: {
+  markerKey: string;
+  enabled: boolean;
+}) {
   const map = useMap();
 
   useEffect(() => {
-    if (!map || markerKey.length === 0) {
+    if (!enabled || !map || markerKey.length === 0) {
       return;
     }
 
@@ -78,7 +103,21 @@ function FitMapViewport({ markerKey }: { markerKey: string }) {
     const viewport = computeMapViewport(points);
     map.setCenter(viewport.center);
     map.setZoom(viewport.zoom);
-  }, [map, markerKey]);
+  }, [map, markerKey, enabled]);
+
+  return null;
+}
+
+function PanMapToTarget({ target }: { target: PanTarget | null }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map || !target) {
+      return;
+    }
+    map.panTo({ lat: target.lat, lng: target.lng });
+    map.setZoom(15);
+  }, [map, target]);
 
   return null;
 }
@@ -103,8 +142,14 @@ export function CollectionSpotMapView({
   onOpenDetail,
   detailHrefForSpot,
   mapClassName = "aspect-[4/3] w-full",
+  showNearbyList = true,
+  userLocation: userLocationProp,
 }: CollectionSpotMapViewProps) {
   const mapsApiKey = readGoogleMapsApiKey();
+  const internalUserLocation = useUserLocation();
+  const userLocation = userLocationProp ?? internalUserLocation;
+  const [panTarget, setPanTarget] = useState<PanTarget | null>(null);
+  const [focusUserLocation, setFocusUserLocation] = useState(false);
   const placeIds = spots.map((spot) => spot.placeId);
   const { locations, loading, error } = usePlaceLocations(placeIds, spots.length > 0);
   const markers = useMemo(
@@ -119,6 +164,24 @@ export function CollectionSpotMapView({
         .join("|"),
     [markers],
   );
+  const locationPoints = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(locations).map(([placeId, location]) => [
+          placeId,
+          { lat: location.lat, lng: location.lng },
+        ]),
+      ),
+    [locations],
+  );
+  const nearbySpots = useMemo(
+    () => sortSpotsByDistance(spots, userLocation.location, locationPoints),
+    [spots, userLocation.location, locationPoints],
+  );
+  const distanceLabels = useMemo(
+    () => spotDistanceLabels(nearbySpots, userLocation.location, locationPoints),
+    [nearbySpots, userLocation.location, locationPoints],
+  );
   const selectedSpot = spots.find((spot) => spot.id === selectedSpotId) ?? null;
   const selectedMarker =
     selectedSpot && locations[selectedSpot.placeId]
@@ -128,6 +191,30 @@ export function CollectionSpotMapView({
     markers.length > 0
       ? computeMapViewport(markers.map(({ location }) => location))
       : { center: DEFAULT_MAP_CENTER, zoom: 13 };
+
+  useEffect(() => {
+    if (!userLocation.error) {
+      return;
+    }
+    toast.error(userLocation.error);
+  }, [userLocation.error]);
+
+  function panToLocation(location: UserGeoPoint) {
+    setFocusUserLocation(true);
+    setPanTarget({
+      lat: location.lat,
+      lng: location.lng,
+      key: Date.now(),
+    });
+  }
+
+  function handleRequestCurrentLocation() {
+    if (userLocation.location) {
+      panToLocation(userLocation.location);
+      return;
+    }
+    userLocation.requestLocation(panToLocation);
+  }
 
   if (!mapsApiKey) {
     return (
@@ -151,7 +238,6 @@ export function CollectionSpotMapView({
     );
   }
 
-  // With cached pins available, keep the map visible even if a refetch failed.
   if (markers.length === 0) {
     return (
       <EmptyState className="rounded-2xl p-6">
@@ -161,42 +247,74 @@ export function CollectionSpotMapView({
   }
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-border">
-      <APIProvider apiKey={mapsApiKey}>
-        <Map
-          defaultCenter={initialViewport.center}
-          defaultZoom={initialViewport.zoom}
-          gestureHandling="greedy"
-          disableDefaultUI
-          zoomControl
-          className={mapClassName}
-          onClick={onClearSelection}
-        >
-          <FitMapViewport markerKey={markerKey} />
-          {markers.map(({ spot, location }) => (
-            <Marker
-              key={spot.id}
-              position={{ lat: location.lat, lng: location.lng }}
-              onClick={(event) => {
-                event.stop();
-                onSelectSpot(spot);
-              }}
-              icon={mapPinIcon(spot.rating, selectedSpotId === spot.id)}
-            />
-          ))}
-        </Map>
-      </APIProvider>
+    <div className="space-y-3">
+      <div className="relative overflow-hidden rounded-2xl border border-border">
+        <APIProvider apiKey={mapsApiKey}>
+          <Map
+            defaultCenter={initialViewport.center}
+            defaultZoom={initialViewport.zoom}
+            gestureHandling="greedy"
+            disableDefaultUI
+            zoomControl
+            className={mapClassName}
+            onClick={onClearSelection}
+          >
+            <FitMapViewport markerKey={markerKey} enabled={!focusUserLocation} />
+            <PanMapToTarget target={panTarget} />
+            {markers.map(({ spot, location }) => (
+              <Marker
+                key={spot.id}
+                position={{ lat: location.lat, lng: location.lng }}
+                onClick={(event) => {
+                  event.stop();
+                  onSelectSpot(spot);
+                }}
+                icon={mapPinIcon(spot.rating, selectedSpotId === spot.id)}
+              />
+            ))}
+            {userLocation.location ? (
+              <Marker
+                position={{
+                  lat: userLocation.location.lat,
+                  lng: userLocation.location.lng,
+                }}
+                icon={userLocationMarkerIcon()}
+                zIndex={1000}
+              />
+            ) : null}
+          </Map>
+        </APIProvider>
 
-      {selectedMarker ? (
-        <CollectionSpotMapCard
-          spot={selectedMarker.spot}
-          placeName={placeNames?.[selectedMarker.spot.placeId] ?? selectedMarker.location.name}
-          collectionLabel={spotLabels?.[selectedMarker.spot.id]}
-          onOpenDetail={
-            onOpenDetail ? () => onOpenDetail(selectedMarker.spot) : undefined
-          }
-          detailHref={detailHrefForSpot?.(selectedMarker.spot)}
-          onClose={onClearSelection}
+        <MapCurrentLocationButton
+          pending={userLocation.pending}
+          active={userLocation.location !== null}
+          onClick={handleRequestCurrentLocation}
+        />
+
+        {selectedMarker ? (
+          <CollectionSpotMapCard
+            spot={selectedMarker.spot}
+            placeName={
+              placeNames?.[selectedMarker.spot.placeId] ?? selectedMarker.location.name
+            }
+            collectionLabel={spotLabels?.[selectedMarker.spot.id]}
+            onOpenDetail={
+              onOpenDetail ? () => onOpenDetail(selectedMarker.spot) : undefined
+            }
+            detailHref={detailHrefForSpot?.(selectedMarker.spot)}
+            onClose={onClearSelection}
+          />
+        ) : null}
+      </div>
+
+      {showNearbyList && userLocation.location ? (
+        <MapNearbySpotList
+          spots={nearbySpots}
+          placeNames={placeNames}
+          spotLabels={spotLabels}
+          distanceLabels={distanceLabels}
+          selectedSpotId={selectedSpotId}
+          onSelectSpot={onSelectSpot}
         />
       ) : null}
     </div>
