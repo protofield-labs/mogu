@@ -11,7 +11,7 @@ import {
   listMyCollections,
   type Collection,
 } from "@/lib/collections/browser-api";
-import { getLastRecollectTarget } from "@/lib/recollect/last-target";
+import { pickDefaultCollection } from "@/lib/recollect/recollect-to-default-collection";
 import { saveSpotToCollection } from "@/lib/recollect/save-spot";
 import { cn } from "@/lib/utils";
 
@@ -74,12 +74,7 @@ export function CollectionPickerSheet({
           return;
         }
         setCollections(result);
-        const lastTarget = getLastRecollectTarget();
-        const defaultId =
-          lastTarget && result.some((item) => item.id === lastTarget.collectionId)
-            ? lastTarget.collectionId
-            : (result[0]?.id ?? null);
-        setSelectedId(defaultId);
+        setSelectedId(pickDefaultCollection(result)?.id ?? null);
         if (result.length === 0) {
           setShowCreateForm(true);
         }

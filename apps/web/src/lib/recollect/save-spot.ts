@@ -1,6 +1,6 @@
 "use client";
 
-import { recollectSpot } from "@/lib/agent/browser-api";
+import { recollectSpot } from "@/lib/spots/browser-api";
 import { setLastRecollectTarget } from "@/lib/recollect/last-target";
 
 export type SaveSpotResult =
@@ -13,11 +13,11 @@ export async function saveSpotToCollection(
   collectionName: string,
 ): Promise<SaveSpotResult> {
   try {
-    const savedSpot = await recollectSpot(spotId, collectionId);
-    if (!savedSpot) {
-      return { ok: false, error: "保存に失敗しました" };
+    const result = await recollectSpot(spotId, collectionId);
+    if (!result.ok) {
+      return { ok: false, error: result.error };
     }
-    if (savedSpot.collectionId !== collectionId) {
+    if (result.spot.collectionId !== collectionId) {
       return { ok: false, error: "既に別のコレクションに保存済みです" };
     }
     setLastRecollectTarget({ collectionId, collectionName });
