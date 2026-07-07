@@ -138,7 +138,15 @@ function main() {
   );
 
   const avatarRow = readSource("components/home/avatar-row.tsx");
+  const inviteLinkIndex = avatarRow.indexOf("href={friendsPagePath");
+  const friendListIndex = avatarRow.indexOf("sorted.map");
   assert(avatarRow.includes("shrink-0"), "avatar row resists flex shrink");
+  assert(inviteLinkIndex >= 0, "invite action exists in avatar row");
+  assert(friendListIndex >= 0, "friend avatars exist in avatar row");
+  assert(
+    inviteLinkIndex < friendListIndex,
+    "invite action appears before friend avatars",
+  );
   assert(
     readSource("components/home/recommendation-empty-row.tsx").includes("shrink-0"),
     "recommendation empty row resists flex shrink",

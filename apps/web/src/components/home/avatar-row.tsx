@@ -35,6 +35,16 @@ export function AvatarRow({
       aria-label="友達"
       className="flex shrink-0 gap-3 overflow-x-auto px-mogu-screen-x pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
+      <Link
+        href={friendsPagePath({ from: FRIENDS_FROM_HOME })}
+        className="flex w-14 shrink-0 flex-col items-center gap-1"
+      >
+        <span className="flex size-11 items-center justify-center rounded-full border border-dashed border-border bg-mogu-surface-elevated text-muted-foreground">
+          <Plus className="size-4" aria-hidden />
+        </span>
+        <span className="text-xs text-muted-foreground">招待</span>
+      </Link>
+
       {sorted.map((friend) => {
         const selected = selectedFriendId === friend.id;
         return (
@@ -68,16 +78,6 @@ export function AvatarRow({
           </button>
         );
       })}
-
-      <Link
-        href={friendsPagePath({ from: FRIENDS_FROM_HOME })}
-        className="flex w-14 shrink-0 flex-col items-center gap-1"
-      >
-        <span className="flex size-11 items-center justify-center rounded-full border border-dashed border-border bg-mogu-surface-elevated text-muted-foreground">
-          <Plus className="size-4" aria-hidden />
-        </span>
-        <span className="text-xs text-muted-foreground">招待</span>
-      </Link>
     </section>
   );
 }
