@@ -39,8 +39,9 @@ assert(mapView.includes("mapPinIcon"), "map pins use rating-specific icons");
 assert(mapView.includes("CollectionSpotMapCard"), "map view shows mini card");
 
 const mapPinIcon = readSource("lib/collections/map-pin-icon.ts");
-assert(mapPinIcon.includes("again"), "map pin icons cover again rating");
-assert(mapPinIcon.includes("heartIcon"), "again rating uses a heart icon");
+assert(mapPinIcon.includes("ratingPinColor"), "map pins use rating colors");
+assert(mapPinIcon.includes("anchor"), "map pins set bottom anchor");
+assert(!mapPinIcon.includes("heartIcon"), "map pins avoid heart glyphs");
 
 const locationsRoute = readSource("app/api/v1/places/locations/route.ts");
 assert(locationsRoute.includes("fetchPlaceLocations"), "locations route resolves coordinates");

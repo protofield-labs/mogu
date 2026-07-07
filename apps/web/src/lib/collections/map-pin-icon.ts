@@ -1,9 +1,12 @@
 import { ratingPinColor } from "@/lib/collections/rating-pin-color";
 import type { SpotRating } from "@/lib/spot/types";
 
-const PIN_SIZE = 32;
-const SELECTED_PIN_SIZE = 38;
-const VIEWBOX = 32;
+const PIN_WIDTH = 28;
+const PIN_HEIGHT = 36;
+const SELECTED_PIN_WIDTH = 34;
+const SELECTED_PIN_HEIGHT = 44;
+const VIEWBOX_WIDTH = 28;
+const VIEWBOX_HEIGHT = 36;
 
 type MapPinIcon = {
   url: string;
@@ -15,64 +18,37 @@ function svgToDataUrl(svg: string): string {
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
-function pinShell(selected: boolean, accent: string, innerSvg: string): string {
-  const displaySize = selected ? SELECTED_PIN_SIZE : PIN_SIZE;
-  const center = VIEWBOX / 2;
-  const radius = center - 2;
+function pinSvg(color: string, selected: boolean): string {
+  const displayWidth = selected ? SELECTED_PIN_WIDTH : PIN_WIDTH;
+  const displayHeight = selected ? SELECTED_PIN_HEIGHT : PIN_HEIGHT;
   const stroke = selected ? "#111827" : "#ffffff";
-  const strokeWidth = selected ? 2.5 : 2;
+  const strokeWidth = selected ? 2 : 1.5;
   const ring = selected
-    ? `<circle cx="${center}" cy="${center}" r="${radius + 2}" fill="none" stroke="${accent}" stroke-opacity="0.35" stroke-width="2"/>`
+    ? `<path d="M14 1.5C8.2 1.5 3.5 6.4 3.5 12.2c0 8.6 10.5 22.3 10.5 22.3S24.5 20.8 24.5 12.2C24.5 6.4 19.8 1.5 14 1.5z" fill="none" stroke="${color}" stroke-opacity="0.35" stroke-width="2"/>`
     : "";
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${displaySize}" height="${displaySize}" viewBox="0 0 ${VIEWBOX} ${VIEWBOX}">
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${displayWidth}" height="${displayHeight}" viewBox="0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}">
   <defs>
-    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+    <filter id="shadow" x="-30%" y="-20%" width="160%" height="160%">
       <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#111827" flood-opacity="0.18"/>
     </filter>
   </defs>
   ${ring}
-  <circle cx="${center}" cy="${center}" r="${radius}" fill="#ffffff" stroke="${stroke}" stroke-width="${strokeWidth}" filter="url(#shadow)"/>
-  ${innerSvg}
+  <path d="M14 2C8.5 2 4 6.5 4 12c0 8 10 22 10 22s10-14 10-22c0-5.5-4.5-10-10-10z" fill="${color}" stroke="${stroke}" stroke-width="${strokeWidth}" filter="url(#shadow)"/>
 </svg>`;
 }
 
-function heartIcon(color: string): string {
-  return `<path d="M12 21s-6.7-4.35-9-7.35C1.2 11.55 1.2 8.45 3.3 6.55 5.4 4.65 8.1 5.05 10 6.85c1.9-1.8 4.6-2.2 6.7-.3 2.1 1.9 2.1 5 0 7.1C18.7 16.65 12 21 12 21z" fill="${color}" transform="translate(4 3.5) scale(0.92)"/>`;
-}
-
-function eitherIcon(color: string): string {
-  return `<rect x="9" y="15" width="14" height="2.5" rx="1.25" fill="${color}"/>`;
-}
-
-function noIcon(color: string): string {
-  return `<path d="M11 11l10 10M21 11l-10 10" stroke="${color}" stroke-width="2.5" stroke-linecap="round"/>`;
-}
-
-function innerIcon(rating: SpotRating, color: string): string {
-  switch (rating) {
-    case "again":
-      return heartIcon(color);
-    case "either":
-      return eitherIcon(color);
-    case "no":
-      return noIcon(color);
-  }
-}
-
 export function mapPinIconUrl(rating: SpotRating, selected = false): string {
-  const color = ratingPinColor(rating);
-  const svg = pinShell(selected, color, innerIcon(rating, color));
-  return svgToDataUrl(svg);
+  return svgToDataUrl(pinSvg(ratingPinColor(rating), selected));
 }
 
 export function mapPinIcon(rating: SpotRating, selected = false): MapPinIcon {
-  const size = selected ? SELECTED_PIN_SIZE : PIN_SIZE;
-  const center = size / 2;
+  const width = selected ? SELECTED_PIN_WIDTH : PIN_WIDTH;
+  const height = selected ? SELECTED_PIN_HEIGHT : PIN_HEIGHT;
 
   return {
     url: mapPinIconUrl(rating, selected),
-    scaledSize: { width: size, height: size },
-    anchor: { x: center, y: center },
+    scaledSize: { width, height },
+    anchor: { x: width / 2, y: height },
   };
 }
