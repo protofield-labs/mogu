@@ -4,6 +4,11 @@ import { ChevronLeft, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { CollectionSpotMapView } from "@/components/collections/collection-spot-map-view";
+import {
+  CollectionSpotViewTabs,
+  type CollectionSpotViewMode,
+} from "@/components/collections/collection-spot-view-tabs";
 import { CollectionDetailSkeleton } from "@/components/loading/skeletons";
 import { CollectionCover } from "@/components/mypage/collection-cover";
 import { LoadErrorState } from "@/components/ui/load-error-state";
@@ -65,6 +70,8 @@ export function CollectionDetailView({
   const [spotSearchQuery, setSpotSearchQuery] = useState("");
   const [ratingFilter, setRatingFilter] =
     useState<CollectionSpotRatingFilter>("all");
+  const [spotViewMode, setSpotViewMode] = useState<CollectionSpotViewMode>("list");
+  const [mapSelectedSpotId, setMapSelectedSpotId] = useState<string | null>(null);
   const [prevCollectionId, setPrevCollectionId] = useState(collectionId);
   const [prevInitialSpotId, setPrevInitialSpotId] = useState(initialSpotId);
   const formSectionRef = useRef<HTMLElement>(null);
@@ -103,6 +110,8 @@ export function CollectionDetailView({
     setShowSpotForm(false);
     setSpotSearchQuery("");
     setRatingFilter("all");
+    setSpotViewMode("list");
+    setMapSelectedSpotId(null);
   }
 
   useEffect(() => {
@@ -179,6 +188,12 @@ export function CollectionDetailView({
   }
 
   function handleSelectSpot(spot: Spot) {
+    setSelectedSpot(spot);
+    setDetailOpen(true);
+  }
+
+  function handleOpenSpotFromMap(spot: Spot) {
+    setMapSelectedSpotId(spot.id);
     setSelectedSpot(spot);
     setDetailOpen(true);
   }
@@ -346,7 +361,18 @@ export function CollectionDetailView({
       </section>
 
       <section className="space-y-3 px-mogu-screen-x">
-        <h2 className="text-sm font-semibold text-foreground">スポット一覧</h2>
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold text-foreground">スポット一覧</h2>
+          {detail.spots.length > 0 ? (
+            <CollectionSpotViewTabs
+              mode={spotViewMode}
+              onChange={(mode) => {
+                setSpotViewMode(mode);
+                setMapSelectedSpotId(null);
+              }}
+            />
+          ) : null}
+        </div>
         {detail.spots.length > 0 ? (
           <div className="space-y-3">
             <Input
@@ -387,6 +413,15 @@ export function CollectionDetailView({
           <EmptyState className="p-6">
             条件に合うスポットがありません。
           </EmptyState>
+        ) : spotViewMode === "map" ? (
+          <CollectionSpotMapView
+            spots={filteredSpots}
+            placeNames={placeNames}
+            selectedSpotId={mapSelectedSpotId}
+            onSelectSpot={(spot) => setMapSelectedSpotId(spot.id)}
+            onClearSelection={() => setMapSelectedSpotId(null)}
+            onOpenDetail={handleOpenSpotFromMap}
+          />
         ) : (
           <SpotList
             spots={filteredSpots}

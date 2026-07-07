@@ -20,6 +20,7 @@ const scripts = [
   "verify-mypage-ui.ts",
   "verify-friend-profile.ts",
   "verify-deeplink-share.ts",
+  "verify-map-view.ts",
   "verify-recollect.ts",
   "verify-photo-url.ts",
   "verify-feed-helpers.ts",

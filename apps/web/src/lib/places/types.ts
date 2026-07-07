@@ -16,10 +16,24 @@ export type PlacePhoto = {
   authorAttributions: PlacePhotoAttribution[];
 };
 
+export type PlaceLocation = {
+  lat: number;
+  lng: number;
+};
+
 export type PlaceDTO = {
   placeId: string;
   name: string;
   address: string;
   photos: PlacePhoto[];
+  location?: PlaceLocation;
   openNow?: boolean;
+};
+
+/** Map pin rendering — coordinates resolved at request time (guardrail 7). */
+export type PlaceLocationDTO = {
+  placeId: string;
+  name: string;
+  lat: number;
+  lng: number;
 };

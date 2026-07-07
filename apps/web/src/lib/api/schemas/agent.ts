@@ -29,5 +29,11 @@ export const placeDtoSchema = z.object({
       ),
     }),
   ),
+  location: z
+    .object({
+      lat: z.number(),
+      lng: z.number(),
+    })
+    .optional(),
   openNow: z.boolean().optional(),
 });

@@ -666,6 +666,36 @@ paths:
         default:
           $ref: "#/components/responses/Error"
 
+  /places/locations:
+    post:
+      tags: [places]
+      summary: Place 座標の一括取得（地図ピン用・都度取得・非保存）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [placeIds]
+              properties:
+                placeIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlaceLocationDTO"
+        default:
+          $ref: "#/components/responses/Error"
+
 components:
   securitySchemes:
     BearerAuth:
@@ -1165,5 +1195,26 @@ components:
                       type: string
                     uri:
                       type: string
+        location:
+          type: object
+          required: [lat, lng]
+          properties:
+            lat:
+              type: number
+            lng:
+              type: number
         openNow:
           type: boolean
+
+    PlaceLocationDTO:
+      type: object
+      required: [placeId, name, lat, lng]
+      properties:
+        placeId:
+          type: string
+        name:
+          type: string
+        lat:
+          type: number
+        lng:
+          type: number

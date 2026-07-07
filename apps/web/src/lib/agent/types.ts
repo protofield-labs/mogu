@@ -38,10 +38,16 @@ export type CreateAgentSessionResponse = {
 };
 
 /** Places display DTO (fetched at render time, guardrail 7). */
+export type PlaceLocation = {
+  lat: number;
+  lng: number;
+};
+
 export type PlaceDTO = {
   placeId: string;
   name: string;
   address: string;
   photos: { url: string; authorAttributions: { name: string; uri: string }[] }[];
+  location?: PlaceLocation;
   openNow?: boolean;
 };
