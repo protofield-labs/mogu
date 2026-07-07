@@ -9,10 +9,7 @@ import {
   friendUserListSchema,
   meBadgesSchema,
 } from "@/lib/api/schemas/social";
-import {
-  meProfileSchema,
-  userSchema,
-} from "@/lib/api/schemas/user";
+import { meProfileSchema, userSchema } from "@/lib/users/types";
 import { authFetch } from "@/lib/auth/auth-fetch";
 import { z } from "zod";
 import type {

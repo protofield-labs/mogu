@@ -11,6 +11,7 @@ const scripts = [
   "verify-spot-dto.ts",
   "verify-browser-client.ts",
   "verify-api-routes.ts",
+  "verify-dead-code.ts",
   "verify-agent-config.ts",
   "verify-agent-message.ts",
   "verify-agent-events.ts",

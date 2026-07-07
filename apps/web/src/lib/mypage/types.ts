@@ -1,13 +1,4 @@
-export type MeProfile = {
-  id: string;
-  displayName: string;
-  avatarColor: string;
-  counts: {
-    collections: number;
-    spots: number;
-    friends: number;
-  };
-};
+export type { MeProfile } from "@/lib/users/types";
 
 export type MeBadges = {
   pendingFriendRequests: number;

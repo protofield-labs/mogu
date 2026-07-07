@@ -50,8 +50,8 @@ assert(
 
 const provisionClient = readSource("lib/auth/provision.ts");
 assert(
-  !provisionClient.includes("data.user"),
-  "auth provision client expects flat User",
+  provisionClient.includes("userSchema.parse"),
+  "auth provision client validates flat User with userSchema",
 );
 
 assert(

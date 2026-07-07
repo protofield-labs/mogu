@@ -34,18 +34,6 @@ export const userSelect = {
   avatarColor: true,
 } as const;
 
-/** Fetch the authenticated user's row (RLS-scoped). Returns null when absent. */
-export async function getUserByUid(uid: string): Promise<UserDto | null> {
-  const user = await withAuthRls(uid, (tx) =>
-    tx.user.findUnique({
-      where: { firebaseUid: uid },
-      select: userSelect,
-    }),
-  );
-
-  return user ? toUserDto(user) : null;
-}
-
 /** Fetch the authenticated user's profile plus mypage counts (RLS-scoped). */
 export async function getMeByUid(uid: string): Promise<MeDto | null> {
   const result = await withAuthRls(uid, async (tx) => {
