@@ -1,28 +1,25 @@
 "use client";
 
-import { apiJson, apiVoid, parseApiJson } from "@/lib/api/browser-client";
-import { collectionSchema } from "@/lib/api/schemas/collection";
+import { apiJson, apiVoid } from "@/lib/api/browser-client";
 import {
   flagEventListSchema,
   flagNotificationListSchema,
   flagsReadResponseSchema,
+  friendListItemListSchema,
   friendRequestListSchema,
   friendUserListSchema,
   meBadgesSchema,
 } from "@/lib/api/schemas/social";
 import { meProfileSchema, userSchema } from "@/lib/users/types";
-import { authFetch } from "@/lib/auth/auth-fetch";
-import { z } from "zod";
 import type {
   FlagEvent,
   FlagNotification,
+  FriendListItem,
   FriendRequest,
   FriendUser,
   MeBadges,
   MeProfile,
 } from "@/lib/mypage/types";
-
-const collectionListSchema = z.array(collectionSchema);
 
 export async function fetchMe(): Promise<MeProfile> {
   return apiJson("/api/v1/me", meProfileSchema, "プロフィールを読み込めませんでした");
@@ -77,27 +74,12 @@ export async function markFlagsRead(ids?: string[]): Promise<number> {
   return body.updated;
 }
 
-export async function fetchFriends(): Promise<FriendUser[]> {
-  return apiJson("/api/v1/friends", friendUserListSchema, "友達一覧を読み込めませんでした");
-}
-
-export async function fetchFriendCollectionCount(friendId: string): Promise<number> {
-  try {
-    const response = await authFetch(
-      `/api/v1/collections?ownerId=${encodeURIComponent(friendId)}`,
-    );
-    if (!response.ok) {
-      return 0;
-    }
-    const parsed = await parseApiJson(
-      response,
-      collectionListSchema,
-      "コレクションを読み込めませんでした",
-    );
-    return parsed.length;
-  } catch {
-    return 0;
-  }
+export async function fetchFriends(): Promise<FriendListItem[]> {
+  return apiJson(
+    "/api/v1/friends",
+    friendListItemListSchema,
+    "友達一覧を読み込めませんでした",
+  );
 }
 
 export async function fetchIncomingFriendRequests(): Promise<FriendRequest[]> {

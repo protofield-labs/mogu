@@ -1,11 +1,13 @@
 import { z } from "zod";
 
 import {
+  friendListItemSchema,
   friendRequestSchema,
   friendUserSchema,
   meBadgesSchema,
 } from "@/lib/api/schemas/user";
 
+export const friendListItemListSchema = z.array(friendListItemSchema);
 export const friendUserListSchema = z.array(friendUserSchema);
 export const friendRequestListSchema = z.array(friendRequestSchema);
 

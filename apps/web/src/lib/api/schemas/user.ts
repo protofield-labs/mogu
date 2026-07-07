@@ -28,6 +28,10 @@ export const meBadgesSchema = z.object({
 
 export const friendUserSchema = userSchema;
 
+export const friendListItemSchema = userSchema.extend({
+  collectionCount: z.number().int().nonnegative(),
+});
+
 export const friendRequestSchema = z.object({
   pairId: z.string(),
   from: friendUserSchema,

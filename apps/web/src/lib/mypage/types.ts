@@ -29,6 +29,10 @@ export type FriendUser = {
   avatarColor: string;
 };
 
+export type FriendListItem = FriendUser & {
+  collectionCount: number;
+};
+
 export type FriendRequest = {
   pairId: string;
   from: FriendUser;

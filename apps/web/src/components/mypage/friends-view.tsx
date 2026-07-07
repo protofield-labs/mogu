@@ -18,7 +18,6 @@ import { notifyBadgesUpdated } from "@/lib/mypage/badge-events";
 import {
   acceptFriendRequest,
   cancelFriendRequest,
-  fetchFriendCollectionCount,
   fetchFriends,
   fetchIncomingFriendRequests,
   fetchMe,
@@ -37,7 +36,7 @@ import {
   isIncomingPending,
   isOutgoingPending,
 } from "@/lib/mypage/friend-request-ui";
-import type { FriendRequest, FriendUser } from "@/lib/mypage/types";
+import type { FriendListItem, FriendRequest, FriendUser } from "@/lib/mypage/types";
 import {
   FRIENDS_FROM_HOME,
   friendProfilePathWithContext,
@@ -45,9 +44,7 @@ import {
 } from "@/lib/friends/paths";
 import { cn } from "@/lib/utils";
 
-type FriendWithCollections = FriendUser & {
-  collectionCount: number;
-};
+type FriendWithCollections = FriendListItem;
 
 type RequestAction = "accept" | "reject" | "cancel";
 
@@ -107,14 +104,7 @@ export function FriendsView({ fromHome = false }: FriendsViewProps) {
     setMeId(me.id);
     setRequests(incoming);
     setOutgoingRequests(outgoing);
-
-    const withCounts = await Promise.all(
-      nextFriends.map(async (friend) => ({
-        ...friend,
-        collectionCount: await fetchFriendCollectionCount(friend.id),
-      })),
-    );
-    setFriends(withCounts);
+    setFriends(nextFriends);
   }, []);
 
   useEffect(() => {
