@@ -2,63 +2,20 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 
-import { AuthImage } from "@/components/mypage/auth-image";
 import { PhotoUploadField } from "@/components/mypage/photo-upload-field";
-import { SpotPlaceName } from "@/components/places/spot-place-name";
 import { Button } from "@/components/ui/button";
 import { searchPlaces, type PlaceSearchResult } from "@/lib/places/browser-api";
-import { formatRatingChip, formatSavedCountBadge } from "@/lib/home/feed-labels";
+import {
+  emptySpotForm,
+  spotRatingOptions,
+  spotToForm,
+  type SpotFormState,
+} from "@/lib/mypage/spot-form-state";
 import {
   createSpot,
-  deleteSpot,
   updateSpot,
   type Spot,
-  type SpotRating,
 } from "@/lib/spots/browser-api";
-
-type SpotFormState = {
-  placeId: string;
-  placeName: string;
-  comment: string;
-  rating: SpotRating;
-  tagArea: string;
-  tagGenre: string;
-  tagSituation: string;
-  freeTags: string;
-  photoUrls: string[];
-};
-
-const emptyForm: SpotFormState = {
-  placeId: "",
-  placeName: "",
-  comment: "",
-  rating: "again",
-  tagArea: "",
-  tagGenre: "",
-  tagSituation: "",
-  freeTags: "",
-  photoUrls: [],
-};
-
-const ratingOptions: { value: SpotRating; label: string }[] = [
-  { value: "again", label: "また行きたい" },
-  { value: "either", label: "どちらでも" },
-  { value: "no", label: "行かない" },
-];
-
-function spotToForm(spot: Spot): SpotFormState {
-  return {
-    placeId: spot.placeId,
-    placeName: "",
-    comment: spot.comment,
-    rating: spot.rating,
-    tagArea: spot.structuredTags.area ?? "",
-    tagGenre: spot.structuredTags.genre ?? "",
-    tagSituation: spot.structuredTags.situation ?? "",
-    freeTags: spot.freeTags.join(", "),
-    photoUrls: spot.photoUrls,
-  };
-}
 
 type SpotFormProps = {
   collectionId: string;
@@ -74,7 +31,7 @@ export function SpotForm({
   onCancelEdit,
 }: SpotFormProps) {
   const [form, setForm] = useState<SpotFormState>(
-    editingSpot ? spotToForm(editingSpot) : emptyForm,
+    editingSpot ? spotToForm(editingSpot) : emptySpotForm,
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<PlaceSearchResult[]>([]);
@@ -146,7 +103,7 @@ export function SpotForm({
           });
       onSaved(spot);
       if (!editingSpot) {
-        setForm(emptyForm);
+        setForm(emptySpotForm);
         setSearchQuery("");
         setSearchResults([]);
       }
@@ -228,7 +185,7 @@ export function SpotForm({
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium text-foreground">評価</legend>
         <div className="flex flex-wrap gap-2">
-          {ratingOptions.map((option) => (
+          {spotRatingOptions.map((option) => (
             <label
               key={option.value}
               className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5 text-xs"
@@ -312,59 +269,4 @@ export function SpotForm({
   );
 }
 
-type SpotListProps = {
-  spots: Spot[];
-  onSelect: (spot: Spot) => void;
-  placeNames?: Record<string, string | null>;
-};
-
-export function SpotList({ spots, onSelect, placeNames }: SpotListProps) {
-  if (spots.length === 0) {
-    return null;
-  }
-
-  return (
-    <ul className="space-y-3">
-      {spots.map((spot) => (
-        <li key={spot.id}>
-          <button
-            type="button"
-            onClick={() => onSelect(spot)}
-            className="w-full rounded-2xl border border-border bg-mogu-surface-elevated p-4 text-left transition-colors hover:bg-muted/30"
-          >
-            <div className="flex gap-3">
-              {spot.photoUrls[0] ? (
-                <AuthImage
-                  objectUrl={spot.photoUrls[0]}
-                  alt=""
-                  className="size-16 shrink-0 rounded-xl object-cover"
-                />
-              ) : (
-                <div className="size-16 shrink-0 rounded-xl bg-muted" aria-hidden />
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-foreground">
-                  <SpotPlaceName
-                    placeId={spot.placeId}
-                    fallback={spot.comment || "スポット"}
-                    placeName={placeNames?.[spot.placeId]}
-                  />
-                </p>
-                {spot.comment ? (
-                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                    {spot.comment}
-                  </p>
-                ) : null}
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {[formatRatingChip(spot.rating), formatSavedCountBadge(spot.savedCount)]
-                    .filter(Boolean)
-                    .join(" ・ ")}
-                </p>
-              </div>
-            </div>
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
-}
+export { SpotList } from "@/components/mypage/spot-list";

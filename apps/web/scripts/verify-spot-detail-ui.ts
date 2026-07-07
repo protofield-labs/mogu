@@ -20,7 +20,7 @@ assert(spotDetailSheet.includes("GoogleMapsAttribution"), "spot detail includes 
 const feedWrapper = readSource("components/home/feed-spot-detail-sheet.tsx");
 assert(feedWrapper.includes("SpotDetailSheet"), "feed wrapper uses SpotDetailSheet");
 
-const spotList = readSource("components/mypage/spot-form.tsx");
+const spotList = readSource("components/mypage/spot-list.tsx");
 assert(spotList.includes("SpotPlaceName"), "SpotList uses SpotPlaceName");
 assert(spotList.includes("onSelect"), "SpotList supports onSelect");
 

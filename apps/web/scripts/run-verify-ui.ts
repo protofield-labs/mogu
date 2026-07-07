@@ -27,6 +27,7 @@ const scripts = [
   "verify-places-photos.ts",
   "verify-agent-recommendation.ts",
   "verify-recollect.ts",
+  "verify-component-splits.ts",
   "verify-photo-url.ts",
   "verify-feed-helpers.ts",
   "verify-home-ui.ts",
