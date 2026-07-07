@@ -76,8 +76,15 @@ function main() {
   assert(partial.remainder.startsWith("data:"), "partial remainder kept");
 
   assert(
-    googleMapsPlaceUrl("ChIJ123").includes("query_place_id=ChIJ123"),
-    "maps url uses place id",
+    googleMapsPlaceUrl("ChIJ123").includes("destination_place_id=ChIJ123"),
+    "maps url uses destination place id",
+  );
+  assert(
+    googleMapsPlaceUrl({
+      placeId: "ChIJ123",
+      name: "テスト店",
+    }).includes("destination="),
+    "maps url includes destination label",
   );
   assert(openNowLabel(true) === "営業中", "open now label");
   assert(openNowLabel(undefined) === null, "unknown open now");

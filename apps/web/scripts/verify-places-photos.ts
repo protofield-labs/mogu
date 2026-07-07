@@ -14,7 +14,11 @@ function readSource(relativePath: string): string {
 }
 
 const placesClient = readSource("lib/places/google-places-client.ts");
-assert(placesClient.includes("photos"), "places client requests photos field");
+assert(placesClient.includes("languageCode"), "places client requests Japanese labels");
+assert(
+  placesClient.includes("PLACES_LANGUAGE_CODE"),
+  "places client pins language to ja",
+);
 assert(placesClient.includes("mapPhotos"), "places client maps photo metadata");
 assert(
   placesClient.includes("fetchPlacePhotoMedia"),
@@ -23,6 +27,13 @@ assert(
 
 const photoRoute = readSource("app/api/v1/places/[placeId]/photos/[index]/route.ts");
 assert(photoRoute.includes("fetchPlacePhotoMedia"), "photo route proxies media");
+
+const spotDetailMedia = readSource("components/spots/spot-detail-media.tsx");
+assert(spotDetailMedia.includes("PlacePhotoImage"), "spot detail media uses place photos");
+assert(
+  spotDetailMedia.includes("authorAttributions"),
+  "spot detail media attributes each place photo",
+);
 
 const recommendationCard = readSource("components/search/recommendation-card.tsx");
 assert(
