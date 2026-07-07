@@ -78,6 +78,11 @@ output "daily_reco_job_name" {
   value       = try(module.daily_reco_job[0].name, null)
 }
 
+output "db_migrate_job_name" {
+  description = "Cloud Run Job name for Prisma migrate deploy (CI + manual)."
+  value       = try(module.db_migrate_job[0].name, null)
+}
+
 output "daily_reco_scheduler_name" {
   description = "Cloud Scheduler job name for the nightly daily recommendation batch (#91)."
   value       = try(google_cloud_scheduler_job.daily_reco[0].name, null)
