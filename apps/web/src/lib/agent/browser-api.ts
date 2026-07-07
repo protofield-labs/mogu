@@ -1,7 +1,12 @@
 "use client";
 
 import {
+  agentConsultationDetailSchema,
+  agentConsultationSummaryListSchema,
+} from "@/lib/api/schemas/agent-consultations";
+import {
   apiJson,
+  apiVoid,
   parseApiJson,
 } from "@/lib/api/browser-client";
 import {
@@ -21,6 +26,20 @@ import type {
   AgentMessageRequest,
   PlaceDTO,
 } from "./types";
+import type { ChatEntry } from "./chat-helpers";
+
+export type AgentConsultationSummary = {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AgentConsultationDetail = AgentConsultationSummary & {
+  vertexSessionId: string;
+  entries: ChatEntry[];
+  resumable: boolean;
+};
 
 /** Create a Vertex agent session (#43). */
 export async function createAgentSession(): Promise<string> {
@@ -31,6 +50,40 @@ export async function createAgentSession(): Promise<string> {
     { init: { method: "POST" } },
   );
   return data.sessionId;
+}
+
+/** List recent agent consultations (#153 Phase A). */
+export async function listAgentConsultations(): Promise<
+  AgentConsultationSummary[]
+> {
+  return apiJson(
+    "/api/v1/agent/consultations",
+    agentConsultationSummaryListSchema,
+    "相談履歴を読み込めませんでした",
+  );
+}
+
+/** Fetch one consultation with resumable flag (#153 Phase B). */
+export async function fetchAgentConsultation(
+  id: string,
+): Promise<AgentConsultationDetail> {
+  return apiJson(
+    `/api/v1/agent/consultations/${id}`,
+    agentConsultationDetailSchema,
+    "相談履歴を読み込めませんでした",
+  );
+}
+
+/** Persist welcome / pending recommendation entries after session start. */
+export async function syncAgentConsultationEntries(
+  sessionId: string,
+  entries: ChatEntry[],
+): Promise<void> {
+  await apiVoid("/api/v1/agent/consultations/sync", "相談履歴を保存できませんでした", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId, entries }),
+  });
 }
 
 /** Send a user turn (#44). */

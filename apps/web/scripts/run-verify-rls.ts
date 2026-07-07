@@ -14,6 +14,7 @@ const scripts = [
   "verify-feed-rls.ts",
   "verify-recommendations-rls.ts",
   "verify-friends-rls.ts",
+  "verify-agent-consultations-rls.ts",
 ];
 
 for (const script of scripts) {
