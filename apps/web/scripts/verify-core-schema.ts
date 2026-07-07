@@ -61,7 +61,7 @@ async function assertFlagTriggerAnonymizesDepth2() {
       const collection = await scoped.collection.create({
         data: {
           ownerId: uidActor,
-          name: "Actor shelf",
+          name: "Actor collection",
           visibility: "friends",
         },
       });

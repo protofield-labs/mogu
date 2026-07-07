@@ -65,7 +65,7 @@ export function MypageView() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
-  const [shelfError, setShelfError] = useState<string | null>(null);
+  const [collectionError, setCollectionError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Collection | null>(null);
   const collectionsRef = useRef<HTMLElement>(null);
 
@@ -74,7 +74,7 @@ export function MypageView() {
 
     async function load() {
       try {
-        // Profile + shelf are required; badges / flags degrade gracefully.
+        // Profile + collections are required; badges / flags degrade gracefully.
         const [profile, nextCollections] = await Promise.all([
           fetchMe(),
           listMyCollections(),
@@ -181,7 +181,7 @@ export function MypageView() {
     }
 
     setBusy(true);
-    setShelfError(null);
+    setCollectionError(null);
     try {
       const collection = await updateCollection(editingCollection.id, {
         name: editForm.name.trim(),
@@ -194,7 +194,7 @@ export function MypageView() {
       );
       setEditingCollection(null);
     } catch (err) {
-      setShelfError(err instanceof Error ? err.message : "更新に失敗しました");
+      setCollectionError(err instanceof Error ? err.message : "更新に失敗しました");
     } finally {
       setBusy(false);
     }
@@ -207,7 +207,7 @@ export function MypageView() {
 
     const collection = deleteTarget;
     setBusy(true);
-    setShelfError(null);
+    setCollectionError(null);
     try {
       await deleteCollection(collection.id);
       setCollections((current) =>
@@ -226,7 +226,7 @@ export function MypageView() {
       );
       setDeleteTarget(null);
     } catch (err) {
-      setShelfError(err instanceof Error ? err.message : "削除に失敗しました");
+      setCollectionError(err instanceof Error ? err.message : "削除に失敗しました");
     } finally {
       setBusy(false);
     }
@@ -340,8 +340,8 @@ export function MypageView() {
               onSubmit={(event) => void handleSaveEdit(event)}
             >
               <CollectionFormFields form={editForm} onChange={setEditForm} />
-              {shelfError ? (
-                <p className="text-sm text-destructive">{shelfError}</p>
+              {collectionError ? (
+                <p className="text-sm text-destructive">{collectionError}</p>
               ) : null}
               <div className="flex gap-2">
                 <Button type="submit" className="h-10 flex-1 rounded-2xl" disabled={busy}>
@@ -362,8 +362,8 @@ export function MypageView() {
         </section>
       ) : null}
 
-      {shelfError && !editingCollection ? (
-        <p className="px-mogu-screen-x text-sm text-destructive">{shelfError}</p>
+      {collectionError && !editingCollection ? (
+        <p className="px-mogu-screen-x text-sm text-destructive">{collectionError}</p>
       ) : null}
 
       <CollectionGrid

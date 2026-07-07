@@ -132,7 +132,7 @@ function OnboardingContent() {
           });
         }
       } catch {
-        // profile saved; default shelf seeding is best-effort on client
+        // profile saved; default collection seeding is best-effort on client
       }
       router.replace(nextPath);
     } catch (err) {

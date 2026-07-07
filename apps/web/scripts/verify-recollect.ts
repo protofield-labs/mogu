@@ -21,7 +21,7 @@ const lastTarget = readSource("lib/recollect/last-target.ts");
 assert(lastTarget.includes("mogu:lastRecollectTarget"), "last target storage key");
 
 const usersRoute = readSource("app/api/v1/users/route.ts");
-assert(usersRoute.includes("ensureDefaultCollection"), "onboarding seeds default shelf");
+assert(usersRoute.includes("ensureDefaultCollection"), "onboarding seeds default collection");
 
 const feedDal = readSource("lib/dal/feed.ts");
 assert(feedDal.includes("savedByMe"), "feed includes savedByMe");

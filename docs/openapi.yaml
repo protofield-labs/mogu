@@ -300,7 +300,7 @@ paths:
   /collections/{id}/suggestions:
     get:
       tags: [collections]
-      summary: 棚末尾エージェント提案（磨き）
+      summary: コレクション末尾エージェント提案（磨き）
       parameters:
         - $ref: "#/components/parameters/id"
       responses:

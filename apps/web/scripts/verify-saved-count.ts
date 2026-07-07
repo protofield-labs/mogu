@@ -63,7 +63,7 @@ async function verifySavedCountCircle() {
         const collection = await scoped.collection.create({
           data: {
             ownerId: owner,
-            name: `${owner} shelf`,
+            name: `${owner} collection`,
             visibility: "friends",
           },
         });
