@@ -2,14 +2,21 @@
 
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+import { CollectionSpotMapView } from "@/components/collections/collection-spot-map-view";
+import {
+  CollectionSpotViewTabs,
+  type CollectionSpotViewMode,
+} from "@/components/collections/collection-spot-view-tabs";
 import { CollectionDetailSkeleton } from "@/components/loading/skeletons";
 import { FriendSpotList } from "@/components/users/friend-spot-list";
 import { LoadErrorState } from "@/components/ui/load-error-state";
 import { ShareButton } from "@/components/share/share-button";
 import { getCollectionDetail } from "@/lib/collections/browser-api";
 import { friendProfilePath } from "@/lib/friends/paths";
+import { usePlaceNames } from "@/lib/places/use-place-names";
+import { spotPath } from "@/lib/share/paths";
 import { collectionShareUrl } from "@/lib/share/share-url";
 
 type FriendCollectionDetailViewProps = {
@@ -27,13 +34,23 @@ export function FriendCollectionDetailView({
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  const [spotViewMode, setSpotViewMode] = useState<CollectionSpotViewMode>("list");
+  const [mapSelectedSpotId, setMapSelectedSpotId] = useState<string | null>(null);
   const [prevCollectionId, setPrevCollectionId] = useState(collectionId);
+
+  const spotPlaceIds = useMemo(
+    () => (detail?.spots ?? []).map((spot) => spot.placeId),
+    [detail?.spots],
+  );
+  const placeNames = usePlaceNames(spotPlaceIds);
 
   if (collectionId !== prevCollectionId) {
     setPrevCollectionId(collectionId);
     setLoading(true);
     setLoadError(null);
     setDetail(null);
+    setSpotViewMode("list");
+    setMapSelectedSpotId(null);
   }
 
   useEffect(() => {
@@ -112,8 +129,32 @@ export function FriendCollectionDetailView({
       </header>
 
       <section className="space-y-3 px-mogu-screen-x">
-        <h2 className="text-sm font-semibold text-foreground">スポット一覧</h2>
-        <FriendSpotList spots={detail.spots} />
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold text-foreground">スポット一覧</h2>
+          {detail.spots.length > 0 ? (
+            <CollectionSpotViewTabs
+              mode={spotViewMode}
+              onChange={(mode) => {
+                setSpotViewMode(mode);
+                setMapSelectedSpotId(null);
+              }}
+            />
+          ) : null}
+        </div>
+        {detail.spots.length === 0 ? (
+          <FriendSpotList spots={detail.spots} />
+        ) : spotViewMode === "map" ? (
+          <CollectionSpotMapView
+            spots={detail.spots}
+            placeNames={placeNames}
+            selectedSpotId={mapSelectedSpotId}
+            onSelectSpot={(spot) => setMapSelectedSpotId(spot.id)}
+            onClearSelection={() => setMapSelectedSpotId(null)}
+            detailHrefForSpot={(spot) => spotPath(spot.id)}
+          />
+        ) : (
+          <FriendSpotList spots={detail.spots} />
+        )}
       </section>
     </div>
   );

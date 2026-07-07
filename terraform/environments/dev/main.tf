@@ -31,6 +31,7 @@ resource "google_project_service" "services" {
     "firebase.googleapis.com",
     "identitytoolkit.googleapis.com",
     "places.googleapis.com",
+    "maps-backend.googleapis.com",
     "aiplatform.googleapis.com",
     "apikeys.googleapis.com",
     "cloudscheduler.googleapis.com",

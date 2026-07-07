@@ -16,6 +16,32 @@ resource "google_apikeys_key" "places" {
   depends_on = [google_project_service.services]
 }
 
+# Maps JavaScript API key for the client-side map view (#130).
+# Separate browser key (referrer-restricted); baked into the Next.js bundle
+# via the NEXT_PUBLIC_GOOGLE_MAPS_API_KEY GitHub Actions build-arg.
+resource "google_apikeys_key" "maps_js" {
+  count = var.enable_external_apis ? 1 : 0
+
+  name         = "${var.environment}-maps-js"
+  display_name = "Maps JavaScript API browser key (${var.environment})"
+  project      = var.project_id
+
+  restrictions {
+    api_targets {
+      service = "maps-backend.googleapis.com"
+    }
+
+    browser_key_restrictions {
+      allowed_referrers = [
+        "${module.cloud_run.uri}/*",
+        "http://localhost:3000/*",
+      ]
+    }
+  }
+
+  depends_on = [google_project_service.services]
+}
+
 resource "google_secret_manager_secret" "places_api_key" {
   count = var.enable_external_apis ? 1 : 0
 

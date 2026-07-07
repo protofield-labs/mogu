@@ -63,6 +63,12 @@ output "places_api_key_secret_id" {
   value       = try(google_secret_manager_secret.places_api_key[0].secret_id, null)
 }
 
+output "maps_js_api_key" {
+  description = "Maps JavaScript API browser key for NEXT_PUBLIC_GOOGLE_MAPS_API_KEY (referrer-restricted; empty when enable_external_apis is false)."
+  value       = try(google_apikeys_key.maps_js[0].key_string, null)
+  sensitive   = true
+}
+
 output "agent_engine_resource_name" {
   description = "Full resource name of the orchestrator Reasoning Engine (#43)."
   value       = try(google_vertex_ai_reasoning_engine.orchestrator[0].id, null)
