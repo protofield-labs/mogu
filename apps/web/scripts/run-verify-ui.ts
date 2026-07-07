@@ -25,6 +25,7 @@ const scripts = [
   "verify-map-view.ts",
   "verify-all-my-spots.ts",
   "verify-map-geolocation.ts",
+  "verify-map-load-error.ts",
   "verify-branding-ui.ts",
   "verify-places-photos.ts",
   "verify-agent-recommendation.ts",

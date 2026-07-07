@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { APIProvider, Map, Marker, useMap } from "@vis.gl/react-google-maps";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Marker, useMap } from "@vis.gl/react-google-maps";
 import { toast } from "sonner";
 
 import { CollectionSpotMapCard } from "@/components/collections/collection-spot-map-card";
+import {
+  MapApiProvider,
+  MonitoredMap,
+} from "@/components/collections/map-api-provider";
 import { MapCurrentLocationButton } from "@/components/collections/map-current-location-button";
 import { MapNearbySpotList } from "@/components/collections/map-nearby-spot-list";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -18,6 +22,7 @@ import {
   DEFAULT_MAP_CENTER,
   readGoogleMapsApiKey,
 } from "@/lib/places/maps-config";
+import { MAPS_LOAD_ERROR_MESSAGE } from "@/lib/places/maps-load-error";
 import { usePlaceLocations } from "@/lib/places/use-place-locations";
 import { useUserLocation } from "@/lib/places/use-user-location";
 import type { UserGeoPoint } from "@/lib/places/use-user-location";
@@ -150,6 +155,8 @@ export function CollectionSpotMapView({
   const userLocation = userLocationProp ?? internalUserLocation;
   const [panTarget, setPanTarget] = useState<PanTarget | null>(null);
   const [focusUserLocation, setFocusUserLocation] = useState(false);
+  const [mapsLoadError, setMapsLoadError] = useState<string | null>(null);
+  const mapsErrorReportedRef = useRef(false);
   const placeIds = spots.map((spot) => spot.placeId);
   const { locations, loading, error } = usePlaceLocations(placeIds, spots.length > 0);
   const markers = useMemo(
@@ -216,10 +223,18 @@ export function CollectionSpotMapView({
     userLocation.requestLocation(panToLocation);
   }
 
+  const handleMapsLoadError = useCallback((message: string) => {
+    if (mapsErrorReportedRef.current) {
+      return;
+    }
+    mapsErrorReportedRef.current = true;
+    setMapsLoadError(message);
+  }, []);
+
   if (!mapsApiKey) {
     return (
       <EmptyState className="rounded-2xl p-6">
-        地図を表示するには Google Maps API キーの設定が必要です。
+        {MAPS_LOAD_ERROR_MESSAGE.missingKey}
       </EmptyState>
     );
   }
@@ -249,49 +264,58 @@ export function CollectionSpotMapView({
   return (
     <div className="space-y-3">
       <div className="relative overflow-hidden rounded-2xl border border-border">
-        <APIProvider apiKey={mapsApiKey}>
-          <Map
-            defaultCenter={initialViewport.center}
-            defaultZoom={initialViewport.zoom}
-            gestureHandling="greedy"
-            disableDefaultUI
-            zoomControl
-            className={mapClassName}
-            onClick={onClearSelection}
-          >
-            <FitMapViewport markerKey={markerKey} enabled={!focusUserLocation} />
-            <PanMapToTarget target={panTarget} />
-            {markers.map(({ spot, location }) => (
-              <Marker
-                key={spot.id}
-                position={{ lat: location.lat, lng: location.lng }}
-                onClick={(event) => {
-                  event.stop();
-                  onSelectSpot(spot);
-                }}
-                icon={mapPinIcon(spot.rating, selectedSpotId === spot.id)}
-              />
-            ))}
-            {userLocation.location ? (
-              <Marker
-                position={{
-                  lat: userLocation.location.lat,
-                  lng: userLocation.location.lng,
-                }}
-                icon={userLocationMarkerIcon()}
-                zIndex={1000}
-              />
-            ) : null}
-          </Map>
-        </APIProvider>
+        {mapsLoadError ? (
+          <EmptyState className={cn("rounded-none p-6", mapClassName)}>
+            {mapsLoadError}
+          </EmptyState>
+        ) : (
+          <MapApiProvider apiKey={mapsApiKey} onLoadError={handleMapsLoadError}>
+            <MonitoredMap
+              defaultCenter={initialViewport.center}
+              defaultZoom={initialViewport.zoom}
+              gestureHandling="greedy"
+              disableDefaultUI
+              zoomControl
+              className={mapClassName}
+              onClick={onClearSelection}
+              onLoadError={handleMapsLoadError}
+            >
+              <FitMapViewport markerKey={markerKey} enabled={!focusUserLocation} />
+              <PanMapToTarget target={panTarget} />
+              {markers.map(({ spot, location }) => (
+                <Marker
+                  key={spot.id}
+                  position={{ lat: location.lat, lng: location.lng }}
+                  onClick={(event) => {
+                    event.stop();
+                    onSelectSpot(spot);
+                  }}
+                  icon={mapPinIcon(spot.rating, selectedSpotId === spot.id)}
+                />
+              ))}
+              {userLocation.location ? (
+                <Marker
+                  position={{
+                    lat: userLocation.location.lat,
+                    lng: userLocation.location.lng,
+                  }}
+                  icon={userLocationMarkerIcon()}
+                  zIndex={1000}
+                />
+              ) : null}
+            </MonitoredMap>
+          </MapApiProvider>
+        )}
 
-        <MapCurrentLocationButton
-          pending={userLocation.pending}
-          active={userLocation.location !== null}
-          onClick={handleRequestCurrentLocation}
-        />
+        {!mapsLoadError ? (
+          <MapCurrentLocationButton
+            pending={userLocation.pending}
+            active={userLocation.location !== null}
+            onClick={handleRequestCurrentLocation}
+          />
+        ) : null}
 
-        {selectedMarker ? (
+        {!mapsLoadError && selectedMarker ? (
           <CollectionSpotMapCard
             spot={selectedMarker.spot}
             placeName={
