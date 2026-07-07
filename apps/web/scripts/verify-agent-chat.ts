@@ -13,10 +13,22 @@ import {
   formatAgentUserError,
   formatUserBubbleText,
   googleMapsPlaceUrl,
+  isAgentSessionUnavailableError,
   isRecommendation,
   openNowLabel,
   parseSseBuffer,
 } from "../src/lib/agent/chat-helpers";
+import {
+  AGENT_CHAT_SESSION_TTL_MS,
+  isStoredAgentChatSessionFresh,
+  loadAgentChatSession,
+  parseStoredAgentChatSession,
+  type StoredAgentChatSession,
+} from "../src/lib/agent/session-storage";
+import {
+  buildStructuredChipPrompt,
+  structuredSelectionsToChips,
+} from "../src/lib/agent/structured-chips";
 
 function main() {
   assert(
@@ -94,6 +106,58 @@ function main() {
     formatAgentUserError(new Error("Failed to create agent session"), "開始失敗") ===
       "開始失敗",
     "generic session fallback",
+  );
+
+  const welcome = createWelcomeEntry();
+  const storedPayload: StoredAgentChatSession = {
+    userId: "user-abc",
+    sessionId: "1234567890",
+    entries: [welcome],
+    savedAt: new Date().toISOString(),
+  };
+  const serialized = JSON.stringify(storedPayload);
+  assert(
+    parseStoredAgentChatSession(serialized)?.sessionId === storedPayload.sessionId,
+    "parse stored session",
+  );
+  assert(
+    loadAgentChatSession("user-abc") === null,
+    "load requires browser sessionStorage",
+  );
+  assert(
+    isStoredAgentChatSessionFresh(storedPayload),
+    "fresh stored session within ttl",
+  );
+  assert(
+    !isStoredAgentChatSessionFresh(
+      {
+        ...storedPayload,
+        savedAt: new Date(Date.now() - AGENT_CHAT_SESSION_TTL_MS - 1).toISOString(),
+      },
+      Date.now(),
+    ),
+    "expired stored session rejected",
+  );
+  assert(parseStoredAgentChatSession('{"sessionId":"bad"}') === null, "reject invalid stored session");
+
+  const selections = { area: "恵比寿", party: "2人", mood: "サクッと" };
+  assert(
+    structuredSelectionsToChips(selections).join(",") === "恵比寿,2人,サクッと",
+    "structured chip order follows groups",
+  );
+  assert(
+    buildStructuredChipPrompt(selections) === "今夜は恵比寿・2人・サクッとで探しています",
+    "structured chip prompt",
+  );
+  assert(buildStructuredChipPrompt({}) === "", "empty structured prompt");
+
+  assert(
+    isAgentSessionUnavailableError(new Error("対象が見つかりません")),
+    "detect stale agent session from not_found copy",
+  );
+  assert(
+    !isAgentSessionUnavailableError(new Error("通信に失敗しました")),
+    "ignore unrelated errors",
   );
 
   console.log("PASS: agent chat helpers");

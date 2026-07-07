@@ -17,6 +17,7 @@ import {
 } from "firebase/auth";
 
 import { getFirebaseAuth } from "@/lib/auth/firebase-client";
+import { clearAgentChatSession } from "@/lib/agent/session-storage";
 import { clearLastReadFeedAt } from "@/lib/home/feed-read";
 import { clearPendingRecommendation } from "@/lib/home/pending-recommendation";
 
@@ -70,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // shared device (stashed recommendation, feed read marker).
     clearPendingRecommendation();
     clearLastReadFeedAt();
+    clearAgentChatSession();
     await signOut(getFirebaseAuth());
     router.replace("/login");
   }, [router]);

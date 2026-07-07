@@ -1,0 +1,43 @@
+---
+description: Issue 実装から PR 作成までの完了基準（レビュー含む）
+alwaysApply: true
+---
+
+# PR までの作業ルール
+
+Issue 実装タスクは、**PR を作成して URL を返すまで**が完了です。
+コミットだけ、または「実装しました」で止めない。
+
+## 完了チェックリスト
+
+1. **実装** — Issue スコープ内の変更のみ。既存規約に合わせる。
+2. **検証** — `apps/web` では `pnpm lint`、`pnpm build`、関連 `verify-*.ts` を実行する。
+3. **レビュー** — PR 前に Bugbot と Security Review を実行する。
+   - `/review-bugbot` → Bugbot subagent（`Diff: branch changes` または未コミットなら `uncommitted changes`）
+   - `/review-security` → Security Review subagent（同上）
+4. **指摘対応** — Medium 以上、または再現可能な bug は PR 前に修正する。
+   - 修正後、必要ならレビューを再実行する。
+5. **コミット** — ユーザーが明示的に依頼した場合、または PR 作成フローに含まれる場合のみ。
+6. **PR 作成** — `gh pr create` で作成し、`Closes #<issue>` を本文に含める。PR URL をユーザーに返す。
+
+## PR 本文テンプレート
+
+```markdown
+## Summary
+- （変更の要点 1–3 行）
+
+## Test plan
+- [ ] （手動確認項目）
+
+Closes #118
+```
+
+## レビュー結果の報告
+
+- finding なし: 「Bugbot found no bugs」「Security review found no issues」と一行で報告。
+- finding あり: Severity / Location / Finding の表で報告し、対応済みか未対応かを明記する。
+
+## 例外
+
+- ユーザーが「コミットだけ」「PR はまだ」と明示した場合は PR 作成を省略する。
+- Terraform 変更は `scripts/check.sh` / `scripts/plan.sh` を優先する（リポジトリ `AGENTS.md` に従う）。
