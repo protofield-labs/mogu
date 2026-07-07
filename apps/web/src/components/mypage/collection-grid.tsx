@@ -1,58 +1,110 @@
 "use client";
 
-import { Lock, Pencil, Sparkles, Trash2 } from "lucide-react";
+import { Lock, Pencil, Pin, Sparkles, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import Link from "next/link";
 
+import { CollectionCover } from "@/components/mypage/collection-cover";
 import type { Collection } from "@/lib/collections/browser-api";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatCollectionVisibility } from "@/lib/labels/collection-labels";
 
-function collectionInitials(name: string): string {
-  return name.trim().slice(0, 1) || "コ";
-}
+type CollectionGridProps = {
+  collections: Collection[];
+  onEdit?: (collection: Collection) => void;
+  onDelete?: (collection: Collection) => void;
+  getCollectionHref?: (collection: Collection) => string;
+  showUpsell?: boolean;
+  emptyMessage?: string;
+  reorderMode?: boolean;
+  reorderBusy?: boolean;
+  onMoveUp?: (collection: Collection) => void;
+  onMoveDown?: (collection: Collection) => void;
+  onPinTop?: (collection: Collection) => void;
+};
 
 function CollectionTile({
   collection,
   href,
   onEdit,
   onDelete,
+  reorderMode = false,
+  onMoveUp,
+  onMoveDown,
+  onPinTop,
+  disableMoveUp = false,
+  disableMoveDown = false,
+  reorderBusy = false,
 }: {
   collection: Collection;
   href: string;
   onEdit?: (collection: Collection) => void;
   onDelete?: (collection: Collection) => void;
+  reorderMode?: boolean;
+  onMoveUp?: (collection: Collection) => void;
+  onMoveDown?: (collection: Collection) => void;
+  onPinTop?: (collection: Collection) => void;
+  disableMoveUp?: boolean;
+  disableMoveDown?: boolean;
+  reorderBusy?: boolean;
 }) {
   const isSecret = collection.visibility === "secret";
 
   return (
     <article className="space-y-2">
-      <Link href={href} className="block">
+      <Link href={reorderMode ? "#" : href} className="block" onClick={(event) => {
+        if (reorderMode) {
+          event.preventDefault();
+        }
+      }}>
         <div className="relative aspect-square overflow-hidden rounded-2xl bg-gradient-to-br from-muted to-background shadow-sm transition-shadow hover:shadow-md">
-        {collection.coverUrl ? (
-          <div
-            className="size-full bg-cover bg-center"
-            style={{ backgroundImage: `url(${collection.coverUrl})` }}
-            aria-hidden
+          <CollectionCover
+            name={collection.name}
+            coverUrl={collection.coverUrl}
+            autoCoverUrls={collection.autoCoverUrls}
+            className="size-full"
           />
-        ) : (
-          <div className="flex size-full items-center justify-center">
-            <span className="flex size-12 items-center justify-center rounded-2xl bg-primary text-lg font-semibold text-primary-foreground">
-              {collectionInitials(collection.name)}
+          {isSecret ? (
+            <span className="absolute right-2 top-2 rounded-full bg-background/90 p-1.5 text-foreground shadow-sm">
+              <Lock className="size-3.5" aria-label="自分だけのコレクション" />
             </span>
-          </div>
-        )}
-        {isSecret ? (
-          <span className="absolute right-2 top-2 rounded-full bg-background/90 p-1.5 text-foreground shadow-sm">
-            <Lock className="size-3.5" aria-label="自分だけのコレクション" />
-          </span>
-        ) : null}
+          ) : null}
         </div>
       </Link>
       <p className="text-center text-xs text-muted-foreground">
         {isSecret ? `${formatCollectionVisibility("secret")} ・ ` : ""}
         {collection.spotCount}軒
       </p>
-      {onEdit || onDelete ? (
+      {reorderMode ? (
+        <div className="flex gap-1.5">
+          <button
+            type="button"
+            disabled={disableMoveUp || reorderBusy}
+            onClick={() => onPinTop?.(collection)}
+            className="inline-flex h-7 flex-1 items-center justify-center gap-1 rounded-xl bg-mogu-surface-elevated text-xs font-medium shadow-sm disabled:opacity-40"
+          >
+            <Pin className="size-3" aria-hidden />
+            先頭
+          </button>
+          <button
+            type="button"
+            disabled={disableMoveUp || reorderBusy}
+            onClick={() => onMoveUp?.(collection)}
+            className="inline-flex size-7 items-center justify-center rounded-xl bg-mogu-surface-elevated shadow-sm disabled:opacity-40"
+            aria-label="上へ"
+          >
+            <ChevronUp className="size-4" aria-hidden />
+          </button>
+          <button
+            type="button"
+            disabled={disableMoveDown || reorderBusy}
+            onClick={() => onMoveDown?.(collection)}
+            className="inline-flex size-7 items-center justify-center rounded-xl bg-mogu-surface-elevated shadow-sm disabled:opacity-40"
+            aria-label="下へ"
+          >
+            <ChevronDown className="size-4" aria-hidden />
+          </button>
+        </div>
+      ) : onEdit || onDelete ? (
         <div className="flex gap-1.5">
           {onEdit ? (
             <button
@@ -80,15 +132,6 @@ function CollectionTile({
   );
 }
 
-type CollectionGridProps = {
-  collections: Collection[];
-  onEdit?: (collection: Collection) => void;
-  onDelete?: (collection: Collection) => void;
-  getCollectionHref?: (collection: Collection) => string;
-  showUpsell?: boolean;
-  emptyMessage?: string;
-};
-
 export function CollectionGrid({
   collections,
   onEdit,
@@ -96,6 +139,11 @@ export function CollectionGrid({
   getCollectionHref = (collection) => `/mypage/collections/${collection.id}`,
   showUpsell = true,
   emptyMessage = "まだコレクションがありません。最初のコレクションを作ってみましょう。",
+  reorderMode = false,
+  reorderBusy = false,
+  onMoveUp,
+  onMoveDown,
+  onPinTop,
 }: CollectionGridProps) {
   return (
     <section className="space-y-4 px-mogu-screen-x">
@@ -103,19 +151,26 @@ export function CollectionGrid({
         <EmptyState>{emptyMessage}</EmptyState>
       ) : (
         <div className="grid grid-cols-2 gap-3">
-          {collections.map((collection) => (
+          {collections.map((collection, index) => (
             <CollectionTile
               key={collection.id}
               collection={collection}
               href={getCollectionHref(collection)}
               onEdit={onEdit}
               onDelete={onDelete}
+              reorderMode={reorderMode}
+              onMoveUp={onMoveUp}
+              onMoveDown={onMoveDown}
+              onPinTop={onPinTop}
+              disableMoveUp={index === 0}
+              disableMoveDown={index === collections.length - 1}
+              reorderBusy={reorderBusy}
             />
           ))}
         </div>
       )}
 
-      {showUpsell ? (
+      {showUpsell && !reorderMode ? (
         <EmptyState className="p-5">
           <p className="inline-flex items-center justify-center gap-2 text-sm font-medium text-foreground">
             <Sparkles className="size-4" aria-hidden />

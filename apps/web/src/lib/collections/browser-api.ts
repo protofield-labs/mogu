@@ -25,6 +25,7 @@ export type CollectionUpdateInput = {
   visibility?: CollectionVisibility;
   theme?: string | null;
   coverUrl?: string | null;
+  sortOrder?: number;
 };
 
 export type CollectionDetail = Collection & {
@@ -83,4 +84,21 @@ export async function deleteCollection(id: string): Promise<void> {
   await apiVoid(`/api/v1/collections/${id}`, "コレクションを削除できませんでした", {
     method: "DELETE",
   });
+}
+
+export async function reorderMyCollections(
+  orderedIds: string[],
+): Promise<Collection[]> {
+  return apiJson(
+    "/api/v1/collections/reorder",
+    collectionListSchema,
+    "並べ替えに失敗しました",
+    {
+      init: {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderedIds }),
+      },
+    },
+  );
 }

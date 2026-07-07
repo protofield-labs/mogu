@@ -1,5 +1,6 @@
 import "server-only";
 
+import { pickAutoCoverUrls } from "@/lib/collections/cover";
 import { withAuthRls } from "@/lib/auth/with-auth-rls";
 import { toSpotDto, type SpotDto } from "@/lib/dal/spot-dto";
 import { countSavedInCircleByPlaceIds } from "@/lib/dal/saved-count";
@@ -13,6 +14,8 @@ export type CollectionDto = {
   name: string;
   description: string | null;
   coverUrl: string | null;
+  autoCoverUrls: string[];
+  sortOrder: number;
   visibility: CollectionVisibilityValue;
   theme: string | null;
   spotCount: number;
@@ -37,28 +40,35 @@ export type UpdateCollectionInput = {
   name?: string;
   description?: string | null;
   coverUrl?: string | null;
+  sortOrder?: number;
   visibility?: CollectionVisibilityValue;
   theme?: string | null;
 };
 
-function toCollectionDto(collection: {
-  id: string;
-  ownerId: string;
-  name: string;
-  description: string | null;
-  coverUrl: string | null;
-  visibility: CollectionVisibilityValue;
-  theme: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  _count?: { spots: number };
-}): CollectionDto {
+function toCollectionDto(
+  collection: {
+    id: string;
+    ownerId: string;
+    name: string;
+    description: string | null;
+    coverUrl: string | null;
+    sortOrder: number;
+    visibility: CollectionVisibilityValue;
+    theme: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    _count?: { spots: number };
+  },
+  autoCoverUrls: string[] = [],
+): CollectionDto {
   return {
     id: collection.id,
     ownerId: collection.ownerId,
     name: collection.name,
     description: collection.description,
     coverUrl: collection.coverUrl,
+    autoCoverUrls,
+    sortOrder: collection.sortOrder,
     visibility: collection.visibility,
     theme: collection.theme,
     spotCount: collection._count?.spots ?? 0,
@@ -67,19 +77,56 @@ function toCollectionDto(collection: {
   };
 }
 
+function buildAutoCoverMap(
+  spots: Array<{ collectionId: string; photoUrls: string[] }>,
+): Map<string, string[]> {
+  const grouped = new Map<string, Array<{ photoUrls: string[] }>>();
+  for (const spot of spots) {
+    const current = grouped.get(spot.collectionId) ?? [];
+    current.push({ photoUrls: spot.photoUrls });
+    grouped.set(spot.collectionId, current);
+  }
+
+  const result = new Map<string, string[]>();
+  for (const [collectionId, collectionSpots] of grouped) {
+    result.set(collectionId, pickAutoCoverUrls(collectionSpots));
+  }
+  return result;
+}
+
 export async function listCollections(
   uid: string,
   ownerId: string,
 ): Promise<CollectionDto[]> {
-  const collections = await withAuthRls(uid, (tx) =>
-    tx.collection.findMany({
+  const { collections, autoCoverMap } = await withAuthRls(uid, async (tx) => {
+    const rows = await tx.collection.findMany({
       where: { ownerId },
       include: { _count: { select: { spots: true } } },
-      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
-    }),
-  );
+      orderBy: [{ sortOrder: "asc" }, { updatedAt: "desc" }, { createdAt: "desc" }],
+    });
 
-  return collections.map(toCollectionDto);
+    if (rows.length === 0) {
+      return { collections: rows, autoCoverMap: new Map<string, string[]>() };
+    }
+
+    const spots = await tx.spot.findMany({
+      where: {
+        collectionId: { in: rows.map((row) => row.id) },
+        photoUrls: { isEmpty: false },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { collectionId: true, photoUrls: true },
+    });
+
+    return {
+      collections: rows,
+      autoCoverMap: buildAutoCoverMap(spots),
+    };
+  });
+
+  return collections.map((collection) =>
+    toCollectionDto(collection, autoCoverMap.get(collection.id) ?? []),
+  );
 }
 
 /** Create the default onboarding collection when the user has none (#117). */
@@ -95,6 +142,7 @@ export async function ensureDefaultCollection(uid: string): Promise<CollectionDt
         ownerId: uid,
         name: DEFAULT_COLLECTION_NAME,
         visibility: "friends",
+        sortOrder: 0,
       },
       include: { _count: { select: { spots: true } } },
     });
@@ -107,20 +155,26 @@ export async function createCollection(
   uid: string,
   input: CreateCollectionInput,
 ): Promise<CollectionDto> {
-  const collection = await withAuthRls(uid, (tx) =>
-    tx.collection.create({
+  const collection = await withAuthRls(uid, async (tx) => {
+    const maxSort = await tx.collection.aggregate({
+      where: { ownerId: uid },
+      _max: { sortOrder: true },
+    });
+    const sortOrder = (maxSort._max.sortOrder ?? -1) + 1;
+    return tx.collection.create({
       data: {
         ownerId: uid,
         name: input.name,
         visibility: input.visibility,
+        sortOrder,
         ...(input.description !== undefined
           ? { description: input.description }
           : {}),
         ...(input.theme !== undefined ? { theme: input.theme } : {}),
       },
       include: { _count: { select: { spots: true } } },
-    }),
-  );
+    });
+  });
 
   return toCollectionDto(collection);
 }
@@ -158,7 +212,10 @@ export async function getCollectionDetail(
   }
 
   return {
-    ...toCollectionDto(detail.collection),
+    ...toCollectionDto(
+      detail.collection,
+      pickAutoCoverUrls(detail.spots),
+    ),
     spots: detail.spots,
   };
 }
@@ -182,6 +239,9 @@ export async function updateCollection(
   if (input.coverUrl !== undefined) {
     data.coverUrl = input.coverUrl;
   }
+  if (input.sortOrder !== undefined) {
+    data.sortOrder = input.sortOrder;
+  }
   if (input.visibility !== undefined) {
     data.visibility = input.visibility;
   }
@@ -190,8 +250,6 @@ export async function updateCollection(
   }
 
   const result = await withAuthRls(uid, async (tx) => {
-    // RLS makes friends' collections readable, so an explicit owner check is
-    // needed here: without it the UPDATE matches 0 rows and Prisma throws.
     const existing = await tx.collection.findUnique({
       where: { id },
       select: { ownerId: true },
@@ -211,9 +269,87 @@ export async function updateCollection(
     return { ok: true as const, value: updated };
   });
 
-  return result.ok
-    ? { ok: true, value: toCollectionDto(result.value) }
-    : result;
+  if (!result.ok) {
+    return result;
+  }
+
+  const autoCoverUrls = await withAuthRls(uid, async (tx) => {
+    const spots = await tx.spot.findMany({
+      where: { collectionId: id, photoUrls: { isEmpty: false } },
+      orderBy: { createdAt: "desc" },
+      select: { photoUrls: true },
+    });
+    return pickAutoCoverUrls(spots);
+  });
+
+  return { ok: true, value: toCollectionDto(result.value, autoCoverUrls) };
+}
+
+export async function reorderCollections(
+  uid: string,
+  orderedIds: string[],
+): Promise<OwnedCollectionMutationResult<CollectionDto[]>> {
+  if (orderedIds.length === 0) {
+    return { ok: false, reason: "not_found" };
+  }
+
+  const result = await withAuthRls(uid, async (tx) => {
+    const owned = await tx.collection.findMany({
+      where: { ownerId: uid },
+      select: { id: true },
+      orderBy: [{ sortOrder: "asc" }, { updatedAt: "desc" }],
+    });
+    const ownedIds = owned.map((row) => row.id);
+    if (
+      orderedIds.length !== ownedIds.length ||
+      !orderedIds.every((id) => ownedIds.includes(id))
+    ) {
+      return { ok: false as const, reason: "forbidden" as const };
+    }
+
+    await Promise.all(
+      orderedIds.map((id, index) =>
+        tx.collection.update({
+          where: { id },
+          data: { sortOrder: index },
+        }),
+      ),
+    );
+
+    const rows = await tx.collection.findMany({
+      where: { ownerId: uid },
+      include: { _count: { select: { spots: true } } },
+      orderBy: [{ sortOrder: "asc" }, { updatedAt: "desc" }],
+    });
+
+    const spots = await tx.spot.findMany({
+      where: {
+        collectionId: { in: rows.map((row) => row.id) },
+        photoUrls: { isEmpty: false },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { collectionId: true, photoUrls: true },
+    });
+
+    return {
+      ok: true as const,
+      value: {
+        rows,
+        autoCoverMap: buildAutoCoverMap(spots),
+      },
+    };
+  });
+
+  if (!result.ok) {
+    return result;
+  }
+
+  return {
+    ok: true,
+    value: result.value.rows.map((row) =>
+      toCollectionDto(row, result.value.autoCoverMap.get(row.id) ?? []),
+    ),
+  };
 }
 
 export async function deleteCollection(
