@@ -1,12 +1,11 @@
 "use client";
 
-import { Pencil, Trash2 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { AuthImage } from "@/components/mypage/auth-image";
 import { PhotoUploadField } from "@/components/mypage/photo-upload-field";
+import { SpotPlaceName } from "@/components/places/spot-place-name";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
 import { searchPlaces, type PlaceSearchResult } from "@/lib/places/browser-api";
 import { formatRatingChip, formatSavedCountBadge } from "@/lib/home/feed-labels";
 import {
@@ -315,65 +314,53 @@ export function SpotForm({
 
 type SpotListProps = {
   spots: Spot[];
-  onEdit: (spot: Spot) => void;
-  onDelete: (spot: Spot) => void;
+  onSelect: (spot: Spot) => void;
 };
 
-export function SpotList({ spots, onEdit, onDelete }: SpotListProps) {
+export function SpotList({ spots, onSelect }: SpotListProps) {
   if (spots.length === 0) {
-    return (
-      <EmptyState className="rounded-2xl p-4">
-        まだスポットがありません。
-      </EmptyState>
-    );
+    return null;
   }
 
   return (
     <ul className="space-y-3">
       {spots.map((spot) => (
-        <li
-          key={spot.id}
-          className="rounded-2xl border border-border bg-mogu-surface-elevated p-4"
-        >
-          <div className="flex gap-3">
-            {spot.photoUrls[0] ? (
-              <AuthImage
-                objectUrl={spot.photoUrls[0]}
-                alt=""
-                className="size-16 shrink-0 rounded-xl object-cover"
-              />
-            ) : (
-              <div className="size-16 shrink-0 rounded-xl bg-muted" aria-hidden />
-            )}
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-foreground">
-                {spot.comment || spot.placeId}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {[formatRatingChip(spot.rating), formatSavedCountBadge(spot.savedCount)]
-                  .filter(Boolean)
-                  .join(" ・ ")}
-              </p>
+        <li key={spot.id}>
+          <button
+            type="button"
+            onClick={() => onSelect(spot)}
+            className="w-full rounded-2xl border border-border bg-mogu-surface-elevated p-4 text-left transition-colors hover:bg-muted/30"
+          >
+            <div className="flex gap-3">
+              {spot.photoUrls[0] ? (
+                <AuthImage
+                  objectUrl={spot.photoUrls[0]}
+                  alt=""
+                  className="size-16 shrink-0 rounded-xl object-cover"
+                />
+              ) : (
+                <div className="size-16 shrink-0 rounded-xl bg-muted" aria-hidden />
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-foreground">
+                  <SpotPlaceName
+                    placeId={spot.placeId}
+                    fallback={spot.comment || "スポット"}
+                  />
+                </p>
+                {spot.comment ? (
+                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                    {spot.comment}
+                  </p>
+                ) : null}
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {[formatRatingChip(spot.rating), formatSavedCountBadge(spot.savedCount)]
+                    .filter(Boolean)
+                    .join(" ・ ")}
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="mt-3 flex gap-2">
-            <button
-              type="button"
-              onClick={() => onEdit(spot)}
-              className="inline-flex h-8 flex-1 items-center justify-center gap-1 rounded-xl border border-border bg-background text-xs font-medium"
-            >
-              <Pencil className="size-3.5" aria-hidden />
-              編集
-            </button>
-            <button
-              type="button"
-              onClick={() => onDelete(spot)}
-              className="inline-flex h-8 flex-1 items-center justify-center gap-1 rounded-xl border border-border bg-background text-xs font-medium text-destructive"
-            >
-              <Trash2 className="size-3.5" aria-hidden />
-              削除
-            </button>
-          </div>
+          </button>
         </li>
       ))}
     </ul>

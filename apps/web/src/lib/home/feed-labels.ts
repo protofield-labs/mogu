@@ -27,7 +27,12 @@ type StructuredTags = {
   situation?: string | null;
 };
 
-export function formatSpotTagChips(spot: Spot): string[] {
+type SpotTagSource = {
+  structuredTags: StructuredTags;
+  freeTags: string[];
+};
+
+export function formatSpotTagChips(spot: SpotTagSource): string[] {
   const structured = spot.structuredTags as StructuredTags;
   const structuredTags = [structured.area, structured.genre, structured.situation].filter(
     (value): value is string => typeof value === "string" && value.length > 0,

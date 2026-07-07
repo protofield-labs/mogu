@@ -40,16 +40,23 @@ export function FeedHeroCard({ item, viewerId }: FeedHeroCardProps) {
       <article className="mogu-elevated overflow-hidden rounded-2xl border border-border">
         <div className="relative">
           {item.spot.photoUrls.length > 0 ? (
-            <div className="flex snap-x snap-mandatory overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {item.spot.photoUrls.map((url) => (
-                <AuthImage
-                  key={url}
-                  objectUrl={url}
-                  alt=""
-                  className="aspect-[4/3] w-full shrink-0 snap-center object-cover"
-                />
-              ))}
-            </div>
+            <button
+              type="button"
+              onClick={openDetail}
+              className="block w-full text-left"
+              aria-label="スポット詳細を開く"
+            >
+              <div className="flex snap-x snap-mandatory overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {item.spot.photoUrls.map((url) => (
+                  <AuthImage
+                    key={url}
+                    objectUrl={url}
+                    alt=""
+                    className="aspect-[4/3] w-full shrink-0 snap-center object-cover"
+                  />
+                ))}
+              </div>
+            </button>
           ) : (
             <button
               type="button"
