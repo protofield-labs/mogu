@@ -28,8 +28,8 @@ const agentBubbles = readSource("components/search/agent-chat-bubbles.tsx");
 assert(agentBubbles.includes("MoguBrandIcon"), "agent chat uses brand icon for avatar");
 
 const homeView = readSource("components/home/home-view.tsx");
-assert(homeView.includes("PageTitle"), "home header uses page title");
-assert(homeView.includes("homePageTitle"), "home header uses greeting helper");
+assert(homeView.includes("MoguBrandIcon"), "home header uses brand icon");
+assert(homeView.includes("MoguWordmark"), "home header uses wordmark");
 
 const searchHeader = readSource("components/search/agent-chat-header.tsx");
 assert(searchHeader.includes('PageTitle>検索'), "search header uses page title");
