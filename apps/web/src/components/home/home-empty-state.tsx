@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Plus, Sparkles } from "lucide-react";
+import { Plus } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { FRIENDS_FROM_HOME, friendsPagePath } from "@/lib/friends/paths";
@@ -29,7 +29,7 @@ export function HomeEmptyState() {
           href="/mypage"
           className={cn(buttonVariants(), "gap-1.5")}
         >
-          <Sparkles className="size-4" aria-hidden />
+          <Plus className="size-4" aria-hidden />
           最初のお店を追加
         </Link>
       </div>

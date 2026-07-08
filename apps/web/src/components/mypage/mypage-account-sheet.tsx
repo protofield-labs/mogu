@@ -75,7 +75,7 @@ export function MypageAccountSheet({
         <NavRow
           icon={Settings}
           label="アカウントの設定"
-          description="名前・アバター色・ログアウト"
+          description="名前・アバター色"
           onClick={openSheet}
         />
       </section>

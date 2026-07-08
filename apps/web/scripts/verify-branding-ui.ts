@@ -34,4 +34,18 @@ assert(homeView.includes("MoguWordmark"), "home header uses wordmark");
 const searchHeader = readSource("components/search/agent-chat-header.tsx");
 assert(searchHeader.includes('PageTitle>検索'), "search header uses page title");
 
+const mypageView = readSource("components/mypage/mypage-view.tsx");
+assert(mypageView.includes("MoguBrandIcon"), "mypage agent promo uses brand icon");
+assert(!mypageView.includes("Sparkles"), "mypage no longer uses Sparkles");
+
+const collectionGrid = readSource("components/mypage/collection-grid.tsx");
+assert(collectionGrid.includes("MoguBrandIcon"), "collection upsell uses brand icon");
+assert(!collectionGrid.includes("Sparkles"), "collection grid no longer uses Sparkles");
+
+const agentComposer = readSource("components/search/agent-chat-composer.tsx");
+assert(!agentComposer.includes("Sparkles"), "agent composer no longer uses Sparkles");
+
+const homeEmptyState = readSource("components/home/home-empty-state.tsx");
+assert(!homeEmptyState.includes("Sparkles"), "home empty state no longer uses Sparkles");
+
 console.log("PASS: branding UI verified");

@@ -1,8 +1,9 @@
 "use client";
 
-import { ArrowDownUp, MapPin, Plus, Sparkles } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { ArrowDownUp, MapPin, Plus } from "lucide-react";
+import { useEffect, useState } from "react";
 
+import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
 import { MypageViewSkeleton } from "@/components/loading/skeletons";
 import { CollectionCoverPicker } from "@/components/mypage/collection-cover-picker";
 import {
@@ -13,35 +14,20 @@ import { SurfaceCard } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { LoadErrorState } from "@/components/ui/load-error-state";
 import { CollectionGrid } from "@/components/mypage/collection-grid";
-import { FlagInboxCard } from "@/components/mypage/flag-inbox-card";
 import { MypageAccountSheet } from "@/components/mypage/mypage-account-sheet";
-import { MypageNavTiles } from "@/components/mypage/mypage-nav-tiles";
 import { MypageTopBar } from "@/components/mypage/mypage-top-bar";
 import { NavRow } from "@/components/ui/nav-row";
 import { ProfileHeroCard } from "@/components/mypage/profile-hero-card";
 import { listMyCollections } from "@/lib/collections/browser-api";
-import { resolveDisplayCoverUrl } from "@/lib/collections/cover";
-import { notifyBadgesUpdated } from "@/lib/mypage/badge-events";
-import {
-  fetchFlagNotifications,
-  fetchMe,
-  fetchMeBadges,
-  markFlagsRead,
-} from "@/lib/mypage/browser-api";
-import { summarizeWeeklyFlags } from "@/lib/mypage/flag-inbox";
-import { shouldShowFriendRequestBadge } from "@/lib/mypage/stats-row";
+import { fetchMe, fetchMeBadges } from "@/lib/mypage/browser-api";
 import { useMypageCollections } from "@/lib/mypage/use-mypage-collections";
 
 export function MypageView() {
   const [me, setMe] = useState<Awaited<ReturnType<typeof fetchMe>> | null>(null);
   const [pendingFriendRequests, setPendingFriendRequests] = useState(0);
-  const [flagSummary, setFlagSummary] = useState(() =>
-    summarizeWeeklyFlags([]),
-  );
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
-  const collectionsRef = useRef<HTMLElement>(null);
 
   const { setCollections, ...collectionsState } = useMypageCollections({
     initialCollections: [],
@@ -64,32 +50,14 @@ export function MypageView() {
         setMe(profile);
         setCollections(nextCollections);
 
-        const [badgesResult, notificationsResult] = await Promise.allSettled([
-          fetchMeBadges(),
-          fetchFlagNotifications(),
-        ]);
+        const badgesResult = await fetchMeBadges().catch(() => null);
 
         if (cancelled) {
           return;
         }
 
-        if (badgesResult.status === "fulfilled") {
-          setPendingFriendRequests(badgesResult.value.pendingFriendRequests);
-        }
-        if (notificationsResult.status === "fulfilled") {
-          setFlagSummary(summarizeWeeklyFlags(notificationsResult.value));
-        }
-
-        if (
-          badgesResult.status === "fulfilled" &&
-          badgesResult.value.unreadFlags > 0
-        ) {
-          try {
-            await markFlagsRead();
-            notifyBadgesUpdated();
-          } catch {
-            // Badge refresh is best-effort; inbox content remains visible.
-          }
+        if (badgesResult) {
+          setPendingFriendRequests(badgesResult.pendingFriendRequests);
         }
       } catch (err) {
         if (!cancelled) {
@@ -135,25 +103,6 @@ export function MypageView() {
         pendingFriendRequests={pendingFriendRequests}
       />
 
-      <MypageNavTiles
-        collectionCount={me.counts.collections}
-        friendCount={me.counts.friends}
-        showFriendBadge={shouldShowFriendRequestBadge(pendingFriendRequests)}
-        coverUrl={
-          resolveDisplayCoverUrl(
-            collectionsState.collections.find((collection) =>
-              collection.coverUrl || collection.autoCoverUrls.length > 0,
-            ) ?? { coverUrl: null, autoCoverUrls: [] },
-          )
-        }
-        onCollectionsClick={() =>
-          collectionsRef.current?.scrollIntoView({
-            behavior: "smooth",
-            block: "start",
-          })
-        }
-      />
-
       <MypageAccountSheet
         me={me}
         onProfileUpdated={(profile) =>
@@ -172,12 +121,10 @@ export function MypageView() {
         </section>
       ) : null}
 
-      <FlagInboxCard summary={flagSummary} />
-
       {me.counts.spots === 0 ? (
         <section className="px-mogu-screen-x">
           <NavRow
-            icon={Sparkles}
+            iconSlot={<MoguBrandIcon className="size-5 text-foreground" />}
             label="最初のお店を記録しよう"
             description="記録が増えるほど、断言が鋭くなります"
             href="/search"
@@ -185,10 +132,7 @@ export function MypageView() {
         </section>
       ) : null}
 
-      <section
-        ref={collectionsRef}
-        className="scroll-mt-4 space-y-3 px-mogu-screen-x pt-2"
-      >
+      <section className="scroll-mt-4 space-y-3 px-mogu-screen-x pt-2">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-lg font-semibold text-foreground">コレクション</h2>
           <div className="flex items-center gap-2">
