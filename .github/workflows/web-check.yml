@@ -52,6 +52,11 @@ jobs:
     env:
       DATABASE_URL: postgresql://app_user:ci@localhost:5432/app
       PGPASSWORD: postgres
+      # Reproduce deploy-time prerender (#211): isFirebaseConfigured() true → AuthGate loading path.
+      NEXT_PUBLIC_FIREBASE_API_KEY: dummy-api-key
+      NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: localhost
+      NEXT_PUBLIC_FIREBASE_PROJECT_ID: demo-mogu
+      NEXT_PUBLIC_FIREBASE_APP_ID: 1:demo-mogu:web:local
     steps:
       - uses: actions/checkout@v4
 
@@ -71,58 +76,10 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-      - name: Verify auth error model
-        run: pnpm exec tsx scripts/verify-auth-errors.ts
+      - name: UI verification
+        run: pnpm exec tsx scripts/run-verify-ui.ts
 
-      - name: Verify API error labels
-        run: pnpm exec tsx scripts/verify-api-error-labels.ts
-
-      - name: Verify design tokens
-        run: pnpm exec tsx scripts/verify-design-tokens.ts
-
-      - name: Verify PWA manifest
-        run: pnpm exec tsx scripts/verify-pwa-manifest.ts
-
-      - name: Verify spot DTO unification
-        run: pnpm exec tsx scripts/verify-spot-dto.ts
-
-      - name: Verify browser API client
-        run: pnpm exec tsx scripts/verify-browser-client.ts
-
-      - name: Verify API route helpers
-        run: pnpm exec tsx scripts/verify-api-routes.ts
-
-      - name: Verify dead code cleanup
-        run: pnpm exec tsx scripts/verify-dead-code.ts
-
-      - name: Verify UI primitives
-        run: pnpm exec tsx scripts/verify-ui-primitives.ts
-
-      - name: Verify agent engine config
-        run: pnpm exec tsx scripts/verify-agent-config.ts
-
-      - name: Verify agent message helpers
-        run: pnpm exec tsx scripts/verify-agent-message.ts
-
-      - name: Verify agent SSE helpers
-        run: pnpm exec tsx scripts/verify-agent-events.ts
-
-      - name: Verify agent chat helpers
-        run: pnpm exec tsx scripts/verify-agent-chat.ts
-
-      - name: Verify mypage UI helpers
-        run: pnpm exec tsx scripts/verify-mypage-ui.ts
-
-      - name: Verify photo URL helpers
-        run: pnpm exec tsx scripts/verify-photo-url.ts
-
-      - name: Verify feed helpers
-        run: pnpm exec tsx scripts/verify-feed-helpers.ts
-
-      - name: Verify home UI helpers
-        run: pnpm exec tsx scripts/verify-home-ui.ts
-
-      - name: Build
+      - name: Production-like build
         run: pnpm build
 
       - name: Install PostgreSQL client
