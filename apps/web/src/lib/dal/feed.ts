@@ -23,6 +23,33 @@ export type FeedPageDto = {
 
 const FEED_PAGE_SIZE = 20;
 
+type FeedCursor = { createdAt: Date; id: string };
+
+/** Exclude viewer's own spots when they have friends (spec: feed = circle activity). */
+function buildFeedWhere(
+  uid: string,
+  excludeOwnSpots: boolean,
+  cursor?: FeedCursor,
+) {
+  const ownFilter = excludeOwnSpots ? { addedBy: { not: uid } } : undefined;
+  const cursorFilter = cursor
+    ? {
+        OR: [
+          { createdAt: { lt: cursor.createdAt } },
+          {
+            createdAt: cursor.createdAt,
+            id: { lt: cursor.id },
+          },
+        ],
+      }
+    : undefined;
+
+  if (ownFilter && cursorFilter) {
+    return { AND: [ownFilter, cursorFilter] };
+  }
+  return ownFilter ?? cursorFilter;
+}
+
 const spotSelect = {
   id: true,
   placeId: true,
@@ -66,18 +93,16 @@ export async function listFeed(
   }
 
   return withAuthRls(uid, async (tx) => {
+    const friendCount = await tx.friendship.count({
+      where: {
+        status: "accepted",
+        OR: [{ userLow: uid }, { userHigh: uid }],
+      },
+    });
+    const excludeOwnSpots = friendCount > 0;
+
     const rows = await tx.spot.findMany({
-      where: cursor
-        ? {
-            OR: [
-              { createdAt: { lt: cursor.createdAt } },
-              {
-                createdAt: cursor.createdAt,
-                id: { lt: cursor.id },
-              },
-            ],
-          }
-        : undefined,
+      where: buildFeedWhere(uid, excludeOwnSpots, cursor),
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: FEED_PAGE_SIZE + 1,
       select: spotSelect,

@@ -55,6 +55,9 @@ export async function recollectSpot(
     if (!source) {
       return { ok: false as const, reason: "not_found" as const };
     }
+    if (source.addedBy === uid) {
+      return { ok: false as const, reason: "forbidden" as const };
+    }
 
     const targetCollection = await tx.collection.findUnique({
       where: { id: targetCollectionId },

@@ -25,6 +25,14 @@ assert(usersRoute.includes("ensureDefaultCollection"), "onboarding seeds default
 
 const feedDal = readSource("lib/dal/feed.ts");
 assert(feedDal.includes("savedByMe"), "feed includes savedByMe");
+assert(feedDal.includes("excludeOwnSpots"), "feed excludes own spots when viewer has friends");
+assert(feedDal.includes("buildFeedWhere"), "feed where builder centralizes filters");
+
+const spotsDal = readSource("lib/dal/spots.ts");
+assert(
+  spotsDal.includes("source.addedBy === uid"),
+  "recollect rejects self-owned source spots",
+);
 
 const feedSchema = readSource("lib/api/schemas/home.ts");
 assert(feedSchema.includes("savedByMe"), "feed schema includes savedByMe");

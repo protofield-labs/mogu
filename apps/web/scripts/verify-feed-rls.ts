@@ -124,7 +124,15 @@ async function verifyFeed() {
     );
 
     const page1 = await withRls(tx, UID_VIEWER, async (scoped) => {
+      const friendCount = await scoped.friendship.count({
+        where: {
+          status: "accepted",
+          OR: [{ userLow: UID_VIEWER }, { userHigh: UID_VIEWER }],
+        },
+      });
       const rows = await scoped.spot.findMany({
+        where:
+          friendCount > 0 ? { addedBy: { not: UID_VIEWER } } : undefined,
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         select: {
           placeId: true,
@@ -134,10 +142,10 @@ async function verifyFeed() {
       });
       return rows;
     });
-    assert(page1.length === 2, "viewer sees own + friend spots only");
+    assert(page1.length === 1, "viewer with friends sees friend spots only in feed");
     assert(
       page1[0]?.placeId === "ChIJseedFeedFriend01",
-      "newest first (chronological desc)",
+      "newest friend spot first (chronological desc)",
     );
     assert(
       page1.every(
@@ -148,6 +156,58 @@ async function verifyFeed() {
     assert(
       !page1.some((item) => item.placeId === "ChIJseedFeedStranger01"),
       "stranger spot excluded by RLS",
+    );
+    assert(
+      !page1.some((item) => item.placeId === "ChIJseedFeedViewer01"),
+      "own spot excluded from feed when viewer has friends",
+    );
+
+    const soloViewerId = "rls-feed-solo";
+    await upsertUser(tx, soloViewerId, "Solo");
+
+    const soloCollectionId = await withRls(tx, soloViewerId, async (scoped) => {
+      const collection = await scoped.collection.create({
+        data: {
+          ownerId: soloViewerId,
+          name: "Solo collection",
+          visibility: "friends",
+        },
+      });
+      return collection.id;
+    });
+
+    await withRls(tx, soloViewerId, (scoped) =>
+      scoped.spot.create({
+        data: {
+          placeId: "ChIJseedFeedSolo01",
+          addedBy: soloViewerId,
+          collectionId: soloCollectionId,
+          rating: Rating.again,
+          comment: "solo spot",
+          depth: 0,
+          createdAt: new Date("2026-07-06T09:00:00.000Z"),
+        },
+      }),
+    );
+
+    const soloPage = await withRls(tx, soloViewerId, async (scoped) => {
+      const friendCount = await scoped.friendship.count({
+        where: {
+          status: "accepted",
+          OR: [{ userLow: soloViewerId }, { userHigh: soloViewerId }],
+        },
+      });
+      const rows = await scoped.spot.findMany({
+        where: friendCount > 0 ? { addedBy: { not: soloViewerId } } : undefined,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        select: { placeId: true },
+      });
+      return rows;
+    });
+    assert(soloPage.length === 1, "solo viewer feed includes own spot");
+    assert(
+      soloPage[0]?.placeId === "ChIJseedFeedSolo01",
+      "solo viewer sees own spot in feed",
     );
   });
 }
