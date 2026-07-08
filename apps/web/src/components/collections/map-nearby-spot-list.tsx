@@ -13,6 +13,10 @@ type MapNearbySpotListProps = {
   distanceLabels: Record<string, string>;
   selectedSpotId: string | null;
   onSelectSpot: (spot: Spot) => void;
+  /** Defaults to 「現在地から近い順」. */
+  heading?: string;
+  /** Defaults to 「現在地から近いスポット」. */
+  ariaLabel?: string;
 };
 
 export function MapNearbySpotList({
@@ -22,14 +26,16 @@ export function MapNearbySpotList({
   distanceLabels,
   selectedSpotId,
   onSelectSpot,
+  heading = "現在地から近い順",
+  ariaLabel = "現在地から近いスポット",
 }: MapNearbySpotListProps) {
   if (spots.length === 0) {
     return null;
   }
 
   return (
-    <section aria-label="現在地から近いスポット" className="space-y-2">
-      <h3 className="text-sm font-semibold text-foreground">現在地から近い順</h3>
+    <section aria-label={ariaLabel} className="space-y-2">
+      <h3 className="text-sm font-semibold text-foreground">{heading}</h3>
       <ul className="max-h-56 space-y-2 overflow-y-auto">
         {spots.map((spot) => {
           const selected = selectedSpotId === spot.id;
