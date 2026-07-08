@@ -31,9 +31,10 @@ import {
 } from "@/lib/agent/session-storage";
 import { recommendationToContext } from "@/lib/agent/recommendation-context-message";
 import {
-  consumePendingRecommendation,
+  clearPendingRecommendation,
+  commitPendingRecommendation,
+  resolvePendingRecommendation,
 } from "@/lib/home/pending-recommendation";
-import type { Recommendation } from "@/lib/agent/types";
 
 export type SessionStatus = "loading" | "ready" | "error";
 export type ConsultationViewMode = "live" | "readonly" | null;
@@ -53,9 +54,6 @@ export function useAgentChat(userId: string | null, authLoading: boolean) {
   const [consultationViewMode, setConsultationViewMode] =
     useState<ConsultationViewMode>(null);
   const [loadingConsultation, setLoadingConsultation] = useState(false);
-  const pendingRecommendationRef = useRef<Recommendation | null | undefined>(
-    undefined,
-  );
   const sendingRef = useRef(false);
   const entriesRef = useRef<ChatEntry[]>([]);
   const mountInitStartedRef = useRef(false);
@@ -224,10 +222,7 @@ export function useAgentChat(userId: string | null, authLoading: boolean) {
         setConsultationViewMode(null);
       }
 
-      if (pendingRecommendationRef.current === undefined) {
-        pendingRecommendationRef.current = consumePendingRecommendation();
-      }
-      const pending = pendingRecommendationRef.current;
+      const pending = resolvePendingRecommendation();
 
       if (pending) {
         clearAgentChatSession();
@@ -263,7 +258,7 @@ export function useAgentChat(userId: string | null, authLoading: boolean) {
               recommendation: pending,
             }),
           );
-          pendingRecommendationRef.current = null;
+          commitPendingRecommendation();
         }
         setSessionId(id);
         setEntries(initialEntries);
@@ -340,7 +335,7 @@ export function useAgentChat(userId: string | null, authLoading: boolean) {
     }
     setResettingConsultation(true);
     invalidateStoredSession();
-    pendingRecommendationRef.current = null;
+    clearPendingRecommendation();
     try {
       await connectAgentChatSession({ isRetry: true });
     } finally {
