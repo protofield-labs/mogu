@@ -55,6 +55,16 @@ function main() {
   assert(tabBar.includes("useMeBadges"), "tab bar reads profile for avatar");
   assert(tabBar.includes("text-primary"), "tab bar accents active tab");
 
+  const protectedLayout = readFileSync(
+    join(process.cwd(), "src", "app", "(protected)", "layout.tsx"),
+    "utf8",
+  );
+  assert(
+    protectedLayout.includes("<MeBadgesProvider>") &&
+      protectedLayout.includes("<MeBadgesProvider>\n      <AuthGate>"),
+    "MeBadgesProvider wraps auth gate so skeleton TabBar can prerender",
+  );
+
   const notificationButton = readSource("components/home/home-notification-button.tsx");
   assert(notificationButton.includes("shadow-md"), "notification bell is floating elevation");
   assert(!notificationButton.includes("border border-border"), "notification bell drops border");
