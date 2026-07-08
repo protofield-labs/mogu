@@ -38,10 +38,10 @@ assert(
 );
 assert(collectionView.includes('href="/search"'), "empty state links to search");
 
-const heroCard = readSource("components/home/feed-hero-card.tsx");
+const feedItemCard = readSource("components/home/feed-item-card.tsx");
 assert(
-  heroCard.includes('aria-label="スポット詳細を開く"'),
-  "hero photo opens detail",
+  feedItemCard.includes('aria-label="スポット詳細を開く"'),
+  "feed photo opens detail",
 );
 
 console.log("PASS: spot detail UI verified");

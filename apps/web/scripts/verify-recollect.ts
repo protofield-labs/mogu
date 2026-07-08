@@ -49,11 +49,8 @@ assert(
   "recollect picker host exists",
 );
 
-const feedHero = readSource("components/home/feed-hero-card.tsx");
-assert(feedHero.includes("useFeedSpotSave"), "feed hero uses feed spot save hook");
-
-const feedCompact = readSource("components/home/feed-compact-row.tsx");
-assert(feedCompact.includes("useFeedSpotSave"), "feed compact uses feed spot save hook");
+const feedItemCard = readSource("components/home/feed-item-card.tsx");
+assert(feedItemCard.includes("useFeedSpotSave"), "feed item uses feed spot save hook");
 
 const saveSpot = readSource("lib/recollect/save-spot.ts");
 assert(saveSpot.includes("@/lib/spots/browser-api"), "save spot uses spots browser api");

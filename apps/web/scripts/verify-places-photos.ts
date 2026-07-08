@@ -61,13 +61,10 @@ assert(spotThumbnail.includes("AuthImage"), "spot thumbnail prefers spot photos"
 assert(spotThumbnail.includes("GoogleMapsAttribution"), "spot thumbnail can show maps attribution");
 assert(spotThumbnail.includes("placeLoading"), "spot thumbnail supports place loading shimmer");
 
-const feedHero = readSource("components/home/feed-hero-card.tsx");
-assert(feedHero.includes("SpotThumbnail"), "feed hero uses spot thumbnail fallback");
-assert(feedHero.includes("showMapsAttribution"), "feed hero shows maps attribution on place photos");
-assert(feedHero.includes("placeLoading"), "feed hero waits for place photos while loading");
-
-const feedCompact = readSource("components/home/feed-compact-row.tsx");
-assert(feedCompact.includes("SpotThumbnail"), "feed compact uses spot thumbnail");
+const feedItemCard = readSource("components/home/feed-item-card.tsx");
+assert(feedItemCard.includes("SpotThumbnail"), "feed item uses spot thumbnail fallback");
+assert(feedItemCard.includes("showMapsAttribution"), "feed item shows maps attribution on place photos");
+assert(feedItemCard.includes("placeLoading"), "feed item waits for place photos while loading");
 
 assert(
   resolveSpotHeroPhoto({ photoUrls: ["gs://x/a.jpg"] }, { photos: [{ url: "/p/0", authorAttributions: [] }] })

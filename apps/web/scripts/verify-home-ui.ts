@@ -182,14 +182,28 @@ function main() {
     readSource("components/home/home-feed-map-view.tsx").includes("canRecollectFeedItem"),
     "home feed map hides save for own items",
   );
+  const feedItemCard = readSource("components/home/feed-item-card.tsx");
   assert(
-    readSource("components/home/feed-hero-card.tsx").includes("canRecollectFeedItem"),
-    "feed hero hides save for own items",
+    feedItemCard.includes("canRecollectFeedItem"),
+    "feed item hides save for own items",
   );
   assert(
-    readSource("components/home/feed-compact-row.tsx").includes("canRecollectFeedItem"),
-    "feed compact hides save for own items",
+    readSource("components/home/home-view.tsx").includes("FeedItemCard"),
+    "home view uses unified feed item card",
   );
+  assert(
+    !readSource("components/home/home-view.tsx").includes("FeedHeroCard"),
+    "home view no longer splits hero/compact feed",
+  );
+  assert(
+    !feedItemCard.includes("border border-border"),
+    "feed item avoids bordered card chrome",
+  );
+  assert(
+    !feedItemCard.includes("mogu-elevated"),
+    "feed item avoids elevated card chrome",
+  );
+  assert(feedItemCard.includes("SpotThumbnail"), "feed item uses spot thumbnail");
 
   console.log("PASS: home UI helpers verified");
 }
