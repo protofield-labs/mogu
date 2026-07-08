@@ -1,9 +1,24 @@
 "use client";
 
-import { ChevronLeft, LocateFixed, Pencil, Plus, X } from "lucide-react";
+import {
+  ChevronLeft,
+  LocateFixed,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 
 import { CollectionSpotMapView } from "@/components/collections/collection-spot-map-view";
 import {
@@ -13,6 +28,11 @@ import {
 import { CollectionDetailSkeleton } from "@/components/loading/skeletons";
 import { CollectionCoverPicker } from "@/components/mypage/collection-cover-picker";
 import { CollectionCover } from "@/components/mypage/collection-cover";
+import {
+  CollectionFormFields,
+  emptyCollectionForm,
+  type CollectionForm,
+} from "@/components/mypage/collection-form-fields";
 import { LoadErrorState } from "@/components/ui/load-error-state";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SpotForm, SpotList } from "@/components/mypage/spot-form";
@@ -30,6 +50,7 @@ import {
 } from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
 import {
+  deleteCollection,
   getCollectionDetail,
   updateCollection,
   type CollectionDetail,
@@ -42,6 +63,7 @@ import { pickAutoCoverUrls } from "@/lib/collections/cover";
 import { googleMapsPlaceUrl } from "@/lib/agent/chat-helpers";
 import { formatRatingChip } from "@/lib/home/feed-labels";
 import { formatCollectionVisibility } from "@/lib/labels/collection-labels";
+import { useMe } from "@/lib/mypage/me-provider";
 import { stashPendingCollectionConsult } from "@/lib/mypage/pending-collection-consult";
 import { sortSpotsByDistance, spotDistanceLabels } from "@/lib/places/geo";
 import { usePlace } from "@/lib/places/use-place";
@@ -50,6 +72,7 @@ import { usePlaceNames } from "@/lib/places/use-place-names";
 import { useUserLocation } from "@/lib/places/use-user-location";
 import { deleteSpot, type Spot } from "@/lib/spots/browser-api";
 import { collectionShareUrl, spotShareUrl } from "@/lib/share/share-url";
+import { touchRowClass } from "@/lib/ui/touch-feedback";
 import { cn } from "@/lib/utils";
 
 const ratingFilterOptions: Array<{
@@ -72,6 +95,7 @@ export function CollectionDetailView({
   initialSpotId = null,
 }: CollectionDetailViewProps) {
   const router = useRouter();
+  const { updateMe, refreshMe } = useMe();
   const [detail, setDetail] = useState<CollectionDetail | null>(null);
   const [editingSpot, setEditingSpot] = useState<Spot | null>(null);
   const [selectedSpot, setSelectedSpot] = useState<Spot | null>(null);
@@ -92,10 +116,29 @@ export function CollectionDetailView({
   const [coverDraftUrl, setCoverDraftUrl] = useState<string | null>(null);
   const [coverSaving, setCoverSaving] = useState(false);
   const [coverError, setCoverError] = useState<string | null>(null);
+  const [actionSheetOpen, setActionSheetOpen] = useState(false);
+  const [editSheetOpen, setEditSheetOpen] = useState(false);
+  const [editForm, setEditForm] = useState<CollectionForm>(emptyCollectionForm);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [deleteCollectionOpen, setDeleteCollectionOpen] = useState(false);
+  const [deletingCollection, setDeletingCollection] = useState(false);
+  const [deleteCollectionError, setDeleteCollectionError] = useState<
+    string | null
+  >(null);
   const [prevCollectionId, setPrevCollectionId] = useState(collectionId);
   const [prevInitialSpotId, setPrevInitialSpotId] = useState(initialSpotId);
   const formSectionRef = useRef<HTMLElement>(null);
   const initialSpotHandledRef = useRef(false);
+  const isMountedRef = useRef(true);
+  const editCollectionFormId = useId();
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const { place, placeName } = usePlace(
     selectedSpot?.placeId ?? "",
@@ -179,6 +222,14 @@ export function CollectionDetailView({
     setCoverDraftUrl(null);
     setCoverSaving(false);
     setCoverError(null);
+    setActionSheetOpen(false);
+    setEditSheetOpen(false);
+    setEditForm(emptyCollectionForm);
+    setEditSaving(false);
+    setEditError(null);
+    setDeleteCollectionOpen(false);
+    setDeletingCollection(false);
+    setDeleteCollectionError(null);
   }
 
   useEffect(() => {
@@ -343,6 +394,89 @@ export function CollectionDetailView({
     router.push("/search");
   }
 
+  function handleEditCollection() {
+    if (!detail) {
+      return;
+    }
+    setActionSheetOpen(false);
+    setEditForm({
+      name: detail.name,
+      description: detail.description ?? "",
+      visibility: detail.visibility,
+      theme: detail.theme ?? "",
+    });
+    setEditError(null);
+    setEditSheetOpen(true);
+  }
+
+  async function handleSaveCollectionEdit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!detail) {
+      return;
+    }
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      const updated = await updateCollection(detail.id, {
+        name: editForm.name.trim(),
+        description: editForm.description.trim() ? editForm.description : null,
+        visibility: editForm.visibility,
+        theme: editForm.theme.trim() ? editForm.theme : null,
+      });
+      setDetail((current) =>
+        current?.id === updated.id
+          ? { ...current, ...updated, spots: current.spots }
+          : current,
+      );
+      setEditSheetOpen(false);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : "更新に失敗しました");
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  function handleRequestDeleteCollection() {
+    setActionSheetOpen(false);
+    setDeleteCollectionError(null);
+    setDeleteCollectionOpen(true);
+  }
+
+  async function handleConfirmDeleteCollection() {
+    if (!detail) {
+      return;
+    }
+    setDeletingCollection(true);
+    setDeleteCollectionError(null);
+    try {
+      await deleteCollection(detail.id);
+      updateMe((current) =>
+        current
+          ? {
+              ...current,
+              counts: {
+                ...current.counts,
+                collections: Math.max(0, current.counts.collections - 1),
+              },
+            }
+          : current,
+      );
+      // Server-truth refresh for spot totals; replace so back-nav skips the deleted URL.
+      void refreshMe();
+      if (isMountedRef.current) {
+        router.replace("/mypage");
+      }
+    } catch (err) {
+      if (!isMountedRef.current) {
+        return;
+      }
+      setDeletingCollection(false);
+      setDeleteCollectionError(
+        err instanceof Error ? err.message : "削除に失敗しました",
+      );
+    }
+  }
+
   function handleOpenCoverSheet() {
     if (!detail) {
       return;
@@ -412,6 +546,15 @@ export function CollectionDetailView({
             ) : null}
           </div>
           <ShareButton url={collectionShareUrl(collectionId)} />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="コレクションの操作"
+            onClick={() => setActionSheetOpen(true)}
+          >
+            <MoreHorizontal className="size-4" aria-hidden />
+          </Button>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 pl-12">
@@ -674,6 +817,87 @@ export function CollectionDetailView({
           </Button>
         </SheetFooter>
       </Sheet>
+
+      <Sheet
+        open={actionSheetOpen}
+        onClose={() => setActionSheetOpen(false)}
+        ariaLabel="コレクションの操作"
+      >
+        <SheetHeader>{detail.name}</SheetHeader>
+        <SheetBody className="py-2">
+          <button
+            type="button"
+            onClick={handleEditCollection}
+            className={cn(
+              "flex min-h-12 w-full items-center gap-3 rounded-xl px-2 text-sm font-medium text-foreground",
+              touchRowClass,
+            )}
+          >
+            <Pencil className="size-4" aria-hidden />
+            コレクションを編集
+          </button>
+          <button
+            type="button"
+            onClick={handleRequestDeleteCollection}
+            className={cn(
+              "flex min-h-12 w-full items-center gap-3 rounded-xl px-2 text-sm font-medium text-destructive",
+              touchRowClass,
+            )}
+          >
+            <Trash2 className="size-4" aria-hidden />
+            コレクションを削除
+          </button>
+        </SheetBody>
+      </Sheet>
+
+      <Sheet open={editSheetOpen} onClose={() => setEditSheetOpen(false)}>
+        <SheetHeader>コレクションを編集</SheetHeader>
+        <SheetBody>
+          <form
+            id={editCollectionFormId}
+            className="space-y-3"
+            onSubmit={(event) => void handleSaveCollectionEdit(event)}
+          >
+            <CollectionFormFields form={editForm} onChange={setEditForm} />
+            {editError ? (
+              <p className="text-sm text-destructive" role="alert">
+                {editError}
+              </p>
+            ) : null}
+          </form>
+        </SheetBody>
+        <SheetFooter>
+          <Button
+            type="submit"
+            form={editCollectionFormId}
+            className="w-full"
+            disabled={editSaving}
+          >
+            {editSaving ? (
+              <>
+                <Spinner size="sm" />
+                保存中…
+              </>
+            ) : (
+              "保存する"
+            )}
+          </Button>
+        </SheetFooter>
+      </Sheet>
+
+      <ConfirmDialog
+        open={deleteCollectionOpen}
+        title="コレクションを削除"
+        description={`「${detail.name}」を削除しますか？この操作は元に戻せません。`}
+        confirmLabel="削除する"
+        busy={deletingCollection}
+        errorMessage={deleteCollectionError}
+        onConfirm={() => void handleConfirmDeleteCollection()}
+        onCancel={() => {
+          setDeleteCollectionOpen(false);
+          setDeleteCollectionError(null);
+        }}
+      />
 
       <ConfirmDialog
         open={deleteSpotTarget !== null}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Lock, Pencil, Pin, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Lock, Pin, ChevronDown, ChevronUp } from "lucide-react";
 
 import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
 import Link from "next/link";
@@ -16,8 +16,6 @@ import { cn } from "@/lib/utils";
 
 type CollectionGridProps = {
   collections: Collection[];
-  onEdit?: (collection: Collection) => void;
-  onDelete?: (collection: Collection) => void;
   getCollectionHref?: (collection: Collection) => string;
   showUpsell?: boolean;
   emptyMessage?: string;
@@ -31,8 +29,6 @@ type CollectionGridProps = {
 function CollectionTile({
   collection,
   href,
-  onEdit,
-  onDelete,
   reorderMode = false,
   onMoveUp,
   onMoveDown,
@@ -44,8 +40,6 @@ function CollectionTile({
 }: {
   collection: Collection;
   href: string;
-  onEdit?: (collection: Collection) => void;
-  onDelete?: (collection: Collection) => void;
   reorderMode?: boolean;
   onMoveUp?: (collection: Collection) => void;
   onMoveDown?: (collection: Collection) => void;
@@ -134,35 +128,6 @@ function CollectionTile({
             <ChevronDown className="size-4" aria-hidden />
           </button>
         </div>
-      ) : onEdit || onDelete ? (
-        <div className="flex gap-1.5">
-          {onEdit ? (
-            <button
-              type="button"
-              onClick={() => onEdit(collection)}
-              className={cn(
-                "inline-flex min-h-11 flex-1 items-center justify-center gap-1 rounded-xl bg-mogu-surface-elevated text-xs font-medium shadow-sm",
-                touchRowClass,
-              )}
-            >
-              <Pencil className="size-3" aria-hidden />
-              編集
-            </button>
-          ) : null}
-          {onDelete ? (
-            <button
-              type="button"
-              onClick={() => onDelete(collection)}
-              className={cn(
-                "inline-flex min-h-11 flex-1 items-center justify-center gap-1 rounded-xl bg-mogu-surface-elevated text-xs font-medium text-destructive shadow-sm",
-                touchRowClass,
-              )}
-            >
-              <Trash2 className="size-3" aria-hidden />
-              削除
-            </button>
-          ) : null}
-        </div>
       ) : null}
     </article>
   );
@@ -170,8 +135,6 @@ function CollectionTile({
 
 export function CollectionGrid({
   collections,
-  onEdit,
-  onDelete,
   getCollectionHref = (collection) => collectionPath(collection.id),
   showUpsell = true,
   emptyMessage = "まだコレクションがありません。最初のコレクションを作ってみましょう。",
@@ -192,8 +155,6 @@ export function CollectionGrid({
               key={collection.id}
               collection={collection}
               href={getCollectionHref(collection)}
-              onEdit={onEdit}
-              onDelete={onDelete}
               reorderMode={reorderMode}
               onMoveUp={onMoveUp}
               onMoveDown={onMoveDown}

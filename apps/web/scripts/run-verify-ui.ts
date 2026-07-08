@@ -42,6 +42,7 @@ const scripts = [
   "verify-feed-helpers.ts",
   "verify-home-ui.ts",
   "verify-touch-feedback.ts",
+  "verify-collection-actions.ts",
 ];
 
 for (const script of scripts) {

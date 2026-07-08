@@ -5,13 +5,11 @@ import { useEffect, useState } from "react";
 
 import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
 import { MypageViewSkeleton } from "@/components/loading/skeletons";
-import { CollectionCoverPicker } from "@/components/mypage/collection-cover-picker";
 import {
   CollectionFormFields,
 } from "@/components/mypage/collection-form-fields";
 import { Button } from "@/components/ui/button";
 import { SurfaceCard } from "@/components/ui/card";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { LoadErrorState } from "@/components/ui/load-error-state";
 import { CollectionGrid } from "@/components/mypage/collection-grid";
 import { MypageAccountSheet } from "@/components/mypage/mypage-account-sheet";
@@ -176,62 +174,7 @@ export function MypageView() {
         ) : null}
       </section>
 
-      {collectionsState.editingCollection ? (
-        <section className="space-y-3 px-mogu-screen-x">
-          <h2 className="text-sm font-semibold text-foreground">
-            「{collectionsState.editingCollection.name}」を編集
-          </h2>
-          <SurfaceCard className="p-4">
-            <form
-              className="space-y-3"
-              onSubmit={(event) => void collectionsState.handleSaveEdit(event)}
-            >
-              <CollectionFormFields
-                form={collectionsState.editForm}
-                onChange={collectionsState.setEditForm}
-              />
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-foreground">カバー画像</p>
-                {collectionsState.loadingEditPhotos ? (
-                  <p className="text-xs text-muted-foreground">写真を読み込み中…</p>
-                ) : (
-                  <CollectionCoverPicker
-                    photoUrls={collectionsState.editPhotoUrls}
-                    selectedUrl={collectionsState.editCoverUrl}
-                    disabled={collectionsState.busy}
-                    onSelect={collectionsState.setEditCoverUrl}
-                  />
-                )}
-              </div>
-              {collectionsState.collectionError ? (
-                <p className="text-sm text-destructive">
-                  {collectionsState.collectionError}
-                </p>
-              ) : null}
-              <div className="flex gap-2">
-                <Button
-                  type="submit"
-                  className="h-10 flex-1 rounded-2xl"
-                  disabled={collectionsState.busy}
-                >
-                  保存
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-10 flex-1 rounded-2xl"
-                  disabled={collectionsState.busy}
-                  onClick={() => collectionsState.setEditingCollection(null)}
-                >
-                  キャンセル
-                </Button>
-              </div>
-            </form>
-          </SurfaceCard>
-        </section>
-      ) : null}
-
-      {collectionsState.collectionError && !collectionsState.editingCollection ? (
+      {collectionsState.collectionError ? (
         <p className="px-mogu-screen-x text-sm text-destructive">
           {collectionsState.collectionError}
         </p>
@@ -243,12 +186,6 @@ export function MypageView() {
 
       <CollectionGrid
         collections={collectionsState.collections}
-        onEdit={
-          collectionsState.reorderMode ? undefined : collectionsState.startEdit
-        }
-        onDelete={
-          collectionsState.reorderMode ? undefined : collectionsState.setDeleteTarget
-        }
         reorderMode={collectionsState.reorderMode}
         reorderBusy={collectionsState.busy}
         onMoveUp={(collection) => collectionsState.moveCollection(collection, "up")}
@@ -257,20 +194,6 @@ export function MypageView() {
         }
         onPinTop={collectionsState.pinCollectionToTop}
         showUpsell={!collectionsState.reorderMode}
-      />
-
-      <ConfirmDialog
-        open={collectionsState.deleteTarget !== null}
-        title="コレクションを削除"
-        description={
-          collectionsState.deleteTarget
-            ? `「${collectionsState.deleteTarget.name}」を削除しますか？この操作は元に戻せません。`
-            : ""
-        }
-        confirmLabel="削除する"
-        busy={collectionsState.busy}
-        onConfirm={() => void collectionsState.handleConfirmDeleteCollection()}
-        onCancel={() => collectionsState.setDeleteTarget(null)}
       />
     </div>
   );
