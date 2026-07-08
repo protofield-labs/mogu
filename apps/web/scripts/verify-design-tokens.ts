@@ -40,6 +40,10 @@ function main() {
     "elevated surface utility exists",
   );
   assert(
+    globalsCss.includes("shadow-md"),
+    "elevated utility uses shadow-md",
+  );
+  assert(
     globalsCss.includes("--text-caption"),
     "text-caption token registered",
   );

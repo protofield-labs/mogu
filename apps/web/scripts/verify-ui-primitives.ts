@@ -18,6 +18,8 @@ const required = [
   "spinner.tsx",
   "empty-state.tsx",
   "sheet.tsx",
+  "nav-row.tsx",
+  "page-title.tsx",
 ];
 
 for (const file of required) {

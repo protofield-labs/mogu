@@ -2,8 +2,7 @@
 
 import { HistoryIcon, LoaderCircleIcon, MessageSquarePlusIcon } from "lucide-react";
 
-import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
-import { MoguWordmark } from "@/components/brand/mogu-wordmark";
+import { PageTitle } from "@/components/ui/page-title";
 import { Button } from "@/components/ui/button";
 import type { SessionStatus } from "@/lib/agent/use-agent-chat";
 
@@ -25,11 +24,8 @@ export function AgentChatHeader({
   onNewConsultation,
 }: AgentChatHeaderProps) {
   return (
-    <header className="flex shrink-0 items-center justify-between border-b border-border px-mogu-screen-x py-3">
-      <div className="flex items-center gap-2">
-        <MoguBrandIcon className="size-5" />
-        <MoguWordmark as="h1" />
-      </div>
+    <header className="flex shrink-0 items-center justify-between px-mogu-screen-x py-3">
+      <PageTitle>検索</PageTitle>
       {sessionStatus === "ready" ? (
         <div className="flex items-center gap-1">
           <Button

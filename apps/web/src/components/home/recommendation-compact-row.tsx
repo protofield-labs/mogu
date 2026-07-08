@@ -32,7 +32,7 @@ export function RecommendationCompactRow({
       type="button"
       onClick={handleOpenSearch}
       className={cn(
-        "mogu-elevated mx-mogu-screen-x flex w-[calc(100%-2*var(--mogu-spacing-screen-x))] items-center gap-3 rounded-2xl border border-border p-3 text-left transition-colors hover:bg-muted/40",
+        "mogu-elevated mx-mogu-screen-x flex w-[calc(100%-2*var(--mogu-spacing-screen-x))] items-center gap-3 rounded-2xl p-3 text-left transition-colors hover:bg-muted/40",
         touchCardClass,
       )}
     >

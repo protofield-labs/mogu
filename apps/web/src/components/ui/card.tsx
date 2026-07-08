@@ -9,7 +9,7 @@ export function SurfaceCard({
     <div
       data-slot="surface-card"
       className={cn(
-        "rounded-mogu-card border border-border bg-mogu-surface-elevated shadow-sm",
+        "rounded-mogu-card bg-mogu-surface-elevated shadow-md",
         className,
       )}
       {...props}

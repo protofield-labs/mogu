@@ -7,7 +7,7 @@ import { getNotificationHref } from "@/lib/mypage/stats-row";
 import { useMeBadges } from "@/lib/mypage/use-me-badges";
 
 const bellButtonClassName =
-  "relative flex size-9 items-center justify-center rounded-full border border-border bg-mogu-surface-elevated";
+  "relative flex size-10 items-center justify-center rounded-full bg-mogu-surface-elevated shadow-md";
 
 export function HomeNotificationButton() {
   const { badges, showBadge } = useMeBadges();

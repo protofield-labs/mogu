@@ -106,7 +106,7 @@
     --mogu-spacing-screen-y: 1rem;
     --mogu-tab-bar-height: 3.5rem;
     --mogu-shell-max-width: 28rem;
-    --mogu-radius-card: 1rem;
+    --mogu-radius-card: 1.25rem;
     --font-sans: var(--font-noto-sans-jp), var(--font-geist), ui-sans-serif, system-ui,
       sans-serif;
 }
@@ -178,7 +178,7 @@
 
 @layer utilities {
   .mogu-elevated {
-    @apply bg-mogu-surface-elevated shadow-sm;
+    @apply bg-mogu-surface-elevated shadow-md;
   }
 
   .mogu-touch-card {

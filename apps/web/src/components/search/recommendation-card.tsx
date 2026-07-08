@@ -33,7 +33,7 @@ function AlternativeSpotRow({ spot }: { spot: Spot }) {
   const { place, placeName } = usePlace(spot.placeId);
 
   return (
-    <li className="rounded-lg border border-border bg-background p-3">
+    <li className="rounded-2xl bg-muted/40 p-3 shadow-sm">
       <SpotSummary spot={spot} compact placeName={placeName} />
       <div className="mt-2 flex flex-wrap gap-2">
         <a
@@ -110,18 +110,18 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
   const openNowText = openNowLabel(place?.openNow);
 
   return (
-    <div className="mogu-elevated mt-2 w-full max-w-full rounded-xl border border-border p-mogu-screen-x py-3">
+    <div className="mogu-elevated mt-2 w-full max-w-full overflow-hidden rounded-2xl p-mogu-screen-x py-3">
       {heroPhoto?.source === "spot" ? (
         <AuthImage
           objectUrl={heroPhoto.url}
           alt=""
-          className="mb-3 aspect-[16/10] w-full rounded-lg object-cover"
+          className="-mx-mogu-screen-x mb-3 aspect-[16/10] w-[calc(100%+2*var(--mogu-spacing-screen-x))] rounded-t-2xl object-cover"
         />
       ) : heroPhoto?.source === "place" ? (
         <PlacePhotoImage
           url={heroPhoto.url}
           alt=""
-          className="mb-3 aspect-[16/10] w-full rounded-lg object-cover"
+          className="-mx-mogu-screen-x mb-3 aspect-[16/10] w-[calc(100%+2*var(--mogu-spacing-screen-x))] rounded-t-2xl object-cover"
         />
       ) : null}
 

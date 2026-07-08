@@ -15,6 +15,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { LoadErrorState } from "@/components/ui/load-error-state";
 import { CollectionGrid } from "@/components/mypage/collection-grid";
 import { FlagInboxCard } from "@/components/mypage/flag-inbox-card";
+import { MypageAccountSheet } from "@/components/mypage/mypage-account-sheet";
 import { MypageNavTiles } from "@/components/mypage/mypage-nav-tiles";
 import { MypageTopBar } from "@/components/mypage/mypage-top-bar";
 import { ProfileHeroCard } from "@/components/mypage/profile-hero-card";
@@ -134,9 +135,6 @@ export function MypageView() {
       <ProfileHeroCard
         me={me}
         pendingFriendRequests={pendingFriendRequests}
-        onProfileUpdated={(profile) =>
-          setMe((current) => (current ? { ...current, ...profile } : current))
-        }
       />
 
       <MypageNavTiles
@@ -158,12 +156,19 @@ export function MypageView() {
         }
       />
 
+      <MypageAccountSheet
+        me={me}
+        onProfileUpdated={(profile) =>
+          setMe((current) => (current ? { ...current, ...profile } : current))
+        }
+      />
+
       {me.counts.spots > 0 ? (
         <section className="px-mogu-screen-x">
           <Link
             href="/mypage/map"
             className={cn(
-              "flex items-center gap-4 rounded-mogu-card bg-mogu-surface-elevated p-4 shadow-sm transition-shadow hover:shadow-md",
+              "flex items-center gap-4 rounded-mogu-card bg-mogu-surface-elevated p-4 shadow-md transition-shadow hover:shadow-lg",
               touchCardClass,
             )}
           >
@@ -188,7 +193,7 @@ export function MypageView() {
         <section className="px-mogu-screen-x">
           <Link
             href="/search"
-            className="flex items-center gap-4 rounded-mogu-card bg-mogu-surface-elevated p-4 shadow-sm transition-shadow hover:shadow-md"
+            className="flex items-center gap-4 rounded-mogu-card bg-mogu-surface-elevated p-4 shadow-md transition-shadow hover:shadow-lg"
           >
             <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-muted to-background">
               <Sparkles className="size-5 text-foreground" aria-hidden />

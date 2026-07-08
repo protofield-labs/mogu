@@ -2,25 +2,58 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, User } from "lucide-react";
+import { Home } from "lucide-react";
 
 import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
+import { Avatar } from "@/components/ui/avatar";
+import { useMeBadges } from "@/lib/mypage/use-me-badges";
 import { touchIconClass } from "@/lib/ui/touch-feedback";
 import { cn } from "@/lib/utils";
-
-type TabBarProps = {
-  showMypageBadge?: boolean;
-};
 
 type TabItem = {
   href: string;
   label: string;
-  icon: typeof Home | typeof User | "mogu";
+  icon: typeof Home | "mogu" | "avatar";
   isActive: (pathname: string) => boolean;
   showBadge?: boolean;
 };
 
-function TabIcon({ tab, active }: { tab: TabItem; active: boolean }) {
+function TabIcon({
+  tab,
+  active,
+  tabProfile,
+}: {
+  tab: TabItem;
+  active: boolean;
+  tabProfile: { displayName: string; avatarColor: string } | null;
+}) {
+  if (tab.icon === "avatar") {
+    if (tabProfile) {
+      return (
+        <Avatar
+          displayName={tabProfile.displayName}
+          avatarColor={tabProfile.avatarColor}
+          size="md"
+          className={cn(
+            "ring-2 ring-offset-2 ring-offset-background",
+            active ? "ring-primary" : "ring-transparent",
+          )}
+        />
+      );
+    }
+    return (
+      <span
+        className={cn(
+          "flex size-11 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground",
+          active && "text-primary",
+        )}
+        aria-hidden
+      >
+        ?
+      </span>
+    );
+  }
+
   const className = cn(
     "size-7 transition-colors transition-transform",
     active ? "text-primary" : "text-muted-foreground",
@@ -34,8 +67,9 @@ function TabIcon({ tab, active }: { tab: TabItem; active: boolean }) {
   return <Icon className={className} aria-hidden />;
 }
 
-export function TabBar({ showMypageBadge = false }: TabBarProps) {
+export function TabBar() {
   const pathname = usePathname();
+  const { showBadge, tabProfile } = useMeBadges();
 
   const tabs: TabItem[] = [
     {
@@ -53,9 +87,9 @@ export function TabBar({ showMypageBadge = false }: TabBarProps) {
     {
       href: "/mypage",
       label: "マイページ",
-      icon: User,
+      icon: "avatar",
       isActive: (path) => path.startsWith("/mypage"),
-      showBadge: showMypageBadge,
+      showBadge: showBadge,
     },
   ];
 
@@ -82,7 +116,7 @@ export function TabBar({ showMypageBadge = false }: TabBarProps) {
                   touchIconClass,
                 )}
               >
-                <TabIcon tab={tab} active={active} />
+                <TabIcon tab={tab} active={active} tabProfile={tabProfile} />
                 {tab.showBadge ? (
                   <span
                     className="absolute right-1.5 top-1.5 size-2 rounded-full bg-mogu-badge"
