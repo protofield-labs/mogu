@@ -46,6 +46,11 @@ export function AgentChatComposer({
           onChange={(event) => onInputChange(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) {
+              // IME 変換確定の Enter では送信しない（#250）。
+              // keyCode 229 は isComposing を立てないブラウザ（旧 Safari 等）向け。
+              if (event.nativeEvent.isComposing || event.keyCode === 229) {
+                return;
+              }
               event.preventDefault();
               onSend(input);
             }
