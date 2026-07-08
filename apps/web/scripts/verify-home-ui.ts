@@ -123,7 +123,9 @@ function main() {
     "empty feed yields Infinity (stops ring backfill)",
   );
 
-  assert(formatRatingChip("again") === "また行きたい", "rating chip");
+  assert(formatRatingChip("again") === "すき", "rating chip");
+  assert(formatRatingChip("either") === "ふつう", "rating chip either");
+  assert(formatRatingChip("no") === "もういい", "rating chip no");
   assert(formatViaLabel("Ken") === "via Ken", "via label");
   assert(formatSavedCountBadge(3) === "グループで3人", "saved badge");
   assert(formatSavedCountBadge(0) === null, "hide zero saved badge");

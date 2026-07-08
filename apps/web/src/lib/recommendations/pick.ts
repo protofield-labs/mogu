@@ -3,9 +3,9 @@ import type { Rating } from "@prisma/client";
 import type { PrismaTransaction } from "@/lib/db/prisma";
 
 const RATING_LABEL: Record<Rating, string> = {
-  again: "また行きたい",
-  either: "どちらでも",
-  no: "また行きたくない",
+  again: "すき",
+  either: "ふつう",
+  no: "もういい",
 };
 
 type CandidateSpot = {

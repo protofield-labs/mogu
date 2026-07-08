@@ -6,13 +6,14 @@ import { useRouter } from "next/navigation";
 import { RecollectPicker } from "@/components/recollect/recollect-picker";
 import { SpotDetailSheet } from "@/components/spots/spot-detail-sheet";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { googleMapsPlaceUrl } from "@/lib/agent/chat-helpers";
 import type { Recommendation } from "@/lib/home/types";
 import { HOME_RECOMMENDATION_LABEL } from "@/lib/home/recommendation-labels";
 import { stashPendingRecommendation } from "@/lib/home/pending-recommendation";
 import { usePlace } from "@/lib/places/use-place";
 import { useRecollect } from "@/lib/recollect/use-recollect";
+import { cn } from "@/lib/utils";
 
 type RecommendationDetailSheetProps = {
   recommendation: Recommendation;
@@ -60,31 +61,28 @@ export function RecommendationDetailSheet({
       }
       footer={
         <>
-          <div className="flex flex-wrap gap-2">
-            <a
-              href={googleMapsPlaceUrl({
-                placeId: spot.placeId,
-                name: placeName,
-                location: place?.location,
-              })}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex h-7 items-center justify-center rounded-[min(var(--radius-md),12px)] border border-border bg-background px-2.5 text-[0.8rem] font-medium hover:bg-muted hover:text-foreground"
-            >
-              地図で開く
-            </a>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              disabled={recollect.busy}
-              aria-pressed={recollect.saved}
-              {...recollect.saveHandlers}
-            >
-              {recollect.saved ? "保存済み" : "保存"}
-            </Button>
-          </div>
-          <Button type="button" className="w-full" onClick={handleConsultAgent}>
+          <Button
+            type="button"
+            className="w-full"
+            disabled={recollect.busy}
+            aria-pressed={recollect.saved}
+            {...recollect.saveHandlers}
+          >
+            {recollect.saved ? "保存済み" : "保存する"}
+          </Button>
+          <a
+            href={googleMapsPlaceUrl({
+              placeId: spot.placeId,
+              name: placeName,
+              location: place?.location,
+            })}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(buttonVariants({ variant: "outline" }), "w-full")}
+          >
+            地図で開く
+          </a>
+          <Button type="button" variant="secondary" className="w-full" onClick={handleConsultAgent}>
             エージェントに相談
           </Button>
           {recollect.error ? (

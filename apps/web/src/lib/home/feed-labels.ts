@@ -1,9 +1,9 @@
 import type { Spot } from "@/lib/home/types";
 
 const RATING_CHIP: Record<Spot["rating"], string> = {
-  again: "また行きたい",
-  either: "どちらでも",
-  no: "また行きたくない",
+  again: "すき",
+  either: "ふつう",
+  no: "もういい",
 };
 
 export function formatRatingChip(rating: Spot["rating"]): string {

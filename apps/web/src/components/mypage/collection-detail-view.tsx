@@ -1,9 +1,8 @@
 "use client";
 
-import { ChevronLeft, LocateFixed, Plus, X } from "lucide-react";
+import { ChevronLeft, LocateFixed, Pencil, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
 
 import { CollectionSpotMapView } from "@/components/collections/collection-spot-map-view";
 import {
@@ -11,6 +10,7 @@ import {
   type CollectionSpotViewMode,
 } from "@/components/collections/collection-spot-view-tabs";
 import { CollectionDetailSkeleton } from "@/components/loading/skeletons";
+import { CollectionCoverPicker } from "@/components/mypage/collection-cover-picker";
 import { CollectionCover } from "@/components/mypage/collection-cover";
 import { LoadErrorState } from "@/components/ui/load-error-state";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -18,11 +18,19 @@ import { SpotForm, SpotList } from "@/components/mypage/spot-form";
 import { SpotDetailSheet } from "@/components/spots/spot-detail-sheet";
 import { ShareButton } from "@/components/share/share-button";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
+  Sheet,
+  SheetBody,
+  SheetFooter,
+  SheetHeader,
+} from "@/components/ui/sheet";
+import { Spinner } from "@/components/ui/spinner";
+import {
   getCollectionDetail,
+  updateCollection,
   type CollectionDetail,
 } from "@/lib/collections/browser-api";
 import {
@@ -40,6 +48,7 @@ import { usePlaceNames } from "@/lib/places/use-place-names";
 import { useUserLocation } from "@/lib/places/use-user-location";
 import { deleteSpot, type Spot } from "@/lib/spots/browser-api";
 import { collectionShareUrl, spotShareUrl } from "@/lib/share/share-url";
+import { cn } from "@/lib/utils";
 
 const ratingFilterOptions: Array<{
   value: CollectionSpotRatingFilter;
@@ -76,6 +85,10 @@ export function CollectionDetailView({
     useState<CollectionSpotRatingFilter>("all");
   const [spotViewMode, setSpotViewMode] = useState<CollectionSpotViewMode>("list");
   const [mapSelectedSpotId, setMapSelectedSpotId] = useState<string | null>(null);
+  const [coverSheetOpen, setCoverSheetOpen] = useState(false);
+  const [coverDraftUrl, setCoverDraftUrl] = useState<string | null>(null);
+  const [coverSaving, setCoverSaving] = useState(false);
+  const [coverError, setCoverError] = useState<string | null>(null);
   const [prevCollectionId, setPrevCollectionId] = useState(collectionId);
   const [prevInitialSpotId, setPrevInitialSpotId] = useState(initialSpotId);
   const formSectionRef = useRef<HTMLElement>(null);
@@ -139,20 +152,10 @@ export function CollectionDetailView({
     locationPoints,
     spotLocationsLoading,
   ]);
-
-  useEffect(() => {
-    if (!userLocation.error) {
-      return;
-    }
-    toast.error(userLocation.error);
-  }, [userLocation.error]);
-
-  useEffect(() => {
-    if (!spotLocationsError || !userLocation.location) {
-      return;
-    }
-    toast.error(spotLocationsError);
-  }, [spotLocationsError, userLocation.location]);
+  const coverPhotoUrls = useMemo(
+    () => [...new Set((detail?.spots ?? []).flatMap((spot) => spot.photoUrls))],
+    [detail?.spots],
+  );
 
   if (collectionId !== prevCollectionId || initialSpotId !== prevInitialSpotId) {
     setPrevCollectionId(collectionId);
@@ -169,6 +172,10 @@ export function CollectionDetailView({
     setRatingFilter("all");
     setSpotViewMode("list");
     setMapSelectedSpotId(null);
+    setCoverSheetOpen(false);
+    setCoverDraftUrl(null);
+    setCoverSaving(false);
+    setCoverError(null);
   }
 
   useEffect(() => {
@@ -321,6 +328,42 @@ export function CollectionDetailView({
     setReloadToken((current) => current + 1);
   }
 
+  function handleOpenCoverSheet() {
+    if (!detail) {
+      return;
+    }
+    setCoverDraftUrl(detail.coverUrl);
+    setCoverError(null);
+    setCoverSheetOpen(true);
+  }
+
+  async function handleSaveCover() {
+    if (!detail) {
+      return;
+    }
+    const collectionId = detail.id;
+    setCoverSaving(true);
+    setCoverError(null);
+    try {
+      const updated = await updateCollection(collectionId, {
+        coverUrl: coverDraftUrl,
+      });
+      setDetail((current) =>
+        current?.id === collectionId
+          ? {
+              ...current,
+              coverUrl: updated.coverUrl,
+            }
+          : current,
+      );
+      setCoverSheetOpen(false);
+    } catch (err) {
+      setCoverError(err instanceof Error ? err.message : "保存に失敗しました");
+    } finally {
+      setCoverSaving(false);
+    }
+  }
+
   if (loading) {
     return <CollectionDetailSkeleton />;
   }
@@ -370,14 +413,23 @@ export function CollectionDetailView({
         ) : null}
 
         <div className="pl-12">
-          <div className="relative aspect-[16/10] max-w-xs overflow-hidden rounded-2xl border border-border shadow-sm">
+          <button
+            type="button"
+            onClick={handleOpenCoverSheet}
+            className="group relative aspect-[16/10] max-w-xs overflow-hidden rounded-2xl border border-border shadow-sm"
+            aria-label="カバー画像を変更"
+          >
             <CollectionCover
               name={detail.name}
               coverUrl={detail.coverUrl}
               autoCoverUrls={detail.autoCoverUrls}
-              className="size-full"
+              className="size-full transition-opacity group-hover:opacity-90"
             />
-          </div>
+            <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-background/90 px-2.5 py-1 text-xs font-medium text-foreground shadow-sm backdrop-blur-sm">
+              <Pencil className="size-3" aria-hidden />
+              カバーを変更
+            </span>
+          </button>
         </div>
       </header>
 
@@ -455,15 +507,39 @@ export function CollectionDetailView({
               <Button
                 type="button"
                 size="sm"
-                variant={userLocation.location && !spotLocationsLoading ? "default" : "outline"}
+                variant={
+                  userLocation.location && !spotLocationsLoading ? "default" : "outline"
+                }
                 className="rounded-full"
                 disabled={userLocation.pending || spotLocationsLoading}
+                aria-pressed={Boolean(userLocation.location && !spotLocationsLoading)}
                 onClick={() => userLocation.requestLocation()}
               >
-                <LocateFixed className="size-3.5" aria-hidden />
-                近い順
+                {userLocation.pending ? (
+                  <Spinner size="sm" />
+                ) : (
+                  <LocateFixed className="size-3.5" aria-hidden />
+                )}
+                現在地から近い順
               </Button>
             </div>
+            {userLocation.error ? (
+              <div className="rounded-mogu-card border border-destructive/20 bg-destructive/5 px-3 py-2.5">
+                <p className="text-sm text-destructive">{userLocation.error}</p>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="mt-2"
+                  onClick={() => userLocation.requestLocation()}
+                >
+                  再試行
+                </Button>
+              </div>
+            ) : null}
+            {spotLocationsError && userLocation.location ? (
+              <p className="text-sm text-destructive">{spotLocationsError}</p>
+            ) : null}
           </div>
         ) : null}
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -507,18 +583,17 @@ export function CollectionDetailView({
           place={place}
           placeName={placeName}
           titleFallback={detail.name}
+          distanceLabel={spotDistanceLabelsMap[selectedSpot.id] ?? null}
           open={detailOpen}
           onClose={handleCloseDetail}
           header={
             <div className="flex min-w-0 items-center gap-2">
-              <p className="truncate text-sm font-medium text-foreground">
-                {detail.name}
-              </p>
+              <p className="truncate text-sm text-muted-foreground">{detail.name}</p>
               <ShareButton url={spotShareUrl(selectedSpot.id)} className="ml-auto shrink-0" />
             </div>
           }
           footer={
-            <div className="flex flex-wrap gap-2">
+            <>
               <a
                 href={googleMapsPlaceUrl({
                   placeId: selectedSpot.placeId,
@@ -527,14 +602,14 @@ export function CollectionDetailView({
                 })}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex h-7 items-center justify-center rounded-[min(var(--radius-md),12px)] border border-border bg-background px-2.5 text-[0.8rem] font-medium hover:bg-muted hover:text-foreground"
+                className={cn(buttonVariants({ variant: "outline" }), "w-full")}
               >
                 地図で開く
               </a>
               <Button
                 type="button"
                 variant="secondary"
-                size="sm"
+                className="w-full"
                 onClick={handleEditFromDetail}
               >
                 編集
@@ -542,15 +617,49 @@ export function CollectionDetailView({
               <Button
                 type="button"
                 variant="destructive"
-                size="sm"
+                className="w-full"
                 onClick={handleDeleteFromDetail}
               >
                 削除
               </Button>
-            </div>
+            </>
           }
         />
       ) : null}
+
+      <Sheet open={coverSheetOpen} onClose={() => setCoverSheetOpen(false)}>
+        <SheetHeader>カバー画像</SheetHeader>
+        <SheetBody>
+          <CollectionCoverPicker
+            photoUrls={coverPhotoUrls}
+            selectedUrl={coverDraftUrl}
+            disabled={coverSaving}
+            onSelect={setCoverDraftUrl}
+          />
+          {coverError ? (
+            <p className="mt-3 text-sm text-destructive" role="alert">
+              {coverError}
+            </p>
+          ) : null}
+        </SheetBody>
+        <SheetFooter>
+          <Button
+            type="button"
+            className="w-full"
+            disabled={coverSaving}
+            onClick={() => void handleSaveCover()}
+          >
+            {coverSaving ? (
+              <>
+                <Spinner size="sm" />
+                保存中…
+              </>
+            ) : (
+              "保存する"
+            )}
+          </Button>
+        </SheetFooter>
+      </Sheet>
 
       <ConfirmDialog
         open={deleteSpotTarget !== null}

@@ -53,7 +53,9 @@ function main() {
 
   const collectionDetail = readSource("components/mypage/collection-detail-view.tsx");
   assert(collectionDetail.includes("useUserLocation"), "collection detail uses user location");
-  assert(collectionDetail.includes("近い順"), "collection detail has nearby sort control");
+  assert(collectionDetail.includes("現在地から近い順"), "collection detail has nearby sort control");
+  assert(collectionDetail.includes("CollectionCoverPicker"), "collection detail edits cover");
+  assert(collectionDetail.includes("再試行"), "collection detail offers geolocation retry");
 
   console.log("PASS: map geolocation verified");
 }
