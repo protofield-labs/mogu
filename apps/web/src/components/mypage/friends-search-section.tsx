@@ -46,7 +46,7 @@ export function FriendsSearchSection({
             value={searchQuery}
             onChange={(event) => onSearchQueryChange(event.target.value)}
             placeholder="名前で友達を探す"
-            className="h-11 w-full rounded-2xl border border-border bg-mogu-surface-elevated pl-10 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="h-11 w-full rounded-2xl border border-border bg-background pl-10 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           />
         </label>
       </div>
@@ -76,7 +76,7 @@ export function FriendsSearchSection({
               return (
                 <li
                   key={user.id}
-                  className="flex items-center gap-3 rounded-2xl border border-border bg-mogu-surface-elevated p-3"
+                  className="flex items-center gap-3 rounded-2xl bg-mogu-surface-elevated p-3 shadow-mogu-card"
                 >
                   <Avatar
                     {...friendAvatarProps(user, {

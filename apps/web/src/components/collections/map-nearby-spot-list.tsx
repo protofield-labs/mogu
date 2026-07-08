@@ -39,9 +39,9 @@ export function MapNearbySpotList({
                 type="button"
                 onClick={() => onSelectSpot(spot)}
                 className={cn(
-                  "flex w-full items-center gap-3 rounded-xl border border-border bg-mogu-surface-elevated px-3 py-2.5 text-left",
+                  "flex w-full items-center gap-3 rounded-xl bg-mogu-surface-elevated px-3 py-2.5 text-left shadow-mogu-card",
                   touchRowClass,
-                  selected && "border-primary ring-1 ring-primary/30",
+                  selected && "ring-2 ring-primary/30",
                 )}
               >
                 <span className="min-w-0 flex-1">

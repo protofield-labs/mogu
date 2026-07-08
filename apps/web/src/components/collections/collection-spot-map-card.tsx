@@ -27,7 +27,7 @@ export function CollectionSpotMapCard({
   const title = placeName ?? spot.comment ?? "スポット";
 
   return (
-    <div className="pointer-events-auto absolute inset-x-4 bottom-4 z-10 rounded-2xl border border-border bg-mogu-surface-elevated p-4 shadow-lg">
+    <div className="pointer-events-auto absolute inset-x-4 bottom-4 z-10 rounded-2xl bg-mogu-surface-elevated p-4 shadow-mogu-card-hover">
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-foreground">{title}</p>

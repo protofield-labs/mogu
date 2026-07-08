@@ -60,7 +60,7 @@ function FlagEventRow({ event }: { event: FlagEvent }) {
 
   if (!href) {
     return (
-      <li className="flex items-center gap-3 rounded-2xl border border-border bg-mogu-surface-elevated p-4">
+      <li className="flex items-center gap-3 rounded-2xl bg-mogu-surface-elevated p-4 shadow-mogu-card">
         {content}
       </li>
     );
@@ -70,7 +70,7 @@ function FlagEventRow({ event }: { event: FlagEvent }) {
     <li>
       <Link
         href={href}
-        className="flex items-center gap-3 rounded-2xl border border-border bg-mogu-surface-elevated p-4 transition-colors hover:bg-muted/30"
+        className="flex items-center gap-3 rounded-2xl bg-mogu-surface-elevated p-4 shadow-mogu-card transition-colors hover:bg-muted/30"
       >
         {content}
       </Link>
@@ -196,7 +196,7 @@ export function NotificationsView() {
       <header className="flex items-center gap-3 px-mogu-screen-x pt-3">
         <Link
           href="/"
-          className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-mogu-surface-elevated"
+          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-mogu-surface-elevated shadow-mogu-card"
           aria-label="ホームに戻る"
         >
           <ChevronLeft className="size-5" aria-hidden />

@@ -30,7 +30,9 @@
 | --- | --- | --- |
 | `--mogu-surface` | `bg-mogu-surface` | 画面背景（= `--background`） |
 | `--mogu-surface-elevated` | `bg-mogu-surface-elevated` | カード・モーダル（= `--card`） |
-| `.mogu-elevated` | `mogu-elevated` | elevated 背景 + `shadow-md`（#101） |
+| `--shadow-mogu-card` | `shadow-mogu-card` | 拡散影（ライトモードのカード面） |
+| `--shadow-mogu-card-hover` | `shadow-mogu-card-hover` | ホバー時の一段強い拡散影 |
+| `.mogu-elevated` | `mogu-elevated` | elevated 背景 + `shadow-mogu-card`（#101 / #201） |
 | `--mogu-avatar-default` | `bg-mogu-avatar-default` | アバター未設定時 |
 | `--mogu-avatar-ring-new` | `ring-mogu-avatar-ring-new` | 新着リング（= `--primary`） |
 | `--mogu-avatar-ring-idle` | `ring-mogu-avatar-ring-idle` | 通常アバター枠 |
@@ -49,14 +51,16 @@
 | `--font-geist` | Geist | 英数字・記号 |
 | `--font-sans` | 上記のスタック | `font-sans` デフォルト |
 
-各タブ冒頭に `PageTitle`（`text-2xl font-semibold`）を置き、画面文脈を即伝える（#101）。
+各タブ冒頭に `PageTitle`（`text-3xl font-semibold tracking-tight`）を置き、画面文脈を即伝える（#101 / #201）。
 
-## Elevation ルール（#101）
+## Elevation ルール（#101 / #201）
 
-- **カード面**: `border` なし。`bg-mogu-surface-elevated` + `shadow-md` + `rounded-mogu-card`
-- **ホバー**: `hover:shadow-lg`（タイル・プロモカード）
+- **カード面**: `border` なし。`bg-mogu-surface-elevated` + `shadow-mogu-card` + `rounded-mogu-card`
+- **ホバー**: `hover:shadow-mogu-card-hover`（タイル・プロモカード）
+- **ダークモード**: 影は無効（`--shadow-mogu-card: none`）。`--card` と `--background` の色差で elevation を表現
 - **入力・ダイアログ**: `border-border` は入力欄・確認ダイアログ・リスト区切り線に限定
-- **実装**: `SurfaceCard` / `.mogu-elevated` が標準。個別カードは `shadow-md` を直接付与可
+- **地図フローティングボタン**: 視認性のため `border-border` を維持可
+- **実装**: `SurfaceCard` / `.mogu-elevated` / `shadow-mogu-card` が標準
 
 ## アクセント適用先ルール（#90 + #101）
 

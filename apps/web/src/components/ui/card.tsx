@@ -9,7 +9,7 @@ export function SurfaceCard({
     <div
       data-slot="surface-card"
       className={cn(
-        "rounded-mogu-card bg-mogu-surface-elevated shadow-md",
+        "rounded-mogu-card bg-mogu-surface-elevated shadow-mogu-card",
         className,
       )}
       {...props}
@@ -23,7 +23,11 @@ export function SurfaceCardInteractive({
 }: React.ComponentProps<"div">) {
   return (
     <SurfaceCard
-      className={cn("transition-shadow hover:shadow-md", touchCardClass, className)}
+      className={cn(
+        "transition-shadow hover:shadow-mogu-card-hover",
+        touchCardClass,
+        className,
+      )}
       {...props}
     />
   );

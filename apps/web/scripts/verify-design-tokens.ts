@@ -40,8 +40,12 @@ function main() {
     "elevated surface utility exists",
   );
   assert(
-    globalsCss.includes("shadow-md"),
-    "elevated utility uses shadow-md",
+    globalsCss.includes("--shadow-mogu-card:"),
+    "card shadow token registered",
+  );
+  assert(
+    globalsCss.includes("shadow-mogu-card"),
+    "elevated utility uses diffuse card shadow",
   );
   assert(
     globalsCss.includes("--text-caption"),

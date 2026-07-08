@@ -34,7 +34,7 @@ export function MypageNavTiles({
         type="button"
         onClick={onCollectionsClick}
         className={cn(
-          "group flex flex-col items-center gap-3 rounded-mogu-card bg-mogu-surface-elevated p-4 pb-5 text-center shadow-md transition-shadow hover:shadow-lg",
+          "group flex flex-col items-center gap-3 rounded-mogu-card bg-mogu-surface-elevated p-4 pb-5 text-center shadow-mogu-card transition-shadow hover:shadow-mogu-card-hover",
           touchCardClass,
         )}
       >
@@ -78,7 +78,7 @@ export function MypageNavTiles({
       <Link
         href="/mypage/friends"
         className={cn(
-          "group relative flex flex-col items-center gap-3 rounded-mogu-card bg-mogu-surface-elevated p-4 pb-5 text-center shadow-md transition-shadow hover:shadow-lg",
+          "group relative flex flex-col items-center gap-3 rounded-mogu-card bg-mogu-surface-elevated p-4 pb-5 text-center shadow-mogu-card transition-shadow hover:shadow-mogu-card-hover",
           touchCardClass,
         )}
       >

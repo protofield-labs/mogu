@@ -24,7 +24,7 @@ export function ProfileHeroCard({
 
   return (
     <section className="px-mogu-screen-x">
-      <div className="flex items-stretch gap-5 rounded-mogu-card bg-mogu-surface-elevated p-5 shadow-md">
+      <div className="flex items-stretch gap-5 rounded-mogu-card bg-mogu-surface-elevated p-5 shadow-mogu-card">
         <div className="flex min-w-0 flex-1 items-center gap-4">
           <Avatar
             displayName={me.displayName}

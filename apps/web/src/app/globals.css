@@ -49,6 +49,8 @@
     --spacing-mogu-tab-bar: var(--mogu-tab-bar-height);
     --max-width-mogu-shell: var(--mogu-shell-max-width);
     --radius-mogu-card: var(--mogu-radius-card);
+    --shadow-mogu-card: var(--shadow-mogu-card);
+    --shadow-mogu-card-hover: var(--shadow-mogu-card-hover);
     --text-caption: 0.65rem;
     --text-caption--line-height: 1rem;
     --radius-sm: calc(var(--radius) * 0.6);
@@ -104,9 +106,11 @@
     --mogu-badge: oklch(0.577 0.245 27.325);
     --mogu-spacing-screen-x: 1rem;
     --mogu-spacing-screen-y: 1rem;
-    --mogu-tab-bar-height: 3.5rem;
+    --mogu-tab-bar-height: 4rem;
     --mogu-shell-max-width: 28rem;
     --mogu-radius-card: 1.25rem;
+    --shadow-mogu-card: 0 6px 16px rgb(0 0 0 / 0.12);
+    --shadow-mogu-card-hover: 0 8px 24px rgb(0 0 0 / 0.16);
     --font-sans: var(--font-noto-sans-jp), var(--font-geist), ui-sans-serif, system-ui,
       sans-serif;
 }
@@ -150,6 +154,8 @@
     --mogu-avatar-ring-new: var(--primary);
     --mogu-avatar-ring-idle: oklch(0.32 0.01 95);
     --mogu-badge: oklch(0.65 0.18 25);
+    --shadow-mogu-card: none;
+    --shadow-mogu-card-hover: none;
 }
 
 @layer base {
@@ -178,7 +184,7 @@
 
 @layer utilities {
   .mogu-elevated {
-    @apply bg-mogu-surface-elevated shadow-md;
+    @apply bg-mogu-surface-elevated shadow-mogu-card;
   }
 
   .mogu-touch-card {

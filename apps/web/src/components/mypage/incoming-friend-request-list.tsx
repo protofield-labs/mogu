@@ -51,7 +51,7 @@ export function IncomingFriendRequestList({
           return (
             <li
               key={request.pairId}
-              className="rounded-2xl border border-border bg-mogu-surface-elevated p-4"
+              className="rounded-2xl bg-mogu-surface-elevated p-4 shadow-mogu-card"
             >
               <div className="flex items-center gap-3">
                 <Avatar {...friendAvatarProps(request.from)} />

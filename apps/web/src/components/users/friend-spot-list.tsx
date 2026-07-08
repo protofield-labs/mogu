@@ -41,7 +41,7 @@ function FriendSpotRow({ spot }: { spot: Spot }) {
   const recollect = useRecollect(spot.id);
 
   return (
-    <li className="rounded-2xl border border-border bg-mogu-surface-elevated p-4">
+    <li className="rounded-2xl bg-mogu-surface-elevated p-4 shadow-mogu-card">
       <div className="flex gap-3">
         {spot.photoUrls[0] ? (
           <AuthImage

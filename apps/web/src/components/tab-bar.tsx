@@ -19,7 +19,7 @@ type TabItem = {
 
 function TabIcon({ tab, active }: { tab: TabItem; active: boolean }) {
   const className = cn(
-    "size-7 transition-colors transition-transform",
+    "size-6 transition-colors transition-transform",
     active ? "text-primary" : "text-muted-foreground",
   );
 
@@ -62,7 +62,7 @@ export function TabBar() {
       aria-label="メインナビゲーション"
       className="shrink-0 border-t border-border bg-mogu-surface-elevated pb-[env(safe-area-inset-bottom)]"
     >
-      <div className="flex h-mogu-tab-bar items-center justify-around px-mogu-screen-x">
+      <div className="flex h-mogu-tab-bar items-center justify-around px-mogu-screen-x pt-1">
         {tabs.map((tab) => {
           const active = tab.isActive(pathname);
 
@@ -71,22 +71,29 @@ export function TabBar() {
               key={tab.href}
               href={tab.href}
               aria-current={active ? "page" : undefined}
-              aria-label={tab.label}
-              className="relative flex flex-1 items-center justify-center"
+              className="relative flex flex-1 flex-col items-center justify-center gap-0.5"
             >
               <span
                 className={cn(
-                  "relative flex size-11 items-center justify-center",
+                  "relative flex size-9 items-center justify-center",
                   touchIconClass,
                 )}
               >
                 <TabIcon tab={tab} active={active} />
                 {tab.showBadge ? (
                   <span
-                    className="absolute right-1.5 top-1.5 size-2 rounded-full bg-mogu-badge"
+                    className="absolute right-0.5 top-0.5 size-2 rounded-full bg-mogu-badge"
                     aria-label="未読通知あり"
                   />
                 ) : null}
+              </span>
+              <span
+                className={cn(
+                  "text-[0.625rem] font-medium leading-none",
+                  active ? "text-primary" : "text-muted-foreground",
+                )}
+              >
+                {tab.label}
               </span>
             </Link>
           );
