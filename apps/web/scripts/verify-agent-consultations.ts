@@ -111,6 +111,10 @@ assert(browserApi.includes("syncAgentConsultationEntries"), "browser api syncs i
 
 assert(dal.includes("appendAgentConsultationTurn"), "dal appends turns");
 assert(
+  dal.includes("existing.length > entries.length"),
+  "sync rejects stale client snapshots",
+);
+assert(
   dal.includes("buildConsultationTitle(entries)"),
   "sync always updates consultation title",
 );

@@ -49,9 +49,15 @@ export async function syncAgentConsultationEntries(
   await withAuthRls(uid, async (tx) => {
     const row = await tx.agentConsultation.findFirst({
       where: { userId: uid, vertexSessionId },
-      select: { id: true },
+      select: { id: true, entries: true },
     });
     if (!row) {
+      return;
+    }
+
+    const existing = parseConsultationEntries(row.entries);
+    // Avoid overwriting a newer append with a stale client snapshot (#207).
+    if (existing.length > entries.length) {
       return;
     }
 
