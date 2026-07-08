@@ -77,11 +77,22 @@ assert(userIdRouteParamsSchema.safeParse({ id: "uid-1" }).success, "user id rout
 assert(friendRequestsQuerySchema.safeParse({ box: "in" }).success, "friend requests query");
 assert(provisionBodySchema.safeParse({ displayName: "Ken" }).success, "provision body");
 
+const spotLikesDal = readSource("lib/dal/spot-likes.ts");
+assert(spotLikesDal.includes("likeSpot"), "spot likes dal supports like");
+assert(spotLikesDal.includes("unlikeSpot"), "spot likes dal supports unlike");
+assert(spotLikesDal.includes("countLikesInCircleBySpotIds"), "spot likes dal counts in circle");
+
+const likeRoute = readSource("app/api/v1/spots/[id]/like/route.ts");
+assert(likeRoute.includes("export async function POST"), "like route supports POST");
+assert(likeRoute.includes("export async function DELETE"), "like route supports DELETE");
+assert(likeRoute.includes("parseRouteParams"), "like route validates spot id");
+
 const routeFiles = [
   "app/api/v1/collections/route.ts",
   "app/api/v1/users/route.ts",
   "app/api/v1/feed/route.ts",
   "app/api/v1/friends/requests/[pairId]/accept/route.ts",
+  "app/api/v1/spots/[id]/like/route.ts",
 ];
 for (const file of routeFiles) {
   const source = readSource(file);

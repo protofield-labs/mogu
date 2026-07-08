@@ -69,6 +69,8 @@ const feedItems = [
       { id: "f-ken", displayName: "Ken", avatarColor: "#336699" },
       { id: "f-aoi", displayName: "Aoi", avatarColor: "#993366" },
     ],
+    likeCount: 2,
+    likedByMe: false,
   },
   {
     spot: {
@@ -90,6 +92,8 @@ const feedItems = [
     createdAt: "2026-07-05T10:00:00.000Z",
     savedByMe: true,
     savedSavers: [{ id: "f-aoi", displayName: "Aoi", avatarColor: "#993366" }],
+    likeCount: 0,
+    likedByMe: true,
   },
 ];
 
@@ -233,6 +237,14 @@ function main() {
   assert(
     readSource("components/home/feed-item-actions.tsx").includes("aria-pressed"),
     "feed bookmark toggle exposes pressed state",
+  );
+  assert(
+    readSource("components/home/feed-item-actions.tsx").includes("onToggleLike"),
+    "feed heart toggles likes",
+  );
+  assert(
+    readSource("lib/home/use-feed-spot-like.ts").includes("toggleLike"),
+    "feed like hook supports optimistic toggle",
   );
   assert(
     readSource("components/home/feed-saved-savers.tsx").includes("-ml-2"),
