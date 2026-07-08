@@ -79,6 +79,7 @@ assert(provisionBodySchema.safeParse({ displayName: "Ken" }).success, "provision
 
 const spotLikesDal = readSource("lib/dal/spot-likes.ts");
 assert(spotLikesDal.includes("likeSpot"), "spot likes dal supports like");
+assert(spotLikesDal.includes("skipDuplicates"), "spot likes dal idempotently creates likes");
 assert(spotLikesDal.includes("unlikeSpot"), "spot likes dal supports unlike");
 assert(spotLikesDal.includes("countLikesInCircleBySpotIds"), "spot likes dal counts in circle");
 

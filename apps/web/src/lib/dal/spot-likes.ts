@@ -20,18 +20,9 @@ export async function likeSpot(
       return { ok: false, reason: "not_found" };
     }
 
-    await tx.spotLike.upsert({
-      where: {
-        userId_spotId: {
-          userId: uid,
-          spotId,
-        },
-      },
-      create: {
-        userId: uid,
-        spotId,
-      },
-      update: {},
+    await tx.spotLike.createMany({
+      data: [{ userId: uid, spotId }],
+      skipDuplicates: true,
     });
 
     return { ok: true };

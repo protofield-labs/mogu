@@ -4,18 +4,14 @@ import { useCallback, useState } from "react";
 
 import { apiVoid } from "@/lib/api/browser-client";
 
-type UseFeedSpotLikeOptions = {
-  initialLikedByMe?: boolean;
-  initialLikeCount?: number;
-};
-
 /** Optimistic like toggle for feed cards (#212). */
 export function useFeedSpotLike(
   spotId: string,
-  options: UseFeedSpotLikeOptions = {},
+  initialLikedByMe: boolean,
+  initialLikeCount: number,
 ) {
-  const [likedByMe, setLikedByMe] = useState(options.initialLikedByMe ?? false);
-  const [likeCount, setLikeCount] = useState(options.initialLikeCount ?? 0);
+  const [likedByMe, setLikedByMe] = useState(initialLikedByMe);
+  const [likeCount, setLikeCount] = useState(initialLikeCount);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

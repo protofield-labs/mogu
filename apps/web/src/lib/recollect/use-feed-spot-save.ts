@@ -17,7 +17,11 @@ export function useFeedSpotSave(
   options: UseFeedSpotSaveOptions = {},
 ) {
   const recollect = useRecollect(spotId, options);
-  const like = useFeedSpotLike(spotId, options);
+  const like = useFeedSpotLike(
+    spotId,
+    options.initialLikedByMe ?? false,
+    options.initialLikeCount ?? 0,
+  );
   const [detailOpen, setDetailOpen] = useState(false);
 
   return {

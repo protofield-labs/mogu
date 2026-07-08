@@ -243,8 +243,10 @@ function main() {
     "feed heart toggles likes",
   );
   assert(
-    readSource("lib/home/use-feed-spot-like.ts").includes("toggleLike"),
-    "feed like hook supports optimistic toggle",
+    readSource("components/home/home-view.tsx").includes(
+      "item.likedByMe}:${item.likeCount}",
+    ),
+    "feed cards remount when server like state changes",
   );
   assert(
     readSource("components/home/feed-saved-savers.tsx").includes("-ml-2"),

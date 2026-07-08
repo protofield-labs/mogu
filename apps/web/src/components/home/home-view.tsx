@@ -354,7 +354,7 @@ export function HomeView() {
             <div>
               {visibleFeedItems.map((item, index) => (
                 <FeedItemCard
-                  key={item.spot.id}
+                  key={`${item.spot.id}:${item.likedByMe}:${item.likeCount}`}
                   item={item}
                   viewerId={me.id}
                   enterIndex={
