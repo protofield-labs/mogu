@@ -38,7 +38,7 @@ assert(
 );
 
 assert(
-  buildEvidence("Ken", Rating.again, 4).includes("輪で4人が保存"),
+  buildEvidence("Ken", Rating.again, 4).includes("グループで4人が保存"),
   "evidence includes savedCount",
 );
 assert(

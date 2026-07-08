@@ -1,7 +1,7 @@
 import "server-only";
 
 import { withAuthRls } from "@/lib/auth/with-auth-rls";
-import { countSavedInCircleByPlaceIds } from "@/lib/dal/saved-count";
+import { countSavedInCircleByPlaceIds, listSavedInCircleByPlaceIds } from "@/lib/dal/saved-count";
 import { getSavedSourceSpotIds } from "@/lib/dal/recollect-state";
 import { toSpotDto, type SpotDto } from "@/lib/dal/spot-dto";
 import { toUserDto, type UserDto } from "@/lib/dal/users";
@@ -14,6 +14,7 @@ export type FeedItemDto = {
   collectionName: string;
   createdAt: string;
   savedByMe: boolean;
+  savedSavers: UserDto[];
 };
 
 export type FeedPageDto = {
@@ -113,6 +114,7 @@ export async function listFeed(
 
     const placeIds = [...new Set(page.map((row) => row.placeId))];
     const savedCounts = await countSavedInCircleByPlaceIds(tx, placeIds);
+    const savedSaversByPlace = await listSavedInCircleByPlaceIds(tx, placeIds);
     const savedSourceIds = await getSavedSourceSpotIds(
       tx,
       uid,
@@ -125,6 +127,7 @@ export async function listFeed(
       collectionName: row.collection.name,
       createdAt: row.createdAt.toISOString(),
       savedByMe: savedSourceIds.has(row.id),
+      savedSavers: savedSaversByPlace.get(row.placeId) ?? [],
     }));
 
     const last = page.at(-1);

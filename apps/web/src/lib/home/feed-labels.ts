@@ -18,7 +18,18 @@ export function formatSavedCountBadge(savedCount: number): string | null {
   if (savedCount <= 0) {
     return null;
   }
-  return `輪で${savedCount}人`;
+  return `グループで${savedCount}人`;
+}
+
+/** Instagram-style saver line for feed cards (#205). */
+export function formatSavedSaversLabel(
+  representativeName: string,
+  savedCount: number,
+): string {
+  if (savedCount <= 1) {
+    return `${representativeName}さんが保存`;
+  }
+  return `${representativeName}さん、グループで${savedCount}人が保存`;
 }
 
 type StructuredTags = {
