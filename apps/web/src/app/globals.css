@@ -209,6 +209,45 @@
       opacity: 0.35;
     }
   }
+
+  .mogu-sheet-dialog::backdrop {
+    @apply bg-black/40 opacity-0 transition-opacity duration-[250ms] ease-out motion-reduce:transition-none;
+  }
+
+  .mogu-sheet-dialog-open::backdrop {
+    @apply opacity-100;
+  }
+
+  .mogu-sheet-dialog-dragging::backdrop {
+    transition: none;
+    opacity: calc(1 - min(var(--sheet-drag-offset, 0px) / 280px, 0.85));
+  }
+
+  .mogu-sheet-panel {
+    @apply translate-y-full opacity-100 transition-[transform,opacity] duration-[250ms] ease-out motion-reduce:translate-y-0 motion-reduce:transition-none;
+  }
+
+  .mogu-sheet-panel-open {
+    @apply translate-y-0;
+  }
+
+  .mogu-sheet-panel-closed {
+    @apply translate-y-full motion-reduce:translate-y-0;
+  }
+
+  @media (min-width: 40rem) {
+    .mogu-sheet-panel {
+      @apply translate-y-[-50%] scale-95 opacity-0;
+    }
+
+    .mogu-sheet-panel-open {
+      @apply translate-y-[-50%] scale-100 opacity-100;
+    }
+
+    .mogu-sheet-panel-closed {
+      @apply translate-y-[-50%] scale-95 opacity-0;
+    }
+  }
 }
 
 @keyframes mogu-shimmer-slide {

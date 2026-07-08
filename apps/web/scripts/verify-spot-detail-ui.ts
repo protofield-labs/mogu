@@ -15,6 +15,7 @@ function readSource(relativePath: string): string {
 
 const spotDetailSheet = readSource("components/spots/spot-detail-sheet.tsx");
 assert(spotDetailSheet.includes("export function SpotDetailSheet"), "SpotDetailSheet exported");
+assert(spotDetailSheet.includes("Sheet"), "spot detail sheet uses Sheet primitive");
 assert(spotDetailSheet.includes("SpotDetailMedia"), "spot detail uses place photo fallback");
 assert(spotDetailSheet.includes("place.address"), "spot detail shows place address");
 assert(spotDetailSheet.includes("GoogleMapsAttribution"), "spot detail includes maps attribution");
