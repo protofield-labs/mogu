@@ -100,8 +100,11 @@ function main() {
   assert(
     protectedLayout.includes("<MeBadgesProvider>") &&
       protectedLayout.includes("<MeProvider>") &&
-      protectedLayout.includes("<MeProvider>\n      <MeBadgesProvider>"),
-    "MeProvider and MeBadgesProvider wrap auth gate so skeleton TabBar can prerender",
+      protectedLayout.includes("<MeBadgesProvider>") &&
+      protectedLayout.indexOf("<MeBadgesProvider>") <
+        protectedLayout.indexOf("<AuthGate>") &&
+      protectedLayout.indexOf("<AuthGate>") < protectedLayout.indexOf("<MeProvider>"),
+    "MeBadgesProvider wraps AuthGate; MeProvider loads profile after auth for skeleton TabBar",
   );
 
   const notificationButton = readSource("components/home/home-notification-button.tsx");

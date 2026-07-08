@@ -10,14 +10,14 @@ export default function ProtectedLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <MeProvider>
-      <MeBadgesProvider>
-        <AuthGate>
+    <MeBadgesProvider>
+      <AuthGate>
+        <MeProvider>
           <OnboardingGate>
             <ProtectedAppShell>{children}</ProtectedAppShell>
           </OnboardingGate>
-        </AuthGate>
-      </MeBadgesProvider>
-    </MeProvider>
+        </MeProvider>
+      </AuthGate>
+    </MeBadgesProvider>
   );
 }
