@@ -113,9 +113,9 @@ export function HomeViewSkeleton({ embedded = false }: { embedded?: boolean }) {
 
       <div className="flex gap-3 overflow-hidden px-mogu-screen-x">
         {Array.from({ length: 5 }).map((_, index) => (
-          <div key={index} className="flex w-14 shrink-0 flex-col items-center gap-1">
+          <div key={index} className="flex w-16 shrink-0 flex-col items-center gap-1">
             <Skeleton className="size-12 rounded-full" />
-            <Skeleton className="h-3 w-10 rounded-full" />
+            <Skeleton className="h-6 w-14 rounded-full" />
           </div>
         ))}
       </div>

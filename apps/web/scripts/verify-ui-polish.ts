@@ -22,8 +22,26 @@ assert(
   "bubble avoids auto-phrase width shrink on short text",
 );
 assert(
-  bubble.includes("overflow-wrap:anywhere"),
-  "bubble still wraps long tokens",
+  !bubble.includes("overflow-wrap:anywhere"),
+  "bubble avoids anywhere min-content shrink on short text (#253)",
+);
+assert(
+  bubble.includes("wrap-break-word"),
+  "bubble wraps long tokens without shrinking min width",
+);
+
+const avatarRow = readSource("components/home/avatar-row.tsx");
+assert(
+  avatarRow.includes("pt-2"),
+  "avatar row reserves top padding for selection ring (#255)",
+);
+assert(
+  avatarRow.includes("line-clamp-2") && avatarRow.includes("break-words"),
+  "avatar row shows friend names on up to two lines (#255)",
+);
+assert(
+  !avatarRow.includes("truncate"),
+  "avatar row no longer truncates friend names",
 );
 
 const mypageView = readSource("components/mypage/mypage-view.tsx");
