@@ -23,6 +23,7 @@ import {
 
 const TILES_LOAD_TIMEOUT_MS = 12_000;
 const GMP_ERROR_SELECTOR = ".gmp-error, .gm-err-container, .gm-err-message";
+const MAPS_REFERRER_ERROR_PATTERN = /RefererNotAllowedMapError|RefererNotAllowed/i;
 
 type MapApiProviderProps = PropsWithChildren<{
   apiKey: string;
@@ -112,7 +113,12 @@ function MapTilesLoadedWatcher({
       const mapDiv = map.getDiv();
       const hasErrorOverlay = mapDiv.querySelector(GMP_ERROR_SELECTOR);
       const hasRenderedCanvas = mapDiv.querySelector("canvas") !== null;
-      if (!hasErrorOverlay && !hasRenderedCanvas) {
+
+      if (hasErrorOverlay) {
+        reportOnce(reportedRef, onLoadError, "authFailure");
+        return;
+      }
+      if (!hasRenderedCanvas) {
         reportOnce(reportedRef, onLoadError, "tilesTimeout");
       }
     }, TILES_LOAD_TIMEOUT_MS);
@@ -135,6 +141,18 @@ export function MapApiProvider({
 
   const handleScriptError = useCallback(() => {
     reportOnce(reportedRef, onLoadError, "scriptLoad");
+  }, [onLoadError]);
+
+  useEffect(() => {
+    function handleWindowError(event: ErrorEvent) {
+      const text = `${event.message ?? ""} ${event.error?.message ?? ""}`;
+      if (MAPS_REFERRER_ERROR_PATTERN.test(text)) {
+        reportOnce(reportedRef, onLoadError, "authFailure");
+      }
+    }
+
+    window.addEventListener("error", handleWindowError);
+    return () => window.removeEventListener("error", handleWindowError);
   }, [onLoadError]);
 
   return (

@@ -1,3 +1,18 @@
+locals {
+  cloud_run_origin = trimsuffix(module.cloud_run.uri, "/")
+  # Cloud Run exposes hash-based (*.a.run.app) and deterministic (*.REGION.run.app) URLs
+  # for the same service. Firebase auth already whitelists both (#14); Maps JS must too (#209).
+  cloud_run_deterministic_origin = "https://${var.environment}-web-${data.google_project.current.number}.${var.region}.run.app"
+  maps_js_allowed_referrers = distinct([
+    "${local.cloud_run_origin}/*",
+    local.cloud_run_origin,
+    "${local.cloud_run_deterministic_origin}/*",
+    local.cloud_run_deterministic_origin,
+    "http://localhost:3000/*",
+    "http://127.0.0.1:3000/*",
+  ])
+}
+
 # Places API key + Secret Manager (#47). Gated by enable_external_apis so Phase 1
 # applies stay unchanged until dev is ready for Maps / Vertex spend.
 resource "google_apikeys_key" "places" {
@@ -32,14 +47,14 @@ resource "google_apikeys_key" "maps_js" {
     }
 
     browser_key_restrictions {
-      allowed_referrers = [
-        "${module.cloud_run.uri}/*",
-        "http://localhost:3000/*",
-      ]
+      allowed_referrers = local.maps_js_allowed_referrers
     }
   }
 
-  depends_on = [google_project_service.services]
+  depends_on = [
+    google_project_service.services,
+    module.cloud_run,
+  ]
 }
 
 resource "google_secret_manager_secret" "places_api_key" {
