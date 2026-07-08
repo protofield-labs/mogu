@@ -188,8 +188,18 @@ function main() {
     "feed item hides save for own items",
   );
   assert(
-    readSource("components/home/home-view.tsx").includes("FeedItemCard"),
-    "home view uses unified feed item card",
+    homeView.includes("RecommendationDetailSheet"),
+    "home view opens recommendation detail sheet",
+  );
+  assert(
+    readSource("components/home/recommendation-detail-sheet.tsx").includes(
+      "エージェントに相談",
+    ),
+    "recommendation sheet includes agent consult CTA",
+  );
+  assert(
+    readSource("lib/agent/use-agent-chat.ts").includes("recommendationContext"),
+    "agent chat passes recommendation context on session create",
   );
   assert(
     !readSource("components/home/home-view.tsx").includes("FeedHeroCard"),

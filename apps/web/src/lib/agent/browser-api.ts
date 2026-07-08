@@ -22,6 +22,7 @@ import type {
   AgentEvent,
   AgentMessage,
   AgentMessageRequest,
+  CreateAgentSessionRequest,
   PlaceDTO,
 } from "./types";
 import type { ChatEntry } from "./chat-helpers";
@@ -39,13 +40,26 @@ export type AgentConsultationDetail = AgentConsultationSummary & {
   resumable: boolean;
 };
 
-/** Create a Vertex agent session (#43). */
-export async function createAgentSession(): Promise<string> {
+/** Create a Vertex agent session (#43). Optional home recommendation context (#204). */
+export async function createAgentSession(
+  options?: CreateAgentSessionRequest,
+): Promise<string> {
+  const hasContext = Boolean(options?.recommendationContext);
   const data = await apiJson(
     "/api/v1/agent/sessions",
     createAgentSessionResponseSchema,
     "エージェントセッションを作成できませんでした",
-    { init: { method: "POST" } },
+    {
+      init: {
+        method: "POST",
+        ...(hasContext
+          ? {
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(options),
+            }
+          : {}),
+      },
+    },
   );
   return data.sessionId;
 }

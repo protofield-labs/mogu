@@ -53,6 +53,8 @@ assert(
   "compact row uses updated recommendation label",
 );
 assert(compactRow.includes("evidence"), "compact row shows evidence");
+assert(compactRow.includes("onOpen"), "compact row opens detail sheet");
+assert(!compactRow.includes("stashPendingRecommendation"), "compact row no longer jumps to chat");
 
 const spotThumbnail = readSource("components/places/spot-thumbnail.tsx");
 assert(spotThumbnail.includes("resolveSpotHeroPhoto"), "spot thumbnail uses hero photo resolver");

@@ -27,6 +27,7 @@ export type SpotDetailSheetProps = {
   onClose: () => void;
   header: ReactNode;
   footer: ReactNode;
+  extraBody?: ReactNode;
 };
 
 export function SpotDetailSheet({
@@ -38,6 +39,7 @@ export function SpotDetailSheet({
   onClose,
   header,
   footer,
+  extraBody,
 }: SpotDetailSheetProps) {
   const openNowLabelText = openNowLabel(place?.openNow);
   const tagChips = formatSpotTagChips(spot);
@@ -84,6 +86,8 @@ export function SpotDetailSheet({
             </span>
           ))}
         </div>
+
+        {extraBody}
 
         <div className="mt-5 space-y-2">{footer}</div>
 

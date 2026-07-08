@@ -33,6 +33,17 @@ export type AgentMessageRequest = {
   chips?: string[];
 };
 
+export type RecommendationContext = {
+  placeId: string;
+  spotId: string;
+  assertion: string;
+  evidence: string;
+};
+
+export type CreateAgentSessionRequest = {
+  recommendationContext?: RecommendationContext;
+};
+
 export type CreateAgentSessionResponse = {
   sessionId: string;
 };

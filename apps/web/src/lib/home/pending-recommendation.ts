@@ -13,11 +13,18 @@ export function clearPendingRecommendation(): void {
 }
 
 export function consumePendingRecommendation(): Recommendation | null {
+  const recommendation = peekPendingRecommendation();
+  if (recommendation) {
+    clearPendingRecommendation();
+  }
+  return recommendation;
+}
+
+export function peekPendingRecommendation(): Recommendation | null {
   const raw = sessionStorage.getItem(PENDING_RECOMMENDATION_KEY);
   if (!raw) {
     return null;
   }
-  sessionStorage.removeItem(PENDING_RECOMMENDATION_KEY);
   try {
     return JSON.parse(raw) as Recommendation;
   } catch {

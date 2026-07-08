@@ -15,7 +15,8 @@ import {
   extractThinkingEvent,
   type StreamEvent,
 } from "./stream-parser";
-import type { AgentMessage, AgentEvent } from "./types";
+import { buildRecommendationContextMessage } from "./recommendation-context-message";
+import type { AgentEvent, AgentMessage, RecommendationContext } from "./types";
 import { assertAgentSessionOwnership } from "./session-client";
 import { appendAgentConsultationTurn } from "@/lib/dal/agent-consultations";
 import {
@@ -29,6 +30,8 @@ type SendAgentMessageInput = {
   sessionId: string;
   text: string;
   chips?: string[];
+  skipConsultationPersist?: boolean;
+  skipAgentEvents?: boolean;
 };
 
 function drainStreamBuffer(
@@ -123,8 +126,12 @@ export async function sendAgentMessage(
   const thinkingMessages: string[] = [];
   const seenThinking = new Set<string>();
   let publishChain = Promise.resolve();
+  const publishEvents = !input.skipAgentEvents;
 
   const publishEventBestEffort = async (event: AgentEvent) => {
+    if (!publishEvents) {
+      return;
+    }
     try {
       await publishAgentEvent(input.userId, input.sessionId, event);
     } catch {
@@ -133,6 +140,9 @@ export async function sendAgentMessage(
   };
 
   const publishThinking = (event: AgentEvent) => {
+    if (!publishEvents) {
+      return;
+    }
     if (seenThinking.has(event.message)) {
       return;
     }
@@ -150,8 +160,10 @@ export async function sendAgentMessage(
       }
     });
   } finally {
-    await publishChain;
-    await publishEventBestEffort(createDoneEvent());
+    if (publishEvents) {
+      await publishChain;
+      await publishEventBestEffort(createDoneEvent());
+    }
   }
 
   const recommendation = isAgentAssertionTurn(text)
@@ -165,17 +177,38 @@ export async function sendAgentMessage(
     ...(recommendation ? { recommendation } : {}),
   };
 
-  try {
-    await appendAgentConsultationTurn(
-      input.userId,
-      input.sessionId,
-      input.text,
-      input.chips,
-      agentMessage,
-    );
-  } catch {
-    // History persistence is best-effort; the Vertex turn already succeeded.
+  if (!input.skipConsultationPersist) {
+    try {
+      await appendAgentConsultationTurn(
+        input.userId,
+        input.sessionId,
+        input.text,
+        input.chips,
+        agentMessage,
+      );
+    } catch {
+      // History persistence is best-effort; the Vertex turn already succeeded.
+    }
   }
 
   return agentMessage;
+}
+
+/** Seed Vertex session state with home recommendation context (#204). Best-effort. */
+export async function seedAgentRecommendationContext(input: {
+  userId: string;
+  sessionId: string;
+  context: RecommendationContext;
+}): Promise<void> {
+  try {
+    await sendAgentMessage({
+      userId: input.userId,
+      sessionId: input.sessionId,
+      text: buildRecommendationContextMessage(input.context),
+      skipConsultationPersist: true,
+      skipAgentEvents: true,
+    });
+  } catch {
+    // Context seeding must not block chat start.
+  }
 }

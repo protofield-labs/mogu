@@ -1,36 +1,30 @@
 "use client";
 
 import { ChevronRight, Star } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 import { SpotThumbnail } from "@/components/places/spot-thumbnail";
 import { Badge } from "@/components/ui/badge";
 import type { Recommendation } from "@/lib/home/types";
 import { HOME_RECOMMENDATION_LABEL } from "@/lib/home/recommendation-labels";
-import { stashPendingRecommendation } from "@/lib/home/pending-recommendation";
 import { usePlace } from "@/lib/places/use-place";
 import { touchCardClass } from "@/lib/ui/touch-feedback";
 import { cn } from "@/lib/utils";
 
 type RecommendationCompactRowProps = {
   recommendation: Recommendation;
+  onOpen: (recommendation: Recommendation) => void;
 };
 
 export function RecommendationCompactRow({
   recommendation,
+  onOpen,
 }: RecommendationCompactRowProps) {
-  const router = useRouter();
   const { place } = usePlace(recommendation.spot.placeId);
-
-  function handleOpenSearch() {
-    stashPendingRecommendation(recommendation);
-    router.push("/search");
-  }
 
   return (
     <button
       type="button"
-      onClick={handleOpenSearch}
+      onClick={() => onOpen(recommendation)}
       className={cn(
         "mogu-elevated mx-mogu-screen-x flex w-[calc(100%-2*var(--mogu-spacing-screen-x))] items-center gap-3 rounded-2xl p-3 text-left transition-colors hover:bg-muted/40",
         touchCardClass,

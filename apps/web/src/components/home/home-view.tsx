@@ -9,6 +9,7 @@ import { FeedItemCard } from "@/components/home/feed-item-card";
 import { HomeFeedMapView } from "@/components/home/home-feed-map-view";
 import { HomeEmptyState } from "@/components/home/home-empty-state";
 import { HomeNotificationButton } from "@/components/home/home-notification-button";
+import { RecommendationDetailSheet } from "@/components/home/recommendation-detail-sheet";
 import { RecommendationCompactRow } from "@/components/home/recommendation-compact-row";
 import { RecommendationEmptyRow } from "@/components/home/recommendation-empty-row";
 import { HomeViewSkeleton } from "@/components/loading/skeletons";
@@ -87,6 +88,8 @@ export function HomeView() {
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [initialFeedCount, setInitialFeedCount] = useState<number | null>(null);
+  const [openRecommendation, setOpenRecommendation] =
+    useState<Recommendation | null>(null);
   const feedViewedRef = useRef(false);
   const selectedFriendIdRef = useRef<string | null>(null);
 
@@ -283,7 +286,15 @@ export function HomeView() {
 
       {recommendation.status === "ready" && recommendation.value ? (
         <div className="shrink-0">
-          <RecommendationCompactRow recommendation={recommendation.value} />
+          <RecommendationCompactRow
+            recommendation={recommendation.value}
+            onOpen={setOpenRecommendation}
+          />
+          <RecommendationDetailSheet
+            recommendation={openRecommendation ?? recommendation.value}
+            open={openRecommendation !== null}
+            onClose={() => setOpenRecommendation(null)}
+          />
         </div>
       ) : recommendation.status === "error" ? (
         <LoadErrorState
