@@ -54,9 +54,6 @@ function main() {
     "feed item avoids card press chrome",
   );
 
-  const navTiles = readSource("components/mypage/mypage-nav-tiles.tsx");
-  assert(navTiles.includes("touchCardClass"), "mypage nav tiles use card feedback");
-
   const friendsView = readSource("components/mypage/friends-view.tsx");
   assert(friendsView.includes("min-h-11"), "friend request button meets 44px minimum");
 

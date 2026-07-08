@@ -18,6 +18,7 @@ import {
   getNotificationHref,
   shouldShowFriendRequestBadge,
   shouldShowMypageTabBadge,
+  shouldShowNotificationBadge,
 } from "../src/lib/mypage/stats-row";
 import {
   findDuplicateDisplayNames,
@@ -73,8 +74,12 @@ function main() {
   assert(shouldShowFriendRequestBadge(1), "friend badge when pending");
   assert(!shouldShowFriendRequestBadge(0), "no friend badge when clear");
   assert(
-    shouldShowMypageTabBadge({ pendingFriendRequests: 0, unreadFlags: 2 }),
-    "tab badge for unread flags",
+    !shouldShowMypageTabBadge({ pendingFriendRequests: 0, unreadFlags: 2 }),
+    "mypage tab badge ignores unread flags",
+  );
+  assert(
+    shouldShowNotificationBadge({ pendingFriendRequests: 0, unreadFlags: 2 }),
+    "notification bell shows unread flags",
   );
   assert(
     !shouldShowMypageTabBadge({ pendingFriendRequests: 0, unreadFlags: 0 }),

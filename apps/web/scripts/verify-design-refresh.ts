@@ -64,8 +64,18 @@ function main() {
 
   const mypageView = readSource("components/mypage/mypage-view.tsx");
   assert(mypageView.includes("MypageAccountSheet"), "mypage includes account settings row");
-  assert(mypageView.includes("MypageNavTiles"), "mypage includes nav tiles");
+  assert(!mypageView.includes("MypageNavTiles"), "mypage drops collection nav tile");
+  assert(!mypageView.includes("FlagInboxCard"), "mypage drops flag inbox card");
+  assert(mypageView.includes("MoguBrandIcon"), "mypage agent promo uses brand icon");
+  assert(!mypageView.includes("Sparkles"), "mypage no longer uses Sparkles");
   assert(mypageView.includes("ProfileHeroCard"), "mypage includes hero card");
+
+  const accountSheet = readSource("components/mypage/mypage-account-sheet.tsx");
+  assert(
+    accountSheet.includes('description="名前・アバター色"'),
+    "account settings row omits logout from description",
+  );
+  assert(accountSheet.includes("ログアウト"), "logout remains in account sheet");
 
   const profileHero = readSource("components/mypage/profile-hero-card.tsx");
   assert(!profileHero.includes("rotateY"), "hero card is display-only");

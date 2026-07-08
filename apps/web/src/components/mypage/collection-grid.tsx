@@ -1,6 +1,8 @@
 "use client";
 
-import { Lock, Pencil, Pin, Sparkles, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Lock, Pencil, Pin, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+
+import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
 import Link from "next/link";
 
 import { CollectionCover } from "@/components/mypage/collection-cover";
@@ -203,7 +205,7 @@ export function CollectionGrid({
       {showUpsell && !reorderMode ? (
         <EmptyState className="p-5">
           <p className="inline-flex items-center justify-center gap-2 text-sm font-medium text-foreground">
-            <Sparkles className="size-4" aria-hidden />
+            <MoguBrandIcon className="size-4" />
             + このコレクションに合いそうなお店
           </p>
           <p className="mt-2 text-xs text-muted-foreground">

@@ -24,6 +24,14 @@ export function shouldShowMypageTabBadge(badges: {
   pendingFriendRequests: number;
   unreadFlags: number;
 }): boolean {
+  return badges.pendingFriendRequests > 0;
+}
+
+/** Home notification bell (#119, #208). Flags live on /notifications only. */
+export function shouldShowNotificationBadge(badges: {
+  pendingFriendRequests: number;
+  unreadFlags: number;
+}): boolean {
   return badges.pendingFriendRequests > 0 || badges.unreadFlags > 0;
 }
 

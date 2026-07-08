@@ -8,7 +8,9 @@ import { touchRowClass } from "@/lib/ui/touch-feedback";
 import { cn } from "@/lib/utils";
 
 type NavRowProps = {
-  icon: LucideIcon;
+  icon?: LucideIcon;
+  /** Custom icon slot (e.g. MoguBrandIcon) when a Lucide icon is not used. */
+  iconSlot?: ReactNode;
   label: string;
   description?: string;
   href?: string;
@@ -25,6 +27,7 @@ const rowClassName = cn(
 /** Settings-style full-width navigation row (#101). */
 export function NavRow({
   icon: Icon,
+  iconSlot,
   label,
   description,
   href,
@@ -35,7 +38,8 @@ export function NavRow({
   const content = (
     <>
       <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
-        <Icon className="size-5 text-foreground" aria-hidden />
+        {iconSlot ??
+          (Icon ? <Icon className="size-5 text-foreground" aria-hidden /> : null)}
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-semibold text-foreground">{label}</span>

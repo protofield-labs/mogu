@@ -1,6 +1,6 @@
 "use client";
 
-import { SparklesIcon } from "lucide-react";
+import { ArrowUp } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useVisualViewportOffset } from "@/lib/ui/use-visual-viewport-offset";
@@ -60,7 +60,7 @@ export function AgentChatComposer({
           disabled={inputDisabled || !input.trim()}
           aria-label="送信"
         >
-          <SparklesIcon className="size-4" />
+          <ArrowUp className="size-4" aria-hidden />
         </Button>
       </form>
     </footer>

@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { Bell } from "lucide-react";
 
-import { getNotificationHref } from "@/lib/mypage/stats-row";
+import { getNotificationHref, shouldShowNotificationBadge } from "@/lib/mypage/stats-row";
 import { useMeBadges } from "@/lib/mypage/use-me-badges";
 
 const bellButtonClassName =
   "relative flex size-10 items-center justify-center rounded-full bg-mogu-surface-elevated shadow-mogu-card";
 
 export function HomeNotificationButton() {
-  const { badges, showBadge } = useMeBadges();
+  const { badges } = useMeBadges();
+  const showBadge = badges ? shouldShowNotificationBadge(badges) : false;
 
   if (!badges) {
     return (
