@@ -29,7 +29,10 @@ import {
   saveAgentChatSession,
   type StoredAgentChatSession,
 } from "@/lib/agent/session-storage";
-import { consumePendingRecommendation } from "@/lib/home/pending-recommendation";
+import { recommendationToContext } from "@/lib/agent/recommendation-context-message";
+import {
+  consumePendingRecommendation,
+} from "@/lib/home/pending-recommendation";
 import type { Recommendation } from "@/lib/agent/types";
 
 export type SessionStatus = "loading" | "ready" | "error";
@@ -223,7 +226,9 @@ export function useAgentChat(userId: string | null, authLoading: boolean) {
       }
       const pending = pendingRecommendationRef.current;
 
-      if (!pending && userId) {
+      if (pending) {
+        clearAgentChatSession();
+      } else if (userId) {
         const stored = loadAgentChatSession(userId);
         if (stored && generation === connectGenerationRef.current) {
           setConsultationViewMode("live");
@@ -239,7 +244,11 @@ export function useAgentChat(userId: string | null, authLoading: boolean) {
       }
 
       try {
-        const id = await createAgentSession();
+        const id = await createAgentSession(
+          pending
+            ? { recommendationContext: recommendationToContext(pending) }
+            : undefined,
+        );
         if (generation !== connectGenerationRef.current) {
           return;
         }
@@ -255,10 +264,13 @@ export function useAgentChat(userId: string | null, authLoading: boolean) {
         }
         setSessionId(id);
         setEntries(initialEntries);
-        setSessionStatus("ready");
         setConsultationViewMode("live");
         sessionPersistEnabledRef.current = true;
-        void persistInitialConsultationEntries(id, initialEntries);
+        await persistInitialConsultationEntries(id, initialEntries);
+        if (generation !== connectGenerationRef.current) {
+          return;
+        }
+        setSessionStatus("ready");
       } catch (err) {
         if (generation !== connectGenerationRef.current) {
           return;

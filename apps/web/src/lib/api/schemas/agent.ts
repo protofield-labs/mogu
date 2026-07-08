@@ -2,6 +2,17 @@ import { z } from "zod";
 
 import { recommendationSchema } from "@/lib/api/schemas/home";
 
+export const recommendationContextSchema = z.object({
+  placeId: z.string().min(1).max(200),
+  spotId: z.string().min(1).max(100),
+  assertion: z.string().min(1).max(4000),
+  evidence: z.string().min(1).max(4000),
+});
+
+export const createAgentSessionBodySchema = z.object({
+  recommendationContext: recommendationContextSchema.optional(),
+});
+
 export const createAgentSessionResponseSchema = z.object({
   sessionId: z.string(),
 });

@@ -9,6 +9,7 @@ import { FeedItemCard } from "@/components/home/feed-item-card";
 import { HomeFeedMapView } from "@/components/home/home-feed-map-view";
 import { HomeEmptyState } from "@/components/home/home-empty-state";
 import { HomeNotificationButton } from "@/components/home/home-notification-button";
+import { RecommendationDetailSheet } from "@/components/home/recommendation-detail-sheet";
 import { RecommendationCompactRow } from "@/components/home/recommendation-compact-row";
 import { RecommendationEmptyRow } from "@/components/home/recommendation-empty-row";
 import { HomeViewSkeleton } from "@/components/loading/skeletons";
@@ -87,6 +88,8 @@ export function HomeView() {
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [initialFeedCount, setInitialFeedCount] = useState<number | null>(null);
+  const [openRecommendation, setOpenRecommendation] =
+    useState<Recommendation | null>(null);
   const feedViewedRef = useRef(false);
   const selectedFriendIdRef = useRef<string | null>(null);
 
@@ -154,6 +157,7 @@ export function HomeView() {
     if (refreshing) {
       return;
     }
+    setOpenRecommendation(null);
     setRefreshing(true);
     setError(null);
     try {
@@ -202,6 +206,7 @@ export function HomeView() {
   }
 
   async function handleRetryRecommendation() {
+    setOpenRecommendation(null);
     setRecommendation({ status: "loading" });
     try {
       const value = await fetchHomeRecommendation();
@@ -212,6 +217,7 @@ export function HomeView() {
   }
 
   function handleRetryInitialLoad() {
+    setOpenRecommendation(null);
     setLoading(true);
     setError(null);
     setReloadToken((current) => current + 1);
@@ -283,7 +289,16 @@ export function HomeView() {
 
       {recommendation.status === "ready" && recommendation.value ? (
         <div className="shrink-0">
-          <RecommendationCompactRow recommendation={recommendation.value} />
+          <RecommendationCompactRow
+            recommendation={recommendation.value}
+            onOpen={setOpenRecommendation}
+          />
+          <RecommendationDetailSheet
+            key={(openRecommendation ?? recommendation.value).spot.id}
+            recommendation={openRecommendation ?? recommendation.value}
+            open={openRecommendation !== null && recommendation.status === "ready"}
+            onClose={() => setOpenRecommendation(null)}
+          />
         </div>
       ) : recommendation.status === "error" ? (
         <LoadErrorState
