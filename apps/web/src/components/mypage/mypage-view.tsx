@@ -124,9 +124,11 @@ export function MypageView() {
       ) : null}
 
       <section className="scroll-mt-4 space-y-3 px-mogu-screen-x pt-2">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold text-foreground">コレクション</h2>
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2">
+          <h2 className="shrink-0 whitespace-nowrap text-lg font-semibold text-foreground">
+            コレクション
+          </h2>
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
             {collectionsState.collections.length > 1 ? (
               <button
                 type="button"
