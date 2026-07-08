@@ -392,7 +392,9 @@ export function CollectionDetailView({
             <h1 className="truncate text-base font-semibold text-foreground">
               {detail.name}
             </h1>
-            <p className="text-xs text-muted-foreground">{detail.spotCount}軒</p>
+            {detail.spotCount > 0 ? (
+              <p className="text-xs text-muted-foreground">{detail.spotCount}軒</p>
+            ) : null}
           </div>
           <ShareButton url={collectionShareUrl(collectionId)} />
         </div>
@@ -416,7 +418,7 @@ export function CollectionDetailView({
           <button
             type="button"
             onClick={handleOpenCoverSheet}
-            className="group relative aspect-[16/10] max-w-xs overflow-hidden rounded-2xl border border-border shadow-sm"
+            className="group relative aspect-[16/10] w-full max-w-xs overflow-hidden rounded-2xl border border-border shadow-sm"
             aria-label="カバー画像を変更"
           >
             <CollectionCover

@@ -62,11 +62,16 @@ function CollectionTile({
       className={cn("space-y-2", enterIndex !== undefined && moguEnterMotionClass)}
       style={moguEnterDelayStyle(enterIndex)}
     >
-      <Link href={reorderMode ? "#" : href} className="block" onClick={(event) => {
+      <Link
+        href={reorderMode ? "#" : href}
+        className="block"
+        aria-label={collection.name}
+        onClick={(event) => {
         if (reorderMode) {
           event.preventDefault();
         }
-      }}>
+      }}
+      >
         <div
           className={cn(
             "relative aspect-square overflow-hidden rounded-2xl bg-gradient-to-br from-muted to-background shadow-sm transition-shadow hover:shadow-md",
