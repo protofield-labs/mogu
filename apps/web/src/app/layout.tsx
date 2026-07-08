@@ -41,7 +41,10 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#C96B45",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#F5F2ED" },
+    { media: "(prefers-color-scheme: dark)", color: "#2A2724" },
+  ],
 };
 
 export default function RootLayout({
@@ -52,6 +55,7 @@ export default function RootLayout({
   return (
     <html
       lang="ja"
+      suppressHydrationWarning
       className={cn(geist.variable, notoSansJp.variable, "font-sans")}
     >
       <body className="antialiased">

@@ -44,6 +44,10 @@ function main() {
     "text-caption token registered",
   );
   assert(
+    globalsCss.includes("--mogu-surface-elevated:"),
+    "dark mode defines elevated surface token",
+  );
+  assert(
     typeof showRecollectSuccessToast === "function",
     "recollect toast helper exported",
   );
