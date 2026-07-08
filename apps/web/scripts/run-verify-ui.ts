@@ -20,6 +20,7 @@ const scripts = [
   "verify-agent-chat.ts",
   "verify-agent-consultations.ts",
   "verify-mypage-ui.ts",
+  "verify-me-provider.ts",
   "verify-friend-profile.ts",
   "verify-deeplink-share.ts",
   "verify-map-view.ts",

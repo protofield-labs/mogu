@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
+import { useRef, useState, type FormEvent } from "react";
 
 import {
   createCollection,
@@ -14,19 +14,20 @@ import {
   emptyCollectionForm,
   type CollectionForm,
 } from "@/components/mypage/collection-form-fields";
-
-import { fetchMe } from "@/lib/mypage/browser-api";
-
-type MeProfile = Awaited<ReturnType<typeof fetchMe>>;
+import type { MeProfile } from "@/lib/mypage/types";
 
 type UseMypageCollectionsOptions = {
   initialCollections: Collection[];
-  setMe: Dispatch<SetStateAction<MeProfile | null>>;
+  updateMe: (
+    patch:
+      | Partial<MeProfile>
+      | ((current: MeProfile | null) => MeProfile | null),
+  ) => void;
 };
 
 export function useMypageCollections({
   initialCollections,
-  setMe,
+  updateMe,
 }: UseMypageCollectionsOptions) {
   const [collections, setCollections] = useState(initialCollections);
   const [createForm, setCreateForm] = useState<CollectionForm>(emptyCollectionForm);
@@ -59,7 +60,7 @@ export function useMypageCollections({
       setCollections((current) => [...current, collection]);
       setCreateForm(emptyCollectionForm);
       setShowCreateForm(false);
-      setMe((current) =>
+      updateMe((current) =>
         current
           ? {
               ...current,
@@ -198,7 +199,7 @@ export function useMypageCollections({
       setCollections((current) =>
         current.filter((item) => item.id !== collection.id),
       );
-      setMe((current) =>
+      updateMe((current) =>
         current
           ? {
               ...current,

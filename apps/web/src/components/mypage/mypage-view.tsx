@@ -19,45 +19,34 @@ import { MypageTopBar } from "@/components/mypage/mypage-top-bar";
 import { NavRow } from "@/components/ui/nav-row";
 import { ProfileHeroCard } from "@/components/mypage/profile-hero-card";
 import { listMyCollections } from "@/lib/collections/browser-api";
-import { fetchMe, fetchMeBadges } from "@/lib/mypage/browser-api";
+import { useMe } from "@/lib/mypage/me-provider";
+import { useMeBadges } from "@/lib/mypage/use-me-badges";
 import { useMypageCollections } from "@/lib/mypage/use-mypage-collections";
 
 export function MypageView() {
-  const [me, setMe] = useState<Awaited<ReturnType<typeof fetchMe>> | null>(null);
-  const [pendingFriendRequests, setPendingFriendRequests] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const { me, loading: meLoading, error: meError, updateMe, refreshMe } = useMe();
+  const { badges } = useMeBadges();
+  const [collectionsLoading, setCollectionsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
 
+  const pendingFriendRequests = badges?.pendingFriendRequests ?? 0;
+
   const { setCollections, ...collectionsState } = useMypageCollections({
     initialCollections: [],
-    setMe,
+    updateMe,
   });
 
   useEffect(() => {
     let cancelled = false;
 
-    async function load() {
+    async function loadCollections() {
+      setCollectionsLoading(true);
+      setLoadError(null);
       try {
-        const [profile, nextCollections] = await Promise.all([
-          fetchMe(),
-          listMyCollections(),
-        ]);
-
-        if (cancelled) {
-          return;
-        }
-        setMe(profile);
-        setCollections(nextCollections);
-
-        const badgesResult = await fetchMeBadges().catch(() => null);
-
-        if (cancelled) {
-          return;
-        }
-
-        if (badgesResult) {
-          setPendingFriendRequests(badgesResult.pendingFriendRequests);
+        const nextCollections = await listMyCollections();
+        if (!cancelled) {
+          setCollections(nextCollections);
         }
       } catch (err) {
         if (!cancelled) {
@@ -65,22 +54,24 @@ export function MypageView() {
         }
       } finally {
         if (!cancelled) {
-          setLoading(false);
+          setCollectionsLoading(false);
         }
       }
     }
 
-    void load();
+    void loadCollections();
     return () => {
       cancelled = true;
     };
   }, [reloadToken, setCollections]);
 
   function handleRetryLoad() {
-    setLoading(true);
     setLoadError(null);
     setReloadToken((current) => current + 1);
+    void refreshMe();
   }
+
+  const loading = meLoading || collectionsLoading;
 
   if (loading) {
     return <MypageViewSkeleton />;
@@ -89,7 +80,7 @@ export function MypageView() {
   if (!me) {
     return (
       <LoadErrorState
-        message={loadError ?? "プロフィールを表示できませんでした"}
+        message={loadError ?? meError ?? "プロフィールを表示できませんでした"}
         onRetry={handleRetryLoad}
       />
     );
@@ -106,7 +97,7 @@ export function MypageView() {
       <MypageAccountSheet
         me={me}
         onProfileUpdated={(profile) =>
-          setMe((current) => (current ? { ...current, ...profile } : current))
+          updateMe((current) => (current ? { ...current, ...profile } : current))
         }
       />
 
@@ -242,6 +233,10 @@ export function MypageView() {
         <p className="px-mogu-screen-x text-sm text-destructive">
           {collectionsState.collectionError}
         </p>
+      ) : null}
+
+      {loadError ? (
+        <p className="px-mogu-screen-x text-sm text-destructive">{loadError}</p>
       ) : null}
 
       <CollectionGrid

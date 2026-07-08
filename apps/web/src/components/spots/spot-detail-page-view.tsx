@@ -19,13 +19,14 @@ import { useRecollect } from "@/lib/recollect/use-recollect";
 import { collectionPath } from "@/lib/share/paths";
 import { loadSpotPage, type SpotDetail } from "@/lib/share/browser-api";
 import { spotShareUrl } from "@/lib/share/share-url";
-import { fetchMe } from "@/lib/mypage/browser-api";
+import { useMe } from "@/lib/mypage/me-provider";
 
 type SpotDetailPageViewProps = {
   spotId: string;
 };
 
 export function SpotDetailPageView({ spotId }: SpotDetailPageViewProps) {
+  const { me, loading: meLoading, error: meError, refreshMe } = useMe();
   const [spot, setSpot] = useState<SpotDetail | null>(null);
   const [gate, setGate] = useState<Awaited<
     ReturnType<typeof loadSpotPage>
@@ -33,7 +34,6 @@ export function SpotDetailPageView({ spotId }: SpotDetailPageViewProps) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
-  const [viewerId, setViewerId] = useState<string | null>(null);
   const [prevSpotId, setPrevSpotId] = useState(spotId);
 
   const recollect = useRecollect(spotId);
@@ -48,15 +48,18 @@ export function SpotDetailPageView({ spotId }: SpotDetailPageViewProps) {
   }
 
   useEffect(() => {
+    if (meLoading) {
+      return;
+    }
+
     let cancelled = false;
 
     async function load() {
       try {
-        const [result, me] = await Promise.all([loadSpotPage(spotId), fetchMe()]);
+        const result = await loadSpotPage(spotId);
         if (cancelled) {
           return;
         }
-        setViewerId(me.id);
         if (result.kind === "detail") {
           setSpot(result.spot);
           setGate(null);
@@ -81,15 +84,16 @@ export function SpotDetailPageView({ spotId }: SpotDetailPageViewProps) {
     return () => {
       cancelled = true;
     };
-  }, [spotId, reloadToken]);
+  }, [meLoading, spotId, reloadToken]);
 
   function handleRetryLoad() {
     setLoading(true);
     setLoadError(null);
     setReloadToken((current) => current + 1);
+    void refreshMe();
   }
 
-  if (loading) {
+  if (loading || meLoading) {
     return <CollectionDetailSkeleton />;
   }
 
@@ -112,11 +116,20 @@ export function SpotDetailPageView({ spotId }: SpotDetailPageViewProps) {
     );
   }
 
+  if (!me) {
+    return (
+      <LoadErrorState
+        message={meError ?? "プロフィールを表示できませんでした"}
+        onRetry={handleRetryLoad}
+      />
+    );
+  }
+
   const tagChips = formatSpotTagChips(spot);
   const title = placeName ?? (spot.comment || spot.collectionName);
   const showComment = Boolean(spot.comment && placeName);
   const openNowLabelText = openNowLabel(place?.openNow);
-  const isOwner = viewerId === spot.addedBy;
+  const isOwner = me.id === spot.addedBy;
   const backHref = collectionPath(spot.collectionId);
 
   return (

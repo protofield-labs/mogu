@@ -35,8 +35,9 @@ import {
   shouldShowSoloEmptyState,
 } from "@/lib/home/feed-read";
 import type { FeedItem, FeedPage, Recommendation } from "@/lib/home/types";
-import { fetchFriends, fetchMe } from "@/lib/mypage/browser-api";
-import type { FriendUser, MeProfile } from "@/lib/mypage/types";
+import { fetchFriends } from "@/lib/mypage/browser-api";
+import { useMe } from "@/lib/mypage/me-provider";
+import type { FriendUser } from "@/lib/mypage/types";
 
 type RecommendationState =
   | { status: "loading" }
@@ -72,7 +73,7 @@ async function loadFeedForRings(
 }
 
 export function HomeView() {
-  const [me, setMe] = useState<MeProfile | null>(null);
+  const { me, loading: meLoading, error: meError, refreshMe } = useMe();
   const [friends, setFriends] = useState<FriendUser[]>([]);
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -98,35 +99,35 @@ export function HomeView() {
   }, [selectedFriendId]);
 
   useEffect(() => {
+    if (meLoading) {
+      return;
+    }
+
     let cancelled = false;
 
     async function load() {
       try {
         const storedLastReadAt = getLastReadFeedAt();
-        const [profile, friendList, feed, homeRecommendation] =
-          await Promise.all([
-            fetchMe(),
-            fetchFriends(),
-            loadFeedForRings(storedLastReadAt),
-            fetchHomeRecommendation()
-              .then(
-                (value): RecommendationState => ({ status: "ready", value }),
-              )
-              .catch((): RecommendationState => ({ status: "error" })),
-          ]);
+        const [friendList, feed, homeRecommendation] = await Promise.all([
+          fetchFriends(),
+          loadFeedForRings(storedLastReadAt),
+          fetchHomeRecommendation()
+            .then(
+              (value): RecommendationState => ({ status: "ready", value }),
+            )
+            .catch((): RecommendationState => ({ status: "error" })),
+        ]);
 
         if (cancelled) {
           return;
         }
 
-        setMe(profile);
         setFriends(friendList);
         setFeedItems(feed.items);
         setNextCursor(feed.nextCursor);
         setInitialFeedCount((current) => current ?? feed.items.length);
         setRecommendation(homeRecommendation);
         setLastReadAt(storedLastReadAt);
-        // Only a successfully rendered feed counts as "seen" (#54 既読管理).
         feedViewedRef.current = true;
       } catch (err) {
         if (!cancelled) {
@@ -143,7 +144,7 @@ export function HomeView() {
     return () => {
       cancelled = true;
     };
-  }, [reloadToken]);
+  }, [meLoading, reloadToken]);
 
   useEffect(() => {
     return () => {
@@ -162,19 +163,17 @@ export function HomeView() {
     setError(null);
     try {
       const storedLastReadAt = getLastReadFeedAt();
-      const [profile, friendList, feed, homeRecommendation] =
-        await Promise.all([
-          fetchMe(),
-          fetchFriends(),
-          loadFeedForRings(storedLastReadAt),
-          fetchHomeRecommendation()
-            .then(
-              (value): RecommendationState => ({ status: "ready", value }),
-            )
-            .catch((): RecommendationState => ({ status: "error" })),
-        ]);
+      const [, friendList, feed, homeRecommendation] = await Promise.all([
+        refreshMe(),
+        fetchFriends(),
+        loadFeedForRings(storedLastReadAt),
+        fetchHomeRecommendation()
+          .then(
+            (value): RecommendationState => ({ status: "ready", value }),
+          )
+          .catch((): RecommendationState => ({ status: "error" })),
+      ]);
 
-      setMe(profile);
       setFriends(friendList);
       setFeedItems(feed.items);
       setNextCursor(feed.nextCursor);
@@ -221,6 +220,7 @@ export function HomeView() {
     setLoading(true);
     setError(null);
     setReloadToken((current) => current + 1);
+    void refreshMe();
   }
 
   function handleSelectFriend(friendId: string) {
@@ -237,18 +237,17 @@ export function HomeView() {
     setFeedViewMode(mode);
   }
 
-  if (loading) {
+  if (loading || meLoading) {
     return <HomeViewSkeleton embedded />;
   }
 
-  if (error && !me) {
-    return (
-      <LoadErrorState message={error} onRetry={handleRetryInitialLoad} />
-    );
-  }
-
   if (!me) {
-    return null;
+    return (
+      <LoadErrorState
+        message={meError ?? error ?? "プロフィールを表示できませんでした"}
+        onRetry={handleRetryInitialLoad}
+      />
+    );
   }
 
   const solo = shouldShowSoloEmptyState(me.counts.friends);
