@@ -19,6 +19,7 @@ import {
   enableDemoSeedFlags,
   withSeedRls,
 } from "./rls";
+import { buildEvidence } from "@/lib/recommendations/pick";
 
 type SeedTx = Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0];
 
@@ -420,7 +421,7 @@ export async function seedDemo(prisma: PrismaClient): Promise<void> {
           userId: viewerUid,
           spotId: DEMO_SPOT_IDS.kenSharedIzakaya,
           assertion: "今夜は中目黒のこの店がおすすめ",
-          evidence: "Kenが『また行きたい』・輪で3人が保存",
+          evidence: buildEvidence("Ken", Rating.again, 3),
           validDate,
         },
       }),
