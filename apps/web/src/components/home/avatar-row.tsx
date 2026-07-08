@@ -34,12 +34,12 @@ export function AvatarRow({
   return (
     <section
       aria-label="友達"
-      className="flex shrink-0 gap-3 overflow-x-auto px-mogu-screen-x pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="flex shrink-0 gap-3 overflow-x-auto px-mogu-screen-x pt-2 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       <Link
         href={friendsPagePath({ from: FRIENDS_FROM_HOME })}
         className={cn(
-          "flex w-14 shrink-0 flex-col items-center gap-1",
+          "flex w-16 shrink-0 flex-col items-center gap-1",
           touchRowClass,
         )}
       >
@@ -58,7 +58,7 @@ export function AvatarRow({
             aria-pressed={selected}
             onClick={() => onSelectFriend(friend.id)}
             className={cn(
-              "flex w-14 shrink-0 flex-col items-center gap-1",
+              "flex w-16 shrink-0 flex-col items-center gap-1",
               touchRowClass,
             )}
           >
@@ -76,7 +76,7 @@ export function AvatarRow({
             />
             <span
               className={cn(
-                "w-full truncate text-center text-xs",
+                "w-full text-center text-xs leading-snug line-clamp-2 break-words",
                 selected ? "font-medium text-foreground" : "text-muted-foreground",
               )}
             >
