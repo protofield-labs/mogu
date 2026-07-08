@@ -14,6 +14,8 @@ function main() {
   ) as {
     display?: string;
     start_url?: string;
+    theme_color?: string;
+    background_color?: string;
     icons?: Array<{ src: string; sizes: string }>;
   };
   const layout = readFileSync(join(process.cwd(), "src/app/layout.tsx"), "utf8");
@@ -39,6 +41,22 @@ function main() {
 
   assert(layout.includes("/manifest.webmanifest"), "layout links manifest");
   assert(layout.includes("themeColor"), "layout sets themeColor");
+  assert(
+    layout.includes("prefers-color-scheme: light"),
+    "layout themeColor respects light scheme",
+  );
+  assert(
+    layout.includes("prefers-color-scheme: dark"),
+    "layout themeColor respects dark scheme",
+  );
+  assert(
+    manifest.theme_color === "#F5F2ED",
+    "manifest theme_color matches light surface",
+  );
+  assert(
+    manifest.background_color === "#F5F2ED",
+    "manifest background_color matches light surface",
+  );
   assert(
     !readFileSync(
       join(process.cwd(), "src/components/mypage/mypage-view.tsx"),
