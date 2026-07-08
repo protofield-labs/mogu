@@ -65,8 +65,38 @@ assert(detailSheet.includes("SpotDetailSheet"), "recommendation detail uses spot
 assert(detailSheet.includes("stashPendingRecommendation"), "consult CTA stashes pending");
 assert(detailSheet.includes('router.push("/search")'), "consult CTA navigates to chat");
 
+const pendingModule = readSource("lib/home/pending-recommendation.ts");
+assert(
+  pendingModule.includes("resolvePendingRecommendation"),
+  "pending module resolves without early consume",
+);
+assert(
+  pendingModule.includes("commitPendingRecommendation"),
+  "pending module commits after session apply",
+);
+assert(
+  pendingModule.includes("bridgedPendingRecommendation"),
+  "pending module bridges across AgentChat remount",
+);
+assert(
+  pendingModule.includes("bridgedPendingRecommendation = recommendation"),
+  "stash keeps bridge aligned with latest consult CTA",
+);
+
 const agentChat = readSource("lib/agent/use-agent-chat.ts");
 assert(agentChat.includes("recommendationToContext"), "agent chat maps recommendation to context");
 assert(agentChat.includes("clearAgentChatSession"), "pending recommendation clears stored session");
+assert(
+  agentChat.includes("resolvePendingRecommendation"),
+  "agent chat resolves pending on connect",
+);
+assert(
+  agentChat.includes("commitPendingRecommendation"),
+  "agent chat commits pending after session entries apply",
+);
+assert(
+  !agentChat.includes("consumePendingRecommendation"),
+  "agent chat no longer consumes pending before apply",
+);
 
 console.log("PASS: recommendation chat handoff verified");
