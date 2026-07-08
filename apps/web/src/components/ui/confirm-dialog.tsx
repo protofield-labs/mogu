@@ -13,6 +13,8 @@ type ConfirmDialogProps = {
   cancelLabel?: string;
   destructive?: boolean;
   busy?: boolean;
+  /** Failure message shown inside the dialog so feedback stays near the action. */
+  errorMessage?: string | null;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -25,6 +27,7 @@ export function ConfirmDialog({
   cancelLabel = "キャンセル",
   destructive = true,
   busy = false,
+  errorMessage = null,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -68,6 +71,11 @@ export function ConfirmDialog({
         <div className="space-y-2">
           <h2 className="text-base font-semibold text-foreground">{title}</h2>
           <p className="text-sm text-muted-foreground">{description}</p>
+          {errorMessage ? (
+            <p className="text-sm text-destructive" role="alert">
+              {errorMessage}
+            </p>
+          ) : null}
         </div>
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" disabled={busy} onClick={handleCancel}>
