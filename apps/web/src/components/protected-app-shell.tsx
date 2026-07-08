@@ -3,10 +3,7 @@
 import { type ReactNode } from "react";
 
 import { AppShell } from "@/components/app-shell";
-import {
-  MeBadgesProvider,
-  useMeBadges,
-} from "@/lib/mypage/use-me-badges";
+import { MeBadgesProvider } from "@/lib/mypage/use-me-badges";
 
 type ProtectedAppShellProps = {
   children: ReactNode;
@@ -15,13 +12,7 @@ type ProtectedAppShellProps = {
 export function ProtectedAppShell({ children }: ProtectedAppShellProps) {
   return (
     <MeBadgesProvider>
-      <ProtectedAppShellInner>{children}</ProtectedAppShellInner>
+      <AppShell>{children}</AppShell>
     </MeBadgesProvider>
   );
-}
-
-function ProtectedAppShellInner({ children }: ProtectedAppShellProps) {
-  const { showBadge } = useMeBadges();
-
-  return <AppShell showMypageBadge={showBadge}>{children}</AppShell>;
 }

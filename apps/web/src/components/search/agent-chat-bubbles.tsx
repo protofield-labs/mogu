@@ -9,8 +9,8 @@ import {
   MessageAvatar,
   MessageContent,
 } from "@/components/chat";
-import { Button } from "@/components/ui/button";
 import { RecommendationCard } from "@/components/search/recommendation-card";
+import { filterPillClass } from "@/lib/ui/filter-pill";
 import {
   formatUserBubbleText,
   type ChatEntry,
@@ -79,16 +79,15 @@ export function AgentBubble({
               {entry.quickReplies?.length ? (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {entry.quickReplies.map((chip) => (
-                    <Button
+                    <button
                       key={chip}
                       type="button"
-                      variant="outline"
-                      size="sm"
                       disabled={disabled}
                       onClick={() => onChipSelect(chip)}
+                      className={filterPillClass(false)}
                     >
                       {chip}
-                    </Button>
+                    </button>
                   ))}
                 </div>
               ) : null}

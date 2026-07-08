@@ -9,14 +9,15 @@ import {
   type ReactNode,
 } from "react";
 
-import { BADGES_UPDATED_EVENT } from "@/lib/mypage/badge-events";
-import { fetchMeBadges } from "@/lib/mypage/browser-api";
+import { BADGES_UPDATED_EVENT, PROFILE_UPDATED_EVENT } from "@/lib/mypage/badge-events";
+import { fetchMe, fetchMeBadges } from "@/lib/mypage/browser-api";
 import { shouldShowMypageTabBadge } from "@/lib/mypage/stats-row";
-import type { MeBadges } from "@/lib/mypage/types";
+import type { MeBadges, MeProfile } from "@/lib/mypage/types";
 
 type MeBadgesContextValue = {
   badges: MeBadges | null;
   showBadge: boolean;
+  tabProfile: Pick<MeProfile, "displayName" | "avatarColor"> | null;
 };
 
 const MeBadgesContext = createContext<MeBadgesContextValue | null>(null);
@@ -24,39 +25,58 @@ const MeBadgesContext = createContext<MeBadgesContextValue | null>(null);
 export function MeBadgesProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [badges, setBadges] = useState<MeBadges | null>(null);
+  const [tabProfile, setTabProfile] = useState<
+    Pick<MeProfile, "displayName" | "avatarColor"> | null
+  >(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function loadBadges() {
-      try {
-        const next = await fetchMeBadges();
-        if (!cancelled) {
-          setBadges(next);
-        }
-      } catch {
-        if (!cancelled) {
-          setBadges(null);
-        }
+    async function load() {
+      const [badgesResult, meResult] = await Promise.allSettled([
+        fetchMeBadges(),
+        fetchMe(),
+      ]);
+
+      if (cancelled) {
+        return;
+      }
+
+      if (badgesResult.status === "fulfilled") {
+        setBadges(badgesResult.value);
+      } else {
+        setBadges(null);
+      }
+
+      if (meResult.status === "fulfilled") {
+        setTabProfile({
+          displayName: meResult.value.displayName,
+          avatarColor: meResult.value.avatarColor,
+        });
+      } else {
+        setTabProfile(null);
       }
     }
 
-    void loadBadges();
+    void load();
 
-    const handleBadgesUpdated = () => {
-      void loadBadges();
+    const handleRefresh = () => {
+      void load();
     };
-    window.addEventListener(BADGES_UPDATED_EVENT, handleBadgesUpdated);
+    window.addEventListener(BADGES_UPDATED_EVENT, handleRefresh);
+    window.addEventListener(PROFILE_UPDATED_EVENT, handleRefresh);
 
     return () => {
       cancelled = true;
-      window.removeEventListener(BADGES_UPDATED_EVENT, handleBadgesUpdated);
+      window.removeEventListener(BADGES_UPDATED_EVENT, handleRefresh);
+      window.removeEventListener(PROFILE_UPDATED_EVENT, handleRefresh);
     };
   }, [pathname]);
 
   const value: MeBadgesContextValue = {
     badges,
     showBadge: badges ? shouldShowMypageTabBadge(badges) : false,
+    tabProfile,
   };
 
   return (

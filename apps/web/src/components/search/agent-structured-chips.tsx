@@ -9,7 +9,7 @@ import {
   structuredSelectionsToChips,
   type StructuredChipSelections,
 } from "@/lib/agent/structured-chips";
-import { cn } from "@/lib/utils";
+import { filterPillClass } from "@/lib/ui/filter-pill";
 
 type AgentStructuredChipsProps = {
   disabled?: boolean;
@@ -56,18 +56,16 @@ export function AgentStructuredChips({
             {group.options.map((option) => {
               const selected = selections[group.id] === option;
               return (
-                <Button
+                <button
                   key={`${group.id}-${option}`}
                   type="button"
-                  variant={selected ? "default" : "outline"}
-                  size="sm"
                   disabled={disabled}
                   aria-pressed={selected}
                   onClick={() => toggleOption(group.id, option)}
-                  className={cn("rounded-full", !selected && "bg-background")}
+                  className={filterPillClass(selected)}
                 >
                   {option}
-                </Button>
+                </button>
               );
             })}
           </div>

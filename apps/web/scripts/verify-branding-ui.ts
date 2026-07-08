@@ -24,12 +24,14 @@ const tabBar = readSource("components/tab-bar.tsx");
 assert(tabBar.includes("MoguBrandIcon"), "search tab uses brand icon");
 assert(!tabBar.includes("Sparkles"), "search tab no longer uses Sparkles");
 
-const agentChat = readSource("components/search/agent-chat.tsx");
-assert(agentChat.includes("MoguBrandIcon"), "agent chat uses brand icon for avatar/header");
-assert(agentChat.includes("MoguWordmark"), "agent chat uses shared wordmark");
+const agentBubbles = readSource("components/search/agent-chat-bubbles.tsx");
+assert(agentBubbles.includes("MoguBrandIcon"), "agent chat uses brand icon for avatar");
 
 const homeView = readSource("components/home/home-view.tsx");
-assert(homeView.includes("MoguWordmark"), "home header uses shared wordmark");
-assert(homeView.includes("MoguBrandIcon"), "home header uses brand icon");
+assert(homeView.includes("PageTitle"), "home header uses page title");
+assert(homeView.includes("homePageTitle"), "home header uses greeting helper");
+
+const searchHeader = readSource("components/search/agent-chat-header.tsx");
+assert(searchHeader.includes('PageTitle>検索'), "search header uses page title");
 
 console.log("PASS: branding UI verified");

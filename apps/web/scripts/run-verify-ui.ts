@@ -30,6 +30,7 @@ const scripts = [
   "verify-sheet-ui.ts",
   "verify-motion-ui.ts",
   "verify-dark-mode.ts",
+  "verify-design-refresh.ts",
   "verify-branding-ui.ts",
   "verify-places-photos.ts",
   "verify-agent-recommendation.ts",

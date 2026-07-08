@@ -3,8 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 
 import { AvatarRow, FeedFilterChip } from "@/components/home/avatar-row";
-import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
-import { MoguWordmark } from "@/components/brand/mogu-wordmark";
 import { FeedItemCard } from "@/components/home/feed-item-card";
 import { HomeFeedMapView } from "@/components/home/home-feed-map-view";
 import { HomeEmptyState } from "@/components/home/home-empty-state";
@@ -18,10 +16,12 @@ import {
 } from "@/components/collections/collection-spot-view-tabs";
 import { Button } from "@/components/ui/button";
 import { LoadErrorState } from "@/components/ui/load-error-state";
+import { PageTitle } from "@/components/ui/page-title";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { fetchFeedPage, fetchHomeRecommendation } from "@/lib/home/browser-api";
+import { homePageTitle } from "@/lib/home/page-title";
 import {
   HOME_RECOMMENDATION_LOAD_ERROR,
   HOME_RECOMMENDATION_LOADING_ARIA,
@@ -259,10 +259,7 @@ export function HomeView() {
     >
       <div className="flex min-h-0 flex-1 flex-col gap-5 py-mogu-screen-y">
       <header className="flex shrink-0 items-center justify-between px-mogu-screen-x">
-        <div className="flex items-center gap-2">
-          <MoguBrandIcon className="size-5" />
-          <MoguWordmark as="h1" />
-        </div>
+        <PageTitle>{homePageTitle()}</PageTitle>
         <HomeNotificationButton />
       </header>
 

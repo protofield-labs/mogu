@@ -34,7 +34,7 @@ export function FriendsApprovedSection({
           まだ友達がいません。名前で検索して申請してみましょう。
         </p>
       ) : (
-        <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-mogu-surface-elevated">
+        <ul className="divide-y divide-border/70 overflow-hidden rounded-mogu-card bg-mogu-surface-elevated shadow-md">
           {friends.map((friend, index) => (
             <li
               key={friend.id}
