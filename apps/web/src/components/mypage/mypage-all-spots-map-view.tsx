@@ -29,6 +29,7 @@ export function MypageAllSpotsMapView() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
+  const [mapsLoadFailed, setMapsLoadFailed] = useState(false);
   const userLocation = useUserLocation();
 
   useEffect(() => {
@@ -98,7 +99,10 @@ export function MypageAllSpotsMapView() {
         <div className="min-w-0 flex-1">
           <h1 className="text-base font-semibold text-foreground">食マップ</h1>
           <p className="text-xs text-muted-foreground">
-            {spots.length} 件のスポット · 地図 {mapSpots.length} ピン
+            {spots.length} 件のスポット
+            {!mapsLoadFailed && mapSpots.length > 0
+              ? ` · 地図 ${mapSpots.length} ピン`
+              : ""}
           </p>
         </div>
       </header>
@@ -121,6 +125,7 @@ export function MypageAllSpotsMapView() {
             onClearSelection={() => setSelectedSpotId(null)}
             detailHrefForSpot={(spot) => spotPath(spot.id)}
             mapClassName="min-h-[min(70dvh,640px)] w-full"
+            onMapsLoadErrorChange={setMapsLoadFailed}
           />
         )}
       </section>

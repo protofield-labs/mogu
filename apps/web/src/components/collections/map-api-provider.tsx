@@ -17,6 +17,7 @@ import {
 } from "react";
 
 import {
+  logMapsLoadError,
   mapsLoadErrorMessage,
   type MapsLoadFailureKind,
 } from "@/lib/places/maps-load-error";
@@ -57,6 +58,7 @@ function reportOnce(
     return;
   }
   reportedRef.current = true;
+  logMapsLoadError(kind);
   onLoadError(mapsLoadErrorMessage(kind));
 }
 

@@ -12,6 +12,7 @@ import {
 import { MapCurrentLocationButton } from "@/components/collections/map-current-location-button";
 import { MapNearbySpotList } from "@/components/collections/map-nearby-spot-list";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Button } from "@/components/ui/button";
 import { mapPinIcon } from "@/lib/collections/map-pin-icon";
 import {
   sortSpotsByDistance,
@@ -22,7 +23,10 @@ import {
   DEFAULT_MAP_CENTER,
   readGoogleMapsApiKey,
 } from "@/lib/places/maps-config";
-import { MAPS_LOAD_ERROR_MESSAGE } from "@/lib/places/maps-load-error";
+import {
+  logMapsLoadError,
+  MAPS_USER_LOAD_ERROR_MESSAGE,
+} from "@/lib/places/maps-load-error";
 import { usePlaceLocations } from "@/lib/places/use-place-locations";
 import { useUserLocation } from "@/lib/places/use-user-location";
 import type { UserGeoPoint } from "@/lib/places/use-user-location";
@@ -47,6 +51,8 @@ type CollectionSpotMapViewProps = {
   showNearbyList?: boolean;
   /** Share geolocation state with a parent (e.g. list/map tabs). */
   userLocation?: UserLocationControl;
+  /** Notifies parent when map tiles fail to load (e.g. hide pin count in header). */
+  onMapsLoadErrorChange?: (hasError: boolean) => void;
 };
 
 type MapMarkerSpot = {
@@ -149,6 +155,7 @@ export function CollectionSpotMapView({
   mapClassName = "aspect-[4/3] w-full",
   showNearbyList = true,
   userLocation: userLocationProp,
+  onMapsLoadErrorChange,
 }: CollectionSpotMapViewProps) {
   const mapsApiKey = readGoogleMapsApiKey();
   const internalUserLocation = useUserLocation();
@@ -156,7 +163,9 @@ export function CollectionSpotMapView({
   const [panTarget, setPanTarget] = useState<PanTarget | null>(null);
   const [focusUserLocation, setFocusUserLocation] = useState(false);
   const [mapsLoadError, setMapsLoadError] = useState<string | null>(null);
+  const [mapRetryKey, setMapRetryKey] = useState(0);
   const mapsErrorReportedRef = useRef(false);
+  const missingKeyLoggedRef = useRef(false);
   const placeIds = spots.map((spot) => spot.placeId);
   const { locations, loading, error } = usePlaceLocations(placeIds, spots.length > 0);
   const markers = useMemo(
@@ -206,6 +215,21 @@ export function CollectionSpotMapView({
     toast.error(userLocation.error);
   }, [userLocation.error]);
 
+  useEffect(() => {
+    onMapsLoadErrorChange?.(mapsLoadError !== null);
+  }, [mapsLoadError, onMapsLoadErrorChange]);
+
+  useEffect(() => {
+    if (mapsApiKey) {
+      return;
+    }
+    if (!missingKeyLoggedRef.current) {
+      missingKeyLoggedRef.current = true;
+      logMapsLoadError("missingKey");
+    }
+    onMapsLoadErrorChange?.(true);
+  }, [mapsApiKey, onMapsLoadErrorChange]);
+
   function panToLocation(location: UserGeoPoint) {
     setFocusUserLocation(true);
     setPanTarget({
@@ -231,10 +255,16 @@ export function CollectionSpotMapView({
     setMapsLoadError(message);
   }, []);
 
+  function handleRetryMap() {
+    mapsErrorReportedRef.current = false;
+    setMapsLoadError(null);
+    setMapRetryKey((current) => current + 1);
+  }
+
   if (!mapsApiKey) {
     return (
       <EmptyState className="rounded-2xl p-6">
-        {MAPS_LOAD_ERROR_MESSAGE.missingKey}
+        {MAPS_USER_LOAD_ERROR_MESSAGE}
       </EmptyState>
     );
   }
@@ -261,15 +291,28 @@ export function CollectionSpotMapView({
     );
   }
 
+  const showNearbyListNormal =
+    !mapsLoadError && showNearbyList && userLocation.location !== null;
+  const showFallbackList = mapsLoadError && showNearbyList && spots.length > 0;
+  const fallbackListSpots =
+    showFallbackList && userLocation.location ? nearbySpots : spots;
+
   return (
     <div className="space-y-3">
       <div className="relative overflow-hidden rounded-2xl border border-border">
         {mapsLoadError ? (
-          <EmptyState className={cn("rounded-none p-6", mapClassName)}>
-            {mapsLoadError}
+          <EmptyState className={cn("space-y-4 rounded-none p-6", mapClassName)}>
+            <p>{mapsLoadError}</p>
+            <Button type="button" variant="outline" size="sm" onClick={handleRetryMap}>
+              再読み込み
+            </Button>
           </EmptyState>
         ) : (
-          <MapApiProvider apiKey={mapsApiKey} onLoadError={handleMapsLoadError}>
+          <MapApiProvider
+            key={mapRetryKey}
+            apiKey={mapsApiKey}
+            onLoadError={handleMapsLoadError}
+          >
             <MonitoredMap
               defaultCenter={initialViewport.center}
               defaultZoom={initialViewport.zoom}
@@ -315,7 +358,7 @@ export function CollectionSpotMapView({
           />
         ) : null}
 
-        {!mapsLoadError && selectedMarker ? (
+        {selectedMarker ? (
           <CollectionSpotMapCard
             spot={selectedMarker.spot}
             placeName={
@@ -331,14 +374,24 @@ export function CollectionSpotMapView({
         ) : null}
       </div>
 
-      {showNearbyList && userLocation.location ? (
+      {(showNearbyListNormal || showFallbackList) ? (
         <MapNearbySpotList
-          spots={nearbySpots}
+          spots={showFallbackList ? fallbackListSpots : nearbySpots}
           placeNames={placeNames}
           spotLabels={spotLabels}
-          distanceLabels={distanceLabels}
+          distanceLabels={showFallbackList && !userLocation.location ? {} : distanceLabels}
           selectedSpotId={selectedSpotId}
           onSelectSpot={onSelectSpot}
+          heading={
+            showFallbackList && !userLocation.location
+              ? "スポット一覧"
+              : undefined
+          }
+          ariaLabel={
+            showFallbackList && !userLocation.location
+              ? "スポット一覧"
+              : undefined
+          }
         />
       ) : null}
     </div>

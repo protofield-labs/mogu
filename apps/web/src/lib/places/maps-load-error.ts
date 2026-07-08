@@ -1,20 +1,25 @@
-/** User-facing copy when Maps JavaScript API fails to render (#185). */
-export const MAPS_LOAD_ERROR_MESSAGE = {
+/** User-facing copy when Maps JavaScript API fails to render (#185, #225). */
+export const MAPS_USER_LOAD_ERROR_MESSAGE =
+  "地図を表示できませんでした。しばらくしてから再度お試しください。";
+
+/** Developer-facing detail logged to console.error (#225). */
+export const MAPS_DEV_ERROR_DETAIL = {
   missingKey:
-    "地図を表示するには Google Maps API キー（NEXT_PUBLIC_GOOGLE_MAPS_API_KEY）の設定が必要です。",
+    "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is not configured.",
   scriptLoad:
-    "地図スクリプトの読み込みに失敗しました。ネットワーク接続を確認して再度お試しください。",
+    "Maps JavaScript API script failed to load. Check network connectivity.",
   authFailure:
-    "地図を表示できません。Google Maps API キー、Billing、referrer 制限（http://localhost:3000/* または Cloud Run URL）を確認してください。",
+    "Maps auth failed. Verify API key, Billing, and referrer restrictions (http://localhost:3000/* or Cloud Run URL).",
   tilesTimeout:
-    "地図タイルを読み込めませんでした。Maps JavaScript API が有効か、API キーが正しいか確認してください。",
+    "Map tiles did not render in time. Verify Maps JavaScript API is enabled and the API key is valid.",
 } as const;
 
-export type MapsLoadFailureKind =
-  | "scriptLoad"
-  | "authFailure"
-  | "tilesTimeout";
+export type MapsLoadFailureKind = keyof typeof MAPS_DEV_ERROR_DETAIL;
 
-export function mapsLoadErrorMessage(kind: MapsLoadFailureKind): string {
-  return MAPS_LOAD_ERROR_MESSAGE[kind];
+export function mapsLoadErrorMessage(_kind: MapsLoadFailureKind): string {
+  return MAPS_USER_LOAD_ERROR_MESSAGE;
+}
+
+export function logMapsLoadError(kind: MapsLoadFailureKind): void {
+  console.error(`[maps] load failed (${kind}):`, MAPS_DEV_ERROR_DETAIL[kind]);
 }
