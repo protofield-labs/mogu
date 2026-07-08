@@ -261,7 +261,8 @@ export function useAgentChat(userId: string | null, authLoading: boolean) {
         if (generation !== connectGenerationRef.current) {
           return;
         }
-        const initialEntries: ChatEntry[] = [createWelcomeEntry()];
+        const initialEntries: ChatEntry[] =
+          pendingHandoff ? [] : [createWelcomeEntry()];
         if (pendingRecommendation) {
           initialEntries.push(
             createAgentEntry({

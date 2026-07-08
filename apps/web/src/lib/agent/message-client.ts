@@ -21,6 +21,7 @@ import type { AgentEvent, AgentMessage, RecommendationContext } from "./types";
 import type { CollectionConsultContext } from "./collection-context-message";
 import { assertAgentSessionOwnership } from "./session-client";
 import { appendAgentConsultationTurn } from "@/lib/dal/agent-consultations";
+import { fetchPlaceDetails } from "@/lib/places/google-places-client";
 import {
   getAccessToken,
   requireAgentEngineConfig,
@@ -203,10 +204,17 @@ export async function seedAgentRecommendationContext(input: {
   context: RecommendationContext;
 }): Promise<void> {
   try {
+    let context = input.context;
+    if (!context.placeName?.trim()) {
+      const place = await fetchPlaceDetails(context.placeId);
+      if (place?.name?.trim()) {
+        context = { ...context, placeName: place.name.trim() };
+      }
+    }
     await sendAgentMessage({
       userId: input.userId,
       sessionId: input.sessionId,
-      text: buildRecommendationContextMessage(input.context),
+      text: buildRecommendationContextMessage(context),
       skipConsultationPersist: true,
       skipAgentEvents: true,
     });

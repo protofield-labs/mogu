@@ -5,6 +5,7 @@ export type RecommendationContextInput = {
   spotId: string;
   assertion: string;
   evidence: string;
+  placeName?: string | null;
 };
 
 /** Hidden user turn that seeds the orchestrator with home recommendation context (#204). */
@@ -13,6 +14,9 @@ export function buildRecommendationContextMessage(
 ): string {
   return [
     "[ホーム一推しからの相談コンテキスト]",
+    ...(input.placeName?.trim()
+      ? [`店名: ${input.placeName.trim()}`]
+      : []),
     `おすすめスポット place_id: ${input.placeId}`,
     `スポットID: ${input.spotId}`,
     `断言: ${input.assertion}`,

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { ArrowUp } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,9 @@ export function AgentChatComposer({
   onSend,
 }: AgentChatComposerProps) {
   const keyboardOffset = useVisualViewportOffset();
+  // Chrome は IME 確定 Enter で compositionend → keydown の順になり、
+  // keydown 時点では isComposing が false になる (#250)。
+  const skipEnterAfterCompositionRef = useRef(false);
 
   return (
     <footer
@@ -44,11 +48,24 @@ export function AgentChatComposer({
           value={input}
           disabled={inputDisabled}
           onChange={(event) => onInputChange(event.target.value)}
+          onCompositionEnd={() => {
+            skipEnterAfterCompositionRef.current = true;
+            // マウス/タップ確定では Enter keydown が来ない。macrotask で keydown 後にクリア。
+            window.setTimeout(() => {
+              skipEnterAfterCompositionRef.current = false;
+            }, 0);
+          }}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) {
               // IME 変換確定の Enter では送信しない（#250）。
-              // keyCode 229 は isComposing を立てないブラウザ（旧 Safari 等）向け。
-              if (event.nativeEvent.isComposing || event.keyCode === 229) {
+              // keyCode 229 は isComposing を立てないブラウザ向け。
+              // skipEnterAfterCompositionRef は Chrome の compositionend→keydown 順向け。
+              const skipImeConfirm =
+                event.nativeEvent.isComposing ||
+                event.keyCode === 229 ||
+                skipEnterAfterCompositionRef.current;
+              skipEnterAfterCompositionRef.current = false;
+              if (skipImeConfirm) {
                 return;
               }
               event.preventDefault();

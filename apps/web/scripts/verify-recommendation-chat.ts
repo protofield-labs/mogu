@@ -50,10 +50,22 @@ assert(
   "context message includes assertion",
 );
 
+assert(
+  buildRecommendationContextMessage({ ...context, placeName: "恵比寿ガーデンプレイス店" }).includes(
+    "店名: 恵比寿ガーデンプレイス店",
+  ),
+  "context message includes place name when provided",
+);
+
 const sessionsRoute = readSource("app/api/v1/agent/sessions/route.ts");
 assert(
   sessionsRoute.includes("seedAgentRecommendationContext"),
   "session route seeds recommendation context",
+);
+const messageClient = readSource("lib/agent/message-client.ts");
+assert(
+  messageClient.includes("fetchPlaceDetails"),
+  "recommendation seed resolves place name for agent context",
 );
 assert(
   sessionsRoute.includes("createAgentSessionBodySchema"),
@@ -97,6 +109,10 @@ assert(
 assert(
   agentChat.includes("commitPendingRecommendation"),
   "agent chat commits pending after session entries apply",
+);
+assert(
+  agentChat.includes("pendingHandoff ? [] : [createWelcomeEntry()]"),
+  "agent chat skips welcome when handoff from home",
 );
 assert(
   !agentChat.includes("consumePendingRecommendation"),
