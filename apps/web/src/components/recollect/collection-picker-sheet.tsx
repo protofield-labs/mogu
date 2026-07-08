@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Sheet, SheetBody, SheetFooter, SheetHeader } from "@/components/ui/sheet";
+import { Sheet, SheetBody, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
 import {
   createCollection,
@@ -129,9 +129,9 @@ export function CollectionPickerSheet({
   const disabled = saving || creating || busy;
 
   return (
-    <Sheet open={open} onClose={onClose} className="max-h-[min(85dvh,640px)] sm:max-h-[min(80dvh,640px)]">
+    <Sheet open={open} onClose={onClose} ariaLabel="保存先を選ぶ" className="max-h-[min(85dvh,640px)] sm:max-h-[min(80dvh,640px)]">
       <SheetHeader>
-        <h2 className="text-sm font-semibold text-foreground">保存先を選ぶ</h2>
+        <SheetTitle>保存先を選ぶ</SheetTitle>
       </SheetHeader>
 
       <SheetBody>

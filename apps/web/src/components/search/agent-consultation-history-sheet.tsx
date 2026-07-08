@@ -3,7 +3,7 @@
 import { HistoryIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { Sheet, SheetBody, SheetHeader } from "@/components/ui/sheet";
+import { Sheet, SheetBody, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
 import {
   listAgentConsultations,
@@ -63,11 +63,11 @@ export function AgentConsultationHistorySheet({
   }, [open]);
 
   return (
-    <Sheet open={open} onClose={onClose} className="max-h-[min(85dvh,640px)] sm:max-h-[min(80dvh,640px)]">
+    <Sheet open={open} onClose={onClose} ariaLabel="相談履歴" className="max-h-[min(85dvh,640px)] sm:max-h-[min(80dvh,640px)]">
       <SheetHeader>
         <div className="flex items-center gap-2">
           <HistoryIcon className="size-4 text-muted-foreground" aria-hidden />
-          <h2 className="text-sm font-semibold text-foreground">相談履歴</h2>
+          <SheetTitle>相談履歴</SheetTitle>
         </div>
       </SheetHeader>
 

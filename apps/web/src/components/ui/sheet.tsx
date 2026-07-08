@@ -5,6 +5,8 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useId,
+  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -33,6 +35,8 @@ type SheetContextValue = {
   onDragHandlePointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void;
   onDragHandlePointerUp: (event: ReactPointerEvent<HTMLDivElement>) => void;
   onDragHandlePointerCancel: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  titleId: string | null;
+  registerTitleId: (id: string | null) => void;
 };
 
 const SheetContext = createContext<SheetContextValue | null>(null);
@@ -52,6 +56,8 @@ type SheetProps = {
   /** Allow backdrop tap, escape, and swipe-to-dismiss (default true). */
   dismissible?: boolean;
   className?: string;
+  /** Accessible name when no SheetTitle / aria-labelledby is registered (#236). */
+  ariaLabel?: string;
 };
 
 export function Sheet({
@@ -60,16 +66,22 @@ export function Sheet({
   children,
   dismissible = true,
   className,
+  ariaLabel,
 }: SheetProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [mounted, setMounted] = useState(open);
   const [state, setState] = useState<"open" | "closed">("closed");
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [titleId, setTitleId] = useState<string | null>(null);
   const dragStartYRef = useRef(0);
   const dragOffsetRef = useRef(0);
   const isDraggingRef = useRef(false);
   const closeRequestedRef = useRef(false);
+
+  const registerTitleId = useCallback((id: string | null) => {
+    setTitleId(id);
+  }, []);
 
   const requestClose = useCallback(() => {
     if (!dismissible || closeRequestedRef.current) {
@@ -213,10 +225,14 @@ export function Sheet({
         onDragHandlePointerMove,
         onDragHandlePointerUp,
         onDragHandlePointerCancel,
+        titleId,
+        registerTitleId,
       }}
     >
       <dialog
         ref={dialogRef}
+        aria-labelledby={titleId ?? undefined}
+        aria-label={titleId ? undefined : ariaLabel}
         className={cn(
           "mogu-sheet-dialog fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none border-0 bg-transparent p-0",
           state === "open" && "mogu-sheet-dialog-open",
@@ -272,6 +288,31 @@ export function SheetGrabber({ className }: { className?: string }) {
   );
 }
 
+type SheetTitleProps = {
+  children: ReactNode;
+  className?: string;
+};
+
+/** Sheet heading wired to dialog aria-labelledby (#236). */
+export function SheetTitle({ children, className }: SheetTitleProps) {
+  const titleId = useId();
+  const { registerTitleId } = useSheetContext();
+
+  useLayoutEffect(() => {
+    registerTitleId(titleId);
+    return () => registerTitleId(null);
+  }, [registerTitleId, titleId]);
+
+  return (
+    <h2
+      id={titleId}
+      className={cn("text-sm font-semibold text-foreground", className)}
+    >
+      {children}
+    </h2>
+  );
+}
+
 type SheetDragHandleProps = {
   children: ReactNode;
   className?: string;
@@ -324,7 +365,13 @@ export function SheetHeader({
           className,
         )}
       >
-        <div className="min-w-0 flex-1">{children}</div>
+        <div className="min-w-0 flex-1">
+          {typeof children === "string" ? (
+            <SheetTitle>{children}</SheetTitle>
+          ) : (
+            children
+          )}
+        </div>
         {showClose ? (
           <Button
             type="button"

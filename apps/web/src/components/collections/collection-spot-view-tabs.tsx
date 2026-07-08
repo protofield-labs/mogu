@@ -17,14 +17,13 @@ export function CollectionSpotViewTabs({
 }: CollectionSpotViewTabsProps) {
   return (
     <div
-      role="tablist"
+      role="group"
       aria-label="スポット表示切替"
       className={cn("flex gap-2", className)}
     >
       <button
         type="button"
-        role="tab"
-        aria-selected={mode === "list"}
+        aria-pressed={mode === "list"}
         className={cn(
           "inline-flex h-9 flex-1 items-center justify-center rounded-full border text-sm font-medium transition-colors",
           mode === "list"
@@ -37,8 +36,7 @@ export function CollectionSpotViewTabs({
       </button>
       <button
         type="button"
-        role="tab"
-        aria-selected={mode === "map"}
+        aria-pressed={mode === "map"}
         className={cn(
           "inline-flex h-9 flex-1 items-center justify-center rounded-full border text-sm font-medium transition-colors",
           mode === "map"

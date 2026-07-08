@@ -15,6 +15,8 @@ function readSource(relativePath: string): string {
 
 const sheet = readSource("components/ui/sheet.tsx");
 assert(sheet.includes("export function Sheet"), "Sheet primitive exported");
+assert(sheet.includes("SheetTitle"), "Sheet title for accessible naming");
+assert(sheet.includes("aria-labelledby"), "sheet dialog labelled");
 assert(sheet.includes("SheetGrabber"), "Sheet grabber exported");
 assert(sheet.includes("SheetDragHandle"), "Sheet drag handle exported");
 assert(sheet.includes("onPointerDown"), "Sheet supports pointer drag dismiss");
