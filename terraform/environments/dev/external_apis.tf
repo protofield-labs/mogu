@@ -1,3 +1,18 @@
+locals {
+  cloud_run_origin = trimsuffix(module.cloud_run.uri, "/")
+  # Browser referrers for the Maps JavaScript API key (#130 / #209).
+  # Include the exact Cloud Run origin plus a regional wildcard so a service
+  # recreate (new *.run.app hash) does not leave maps tiles blank with
+  # RefererNotAllowedMapError until the next targeted apply.
+  maps_js_allowed_referrers = [
+    "${local.cloud_run_origin}/*",
+    local.cloud_run_origin,
+    "http://localhost:3000/*",
+    "http://127.0.0.1:3000/*",
+    "https://*.a.run.app/*",
+  ]
+}
+
 # Places API key + Secret Manager (#47). Gated by enable_external_apis so Phase 1
 # applies stay unchanged until dev is ready for Maps / Vertex spend.
 resource "google_apikeys_key" "places" {
@@ -32,14 +47,14 @@ resource "google_apikeys_key" "maps_js" {
     }
 
     browser_key_restrictions {
-      allowed_referrers = [
-        "${module.cloud_run.uri}/*",
-        "http://localhost:3000/*",
-      ]
+      allowed_referrers = local.maps_js_allowed_referrers
     }
   }
 
-  depends_on = [google_project_service.services]
+  depends_on = [
+    google_project_service.services,
+    module.cloud_run,
+  ]
 }
 
 resource "google_secret_manager_secret" "places_api_key" {

@@ -23,6 +23,8 @@ assert(mapApiProvider.includes("useApiLoadingStatus"), "watches api loading stat
 assert(mapApiProvider.includes("APILoadingStatus.AUTH_FAILURE"), "handles auth failure");
 assert(mapApiProvider.includes("MonitoredMap"), "monitored map exported");
 assert(mapApiProvider.includes("canvas"), "detects blank map without canvas");
+assert(mapApiProvider.includes("gstatic"), "detects grey map without loaded tiles");
+assert(mapApiProvider.includes("RefererNotAllowedMapError"), "listens for referrer errors");
 assert(mapApiProvider.includes("gmp-error"), "watches gmp error overlay");
 
 const mapView = readSource("components/collections/collection-spot-map-view.tsx");
