@@ -19,16 +19,19 @@ import { canRecollectFeedItem } from "@/lib/home/feed-item";
 import type { FeedItem } from "@/lib/home/types";
 import { actorProfilePath } from "@/lib/friends/paths";
 import { usePlace } from "@/lib/places/use-place";
+import { moguEnterDelayStyle, moguEnterMotionClass } from "@/lib/ui/motion";
 import { touchRowClass } from "@/lib/ui/touch-feedback";
 import { cn } from "@/lib/utils";
 
 type FeedItemCardProps = {
   item: FeedItem;
   viewerId?: string | null;
+  /** Stagger index for first-paint enter motion (#128). */
+  enterIndex?: number;
 };
 
 /** Borderless Instagram-style feed item: header → media → actions → caption (#192). */
-export function FeedItemCard({ item, viewerId }: FeedItemCardProps) {
+export function FeedItemCard({ item, viewerId, enterIndex }: FeedItemCardProps) {
   const { recollect, detailOpen, openDetail, closeDetail } = useFeedSpotSave(
     item.spot.id,
     { initialSaved: item.savedByMe },
@@ -60,7 +63,13 @@ export function FeedItemCard({ item, viewerId }: FeedItemCardProps) {
 
   return (
     <>
-      <article className="border-b border-border/50 pb-5 pt-3 first:pt-0 last:border-b-0">
+      <article
+        className={cn(
+          "border-b border-border/50 pb-5 pt-3 first:pt-0 last:border-b-0",
+          enterIndex !== undefined && moguEnterMotionClass,
+        )}
+        style={moguEnterDelayStyle(enterIndex)}
+      >
         <header className="flex items-center gap-2.5 px-mogu-screen-x pb-2.5">
           <Link
             href={actorProfilePath(item.actor.id, viewerId)}

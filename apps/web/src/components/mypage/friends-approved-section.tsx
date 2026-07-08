@@ -12,6 +12,8 @@ import {
   friendProfilePathWithContext,
 } from "@/lib/friends/paths";
 import type { FriendListItem } from "@/lib/mypage/types";
+import { moguEnterDelayStyle, moguEnterMotionClass } from "@/lib/ui/motion";
+import { cn } from "@/lib/utils";
 
 type FriendsApprovedSectionProps = {
   friends: FriendListItem[];
@@ -33,8 +35,15 @@ export function FriendsApprovedSection({
         </p>
       ) : (
         <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-mogu-surface-elevated">
-          {friends.map((friend) => (
-            <li key={friend.id} className="flex items-center gap-3 p-4">
+          {friends.map((friend, index) => (
+            <li
+              key={friend.id}
+              className={cn(
+                "flex items-center gap-3 p-4",
+                moguEnterMotionClass,
+              )}
+              style={moguEnterDelayStyle(index)}
+            >
               <Link
                 href={friendProfilePathWithContext(
                   friend.id,

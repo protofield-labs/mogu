@@ -18,7 +18,9 @@ import {
 } from "@/components/collections/collection-spot-view-tabs";
 import { Button } from "@/components/ui/button";
 import { LoadErrorState } from "@/components/ui/load-error-state";
+import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { fetchFeedPage, fetchHomeRecommendation } from "@/lib/home/browser-api";
 import {
   HOME_RECOMMENDATION_LOAD_ERROR,
@@ -81,8 +83,10 @@ export function HomeView() {
   const [feedViewMode, setFeedViewMode] = useState<CollectionSpotViewMode>("list");
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  const [initialFeedCount, setInitialFeedCount] = useState<number | null>(null);
   const feedViewedRef = useRef(false);
   const selectedFriendIdRef = useRef<string | null>(null);
 
@@ -116,6 +120,7 @@ export function HomeView() {
         setFriends(friendList);
         setFeedItems(feed.items);
         setNextCursor(feed.nextCursor);
+        setInitialFeedCount((current) => current ?? feed.items.length);
         setRecommendation(homeRecommendation);
         setLastReadAt(storedLastReadAt);
         // Only a successfully rendered feed counts as "seen" (#54 既読管理).
@@ -144,6 +149,40 @@ export function HomeView() {
       }
     };
   }, []);
+
+  async function handlePullRefresh() {
+    if (refreshing) {
+      return;
+    }
+    setRefreshing(true);
+    setError(null);
+    try {
+      const storedLastReadAt = getLastReadFeedAt();
+      const [profile, friendList, feed, homeRecommendation] =
+        await Promise.all([
+          fetchMe(),
+          fetchFriends(),
+          loadFeedForRings(storedLastReadAt),
+          fetchHomeRecommendation()
+            .then(
+              (value): RecommendationState => ({ status: "ready", value }),
+            )
+            .catch((): RecommendationState => ({ status: "error" })),
+        ]);
+
+      setMe(profile);
+      setFriends(friendList);
+      setFeedItems(feed.items);
+      setNextCursor(feed.nextCursor);
+      setRecommendation(homeRecommendation);
+      setLastReadAt(storedLastReadAt);
+      feedViewedRef.current = true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "更新に失敗しました");
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   async function handleLoadMore() {
     if (!nextCursor || loadingMore) {
@@ -213,7 +252,12 @@ export function HomeView() {
     : null;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-5 py-mogu-screen-y">
+    <PullToRefresh
+      onRefresh={handlePullRefresh}
+      disabled={loading || refreshing}
+      className="flex min-h-0 flex-1 flex-col"
+    >
+      <div className="flex min-h-0 flex-1 flex-col gap-5 py-mogu-screen-y">
       <header className="flex shrink-0 items-center justify-between px-mogu-screen-x">
         <div className="flex items-center gap-2">
           <MoguBrandIcon className="size-5" />
@@ -293,8 +337,17 @@ export function HomeView() {
             </div>
           ) : (
             <div>
-              {visibleFeedItems.map((item) => (
-                <FeedItemCard key={item.spot.id} item={item} viewerId={me.id} />
+              {visibleFeedItems.map((item, index) => (
+                <FeedItemCard
+                  key={item.spot.id}
+                  item={item}
+                  viewerId={me.id}
+                  enterIndex={
+                    initialFeedCount !== null && index < initialFeedCount
+                      ? index
+                      : undefined
+                  }
+                />
               ))}
             </div>
           )}
@@ -308,7 +361,14 @@ export function HomeView() {
                 disabled={loadingMore}
                 onClick={() => void handleLoadMore()}
               >
-                {loadingMore ? "読み込み中…" : "もっと見る"}
+                {loadingMore ? (
+                  <>
+                    <Spinner size="sm" />
+                    読み込み中…
+                  </>
+                ) : (
+                  "もっと見る"
+                )}
               </Button>
             </div>
           ) : null}
@@ -324,6 +384,7 @@ export function HomeView() {
           retrying={loadingMore}
         />
       ) : null}
-    </div>
+      </div>
+    </PullToRefresh>
   );
 }

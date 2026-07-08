@@ -8,6 +8,7 @@ import type { Collection } from "@/lib/collections/browser-api";
 import { collectionPath } from "@/lib/share/paths";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatCollectionVisibility } from "@/lib/labels/collection-labels";
+import { moguEnterDelayStyle, moguEnterMotionClass } from "@/lib/ui/motion";
 import { touchCardClass, touchRowClass } from "@/lib/ui/touch-feedback";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +38,7 @@ function CollectionTile({
   disableMoveUp = false,
   disableMoveDown = false,
   reorderBusy = false,
+  enterIndex,
 }: {
   collection: Collection;
   href: string;
@@ -49,11 +51,15 @@ function CollectionTile({
   disableMoveUp?: boolean;
   disableMoveDown?: boolean;
   reorderBusy?: boolean;
+  enterIndex?: number;
 }) {
   const isSecret = collection.visibility === "secret";
 
   return (
-    <article className="space-y-2">
+    <article
+      className={cn("space-y-2", enterIndex !== undefined && moguEnterMotionClass)}
+      style={moguEnterDelayStyle(enterIndex)}
+    >
       <Link href={reorderMode ? "#" : href} className="block" onClick={(event) => {
         if (reorderMode) {
           event.preventDefault();
@@ -188,6 +194,7 @@ export function CollectionGrid({
               disableMoveUp={index === 0}
               disableMoveDown={index === collections.length - 1}
               reorderBusy={reorderBusy}
+              enterIndex={index}
             />
           ))}
         </div>

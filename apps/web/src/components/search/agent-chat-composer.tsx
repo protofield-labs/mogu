@@ -4,6 +4,8 @@ import { SparklesIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { AGENT_FOOTER_CAPTION } from "@/lib/agent/chat-helpers";
+import { useVisualViewportOffset } from "@/lib/ui/use-visual-viewport-offset";
+import { cn } from "@/lib/utils";
 
 type AgentChatComposerProps = {
   input: string;
@@ -20,8 +22,19 @@ export function AgentChatComposer({
   onSubmit,
   onSend,
 }: AgentChatComposerProps) {
+  const keyboardOffset = useVisualViewportOffset();
+
   return (
-    <footer className="shrink-0 border-t border-border px-mogu-screen-x pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3">
+    <footer
+      className={cn(
+        "shrink-0 border-t border-border px-mogu-screen-x pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 transition-transform duration-150 ease-out motion-reduce:transition-none",
+      )}
+      style={
+        keyboardOffset > 0
+          ? { transform: `translateY(-${keyboardOffset}px)` }
+          : undefined
+      }
+    >
       <form onSubmit={onSubmit} className="flex items-end gap-2">
         <label className="sr-only" htmlFor="agent-message-input">
           メッセージ
