@@ -150,9 +150,6 @@ export function useAgentChat(userId: string | null, authLoading: boolean) {
       if (result.ok) {
         setEntries(result.entries);
         setSendError(null);
-        if (sessionId) {
-          persistConsultationEntries(sessionId, result.entries);
-        }
         return;
       }
 
@@ -171,7 +168,7 @@ export function useAgentChat(userId: string | null, authLoading: boolean) {
         formatAgentUserError(result.error, "メッセージの送信に失敗しました"),
       );
     },
-    [invalidateStoredSession, sessionId, persistConsultationEntries],
+    [invalidateStoredSession],
   );
 
   const resumeInflightTurn = useCallback(

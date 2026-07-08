@@ -92,11 +92,19 @@ assert(
 );
 assert(
   agentChatHook.includes("persistConsultationChainRef"),
-  "agent chat serializes consultation sync",
+  "agent chat serializes initial consultation sync",
 );
 assert(
-  agentChatHook.includes("syncAgentConsultationEntries"),
-  "agent chat hook calls consultation sync api",
+  agentChatHook.includes("persistConsultationEntries(id, initialEntries)"),
+  "agent chat syncs only initial session entries",
+);
+const applySendTurnResultBlock = agentChatHook.slice(
+  agentChatHook.indexOf("const applySendTurnResult"),
+  agentChatHook.indexOf("const resumeInflightTurn"),
+);
+assert(
+  !applySendTurnResultBlock.includes("persistConsultationEntries"),
+  "turn persistence stays server-side via append",
 );
 assert(
   agentChatHook.includes('consultationViewMode === "readonly"') ||
