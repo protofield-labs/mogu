@@ -25,6 +25,24 @@ const TILES_LOAD_TIMEOUT_MS = 12_000;
 const GMP_ERROR_SELECTOR = ".gmp-error, .gm-err-container, .gm-err-message";
 const MAPS_REFERRER_ERROR_PATTERN = /RefererNotAllowedMapError|RefererNotAllowed/i;
 
+/** Raster basemap tiles render as <img> inside .gm-style, not always as <canvas> (#224). */
+function hasRenderedMapTiles(mapDiv: HTMLElement): boolean {
+  if (mapDiv.querySelector("canvas") !== null) {
+    return true;
+  }
+  const styleRoot = mapDiv.querySelector(".gm-style");
+  if (!styleRoot) {
+    return false;
+  }
+  return [...styleRoot.querySelectorAll("img")].some((img) => {
+    const src = img.getAttribute("src") ?? "";
+    return (
+      src.includes("maps.googleapis.com/maps/vt") ||
+      src.includes("googleusercontent.com/vt")
+    );
+  });
+}
+
 type MapApiProviderProps = PropsWithChildren<{
   apiKey: string;
   onLoadError: (message: string) => void;
@@ -109,21 +127,26 @@ function MapTilesLoadedWatcher({
       return;
     }
 
+    let tilesLoaded = false;
+    const tilesListener = map.addListener("tilesloaded", () => {
+      tilesLoaded = true;
+    });
+
     const timer = window.setTimeout(() => {
       const mapDiv = map.getDiv();
       const hasErrorOverlay = mapDiv.querySelector(GMP_ERROR_SELECTOR);
-      const hasRenderedCanvas = mapDiv.querySelector("canvas") !== null;
 
       if (hasErrorOverlay) {
         reportOnce(reportedRef, onLoadError, "authFailure");
         return;
       }
-      if (!hasRenderedCanvas) {
+      if (!tilesLoaded && !hasRenderedMapTiles(mapDiv)) {
         reportOnce(reportedRef, onLoadError, "tilesTimeout");
       }
     }, TILES_LOAD_TIMEOUT_MS);
 
     return () => {
+      tilesListener.remove();
       window.clearTimeout(timer);
     };
   }, [map, onLoadError, reportedRef]);
