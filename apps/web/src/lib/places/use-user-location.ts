@@ -16,13 +16,13 @@ type UserLocationState = {
 
 function geolocationErrorMessage(code: number): string {
   if (code === 1) {
-    return "位置情報の利用が許可されていません";
+    return "位置情報の許可が必要です。ブラウザの設定で許可してください";
   }
   if (code === 2) {
     return "現在地を特定できませんでした";
   }
   if (code === 3) {
-    return "現在地の取得がタイムアウトしました";
+    return "現在地の取得がタイムアウトしました。もう一度お試しください";
   }
   return "現在地を取得できませんでした";
 }
@@ -68,9 +68,9 @@ export function useUserLocation() {
         }));
       },
       {
-        enableHighAccuracy: true,
-        timeout: 10_000,
-        maximumAge: 60_000,
+        enableHighAccuracy: false,
+        timeout: 20_000,
+        maximumAge: 120_000,
       },
     );
   }, []);

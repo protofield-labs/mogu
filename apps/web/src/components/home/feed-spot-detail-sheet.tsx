@@ -6,13 +6,14 @@ import type { ComponentProps } from "react";
 import { SpotDetailSheet } from "@/components/spots/spot-detail-sheet";
 import { UserAvatar } from "@/components/home/user-avatar";
 import { ShareButton } from "@/components/share/share-button";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { googleMapsPlaceUrl } from "@/lib/agent/chat-helpers";
 import type { PlaceDTO } from "@/lib/agent/types";
 import { formatViaLabel } from "@/lib/home/feed-labels";
 import type { FeedItem } from "@/lib/home/types";
 import { actorProfilePath } from "@/lib/friends/paths";
 import { spotShareUrl } from "@/lib/share/share-url";
+import { cn } from "@/lib/utils";
 
 type FeedSpotDetailSheetProps = {
   item: FeedItem;
@@ -80,32 +81,29 @@ export function FeedSpotDetailSheet({
       }
       footer={
         <>
-          <div className="flex flex-wrap gap-2">
-            <a
-              href={googleMapsPlaceUrl({
-                placeId: spot.placeId,
-                name: placeName,
-                location: place?.location,
-              })}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex h-7 items-center justify-center rounded-[min(var(--radius-md),12px)] border border-border bg-background px-2.5 text-[0.8rem] font-medium hover:bg-muted hover:text-foreground"
+          {canSave ? (
+            <Button
+              type="button"
+              className="w-full"
+              disabled={busy}
+              aria-pressed={saved}
+              {...saveHandlers}
             >
-              地図で開く
-            </a>
-            {canSave ? (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={busy}
-                aria-pressed={saved}
-                {...saveHandlers}
-              >
-                {saved ? "保存済み" : "保存"}
-              </Button>
-            ) : null}
-          </div>
+              {saved ? "保存済み" : "保存する"}
+            </Button>
+          ) : null}
+          <a
+            href={googleMapsPlaceUrl({
+              placeId: spot.placeId,
+              name: placeName,
+              location: place?.location,
+            })}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(buttonVariants({ variant: "outline" }), "w-full")}
+          >
+            地図で開く
+          </a>
           {canSave && error ? (
             <p className="text-xs text-destructive" role="alert">
               {error}

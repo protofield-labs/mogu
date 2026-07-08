@@ -1,4 +1,5 @@
 import type { Spot, SpotRating } from "@/lib/spots/browser-api";
+import { formatRatingChip } from "@/lib/home/feed-labels";
 
 export type SpotFormState = {
   placeId: string;
@@ -25,9 +26,9 @@ export const emptySpotForm: SpotFormState = {
 };
 
 export const spotRatingOptions: { value: SpotRating; label: string }[] = [
-  { value: "again", label: "また行きたい" },
-  { value: "either", label: "どちらでも" },
-  { value: "no", label: "行かない" },
+  { value: "again", label: formatRatingChip("again") },
+  { value: "either", label: formatRatingChip("either") },
+  { value: "no", label: formatRatingChip("no") },
 ];
 
 export function spotToForm(spot: Spot): SpotFormState {

@@ -22,7 +22,7 @@ const UID_OTHER = "rls-reco-other";
 
 async function verifyRecommendations() {
   assert(
-    buildEvidence("Ken", Rating.again, 3).includes("また行きたい"),
+    buildEvidence("Ken", Rating.again, 3).includes("すき"),
     "evidence uses rating label",
   );
 

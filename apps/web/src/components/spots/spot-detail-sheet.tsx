@@ -1,10 +1,18 @@
 "use client";
 
+import { XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { GoogleMapsAttribution } from "@/components/places/google-maps-attribution";
 import { SpotDetailMedia } from "@/components/spots/spot-detail-media";
-import { Sheet, SheetBody, SheetHeader } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetBody,
+  SheetDragHandle,
+  SheetFooter,
+  SheetGrabber,
+} from "@/components/ui/sheet";
 import { openNowLabel } from "@/lib/agent/chat-helpers";
 import type { PlaceDTO } from "@/lib/places/types";
 import { formatRatingChip, formatSpotTagChips } from "@/lib/home/feed-labels";
@@ -23,9 +31,10 @@ export type SpotDetailSheetProps = {
   place: PlaceDTO | null;
   placeName: string | null;
   titleFallback?: string;
+  distanceLabel?: string | null;
   open: boolean;
   onClose: () => void;
-  header: ReactNode;
+  header?: ReactNode;
   footer: ReactNode;
   extraBody?: ReactNode;
 };
@@ -35,6 +44,7 @@ export function SpotDetailSheet({
   place,
   placeName,
   titleFallback = "スポット",
+  distanceLabel = null,
   open,
   onClose,
   header,
@@ -48,51 +58,74 @@ export function SpotDetailSheet({
 
   return (
     <Sheet open={open} onClose={onClose}>
-      <SheetHeader>{header}</SheetHeader>
-
-      <SheetBody>
+      <div className="relative shrink-0">
         <SpotDetailMedia
           photoUrls={spot.photoUrls}
           place={place}
           placeName={placeName}
+          variant="hero"
         />
+        <SheetDragHandle className="absolute inset-x-0 top-0 flex justify-center pt-2">
+          <SheetGrabber className="bg-background/80" />
+        </SheetDragHandle>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label="閉じる"
+          onClick={onClose}
+          className="absolute right-3 top-3 rounded-full bg-background/90 shadow-sm backdrop-blur-sm"
+        >
+          <XIcon />
+        </Button>
+      </div>
 
-        <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+      <SheetBody className="space-y-4 pt-4">
+        {header ? <div className="min-w-0">{header}</div> : null}
 
-        {place?.address ? (
-          <p className="mt-1 text-sm text-muted-foreground">{place.address}</p>
-        ) : null}
+        <div className="space-y-2">
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">
+            {title}
+          </h2>
 
-        {openNowLabelText ? (
-          <p className="mt-1 text-xs font-medium text-primary">
-            {openNowLabelText}
-          </p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+            <span className="font-medium text-primary">
+              {formatRatingChip(spot.rating)}
+            </span>
+            {distanceLabel ? <span>{distanceLabel}</span> : null}
+            {openNowLabelText ? (
+              <span className="font-medium text-primary">{openNowLabelText}</span>
+            ) : null}
+          </div>
+
+          {place?.address ? (
+            <p className="text-sm text-muted-foreground">{place.address}</p>
+          ) : null}
+        </div>
+
+        {tagChips.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {tagChips.map((tag) => (
+              <span
+                key={tag}
+                className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
         ) : null}
 
         {showComment ? (
-          <p className="mt-3 text-sm text-foreground">{spot.comment}</p>
+          <p className="text-sm leading-relaxed text-foreground">{spot.comment}</p>
         ) : null}
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          <span className="rounded-full border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground">
-            {formatRatingChip(spot.rating)}
-          </span>
-          {tagChips.map((tag) => (
-            <span
-              key={tag}
-              className="rounded-full border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
 
         {extraBody}
 
-        <div className="mt-5 space-y-2">{footer}</div>
-
-        <GoogleMapsAttribution className="mt-4 text-[0.65rem] text-muted-foreground" />
+        <GoogleMapsAttribution className="text-[0.65rem] text-muted-foreground" />
       </SheetBody>
+
+      <SheetFooter className="flex flex-col gap-2">{footer}</SheetFooter>
     </Sheet>
   );
 }
