@@ -40,6 +40,7 @@ export type RecommendationContext = {
   spotId: string;
   assertion: string;
   evidence: string;
+  placeName?: string | null;
 };
 
 export type CreateAgentSessionRequest = {

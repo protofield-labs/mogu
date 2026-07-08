@@ -7,6 +7,7 @@ export const recommendationContextSchema = z.object({
   spotId: z.string().min(1).max(100),
   assertion: z.string().min(1).max(4000),
   evidence: z.string().min(1).max(4000),
+  placeName: z.string().min(1).max(400).optional(),
 });
 
 export const collectionContextSchema = z.discriminatedUnion("kind", [

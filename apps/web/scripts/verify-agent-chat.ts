@@ -57,6 +57,14 @@ function main() {
     composer.includes("keyCode === 229"),
     "composer guards Enter with keyCode 229 fallback (#250)",
   );
+  assert(
+    composer.includes("skipEnterAfterCompositionRef"),
+    "composer skips Enter after compositionend (#250 Chrome)",
+  );
+  assert(
+    composer.includes("onCompositionEnd"),
+    "composer listens for compositionend (#250)",
+  );
 
   const user = createUserEntry("中目黒で3人", ["半個室"]);
   if (user.kind !== "user") {
