@@ -9,8 +9,20 @@ export const recommendationContextSchema = z.object({
   evidence: z.string().min(1).max(4000),
 });
 
+export const collectionContextSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("collection"),
+    collectionId: z.string().min(1).max(100),
+    collectionName: z.string().min(1).max(200),
+  }),
+  z.object({
+    kind: z.literal("first-spot"),
+  }),
+]);
+
 export const createAgentSessionBodySchema = z.object({
   recommendationContext: recommendationContextSchema.optional(),
+  collectionContext: collectionContextSchema.optional(),
 });
 
 export const createAgentSessionResponseSchema = z.object({

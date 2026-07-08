@@ -2,6 +2,7 @@
 
 import { ChevronLeft, LocateFixed, Pencil, Plus, X } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { CollectionSpotMapView } from "@/components/collections/collection-spot-map-view";
@@ -41,6 +42,7 @@ import { pickAutoCoverUrls } from "@/lib/collections/cover";
 import { googleMapsPlaceUrl } from "@/lib/agent/chat-helpers";
 import { formatRatingChip } from "@/lib/home/feed-labels";
 import { formatCollectionVisibility } from "@/lib/labels/collection-labels";
+import { stashPendingCollectionConsult } from "@/lib/mypage/pending-collection-consult";
 import { sortSpotsByDistance, spotDistanceLabels } from "@/lib/places/geo";
 import { usePlace } from "@/lib/places/use-place";
 import { usePlaceLocations } from "@/lib/places/use-place-locations";
@@ -69,6 +71,7 @@ export function CollectionDetailView({
   collectionId,
   initialSpotId = null,
 }: CollectionDetailViewProps) {
+  const router = useRouter();
   const [detail, setDetail] = useState<CollectionDetail | null>(null);
   const [editingSpot, setEditingSpot] = useState<Spot | null>(null);
   const [selectedSpot, setSelectedSpot] = useState<Spot | null>(null);
@@ -328,6 +331,18 @@ export function CollectionDetailView({
     setReloadToken((current) => current + 1);
   }
 
+  function handleConsultAgentForFirstSpot() {
+    if (!detail) {
+      return;
+    }
+    stashPendingCollectionConsult({
+      kind: "collection",
+      collectionId: detail.id,
+      collectionName: detail.name,
+    });
+    router.push("/search");
+  }
+
   function handleOpenCoverSheet() {
     if (!detail) {
       return;
@@ -548,12 +563,9 @@ export function CollectionDetailView({
         {detail.spots.length === 0 ? (
           <EmptyState className="space-y-4 p-6">
             <p>まだスポットがありません。</p>
-            <Link
-              href="/search"
-              className="inline-flex h-10 items-center justify-center rounded-2xl bg-primary px-4 text-sm font-medium text-primary-foreground"
-            >
+            <Button type="button" onClick={handleConsultAgentForFirstSpot}>
               エージェントに相談して最初のスポットを追加
-            </Link>
+            </Button>
           </EmptyState>
         ) : filteredSpots.length === 0 ? (
           <EmptyState className="p-6">

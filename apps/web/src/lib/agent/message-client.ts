@@ -16,7 +16,9 @@ import {
   type StreamEvent,
 } from "./stream-parser";
 import { buildRecommendationContextMessage } from "./recommendation-context-message";
+import { buildCollectionContextMessage } from "./collection-context-message";
 import type { AgentEvent, AgentMessage, RecommendationContext } from "./types";
+import type { CollectionConsultContext } from "./collection-context-message";
 import { assertAgentSessionOwnership } from "./session-client";
 import { appendAgentConsultationTurn } from "@/lib/dal/agent-consultations";
 import {
@@ -205,6 +207,25 @@ export async function seedAgentRecommendationContext(input: {
       userId: input.userId,
       sessionId: input.sessionId,
       text: buildRecommendationContextMessage(input.context),
+      skipConsultationPersist: true,
+      skipAgentEvents: true,
+    });
+  } catch {
+    // Context seeding must not block chat start.
+  }
+}
+
+/** Seed Vertex session state with collection consult context (#239). Best-effort. */
+export async function seedAgentCollectionContext(input: {
+  userId: string;
+  sessionId: string;
+  context: CollectionConsultContext;
+}): Promise<void> {
+  try {
+    await sendAgentMessage({
+      userId: input.userId,
+      sessionId: input.sessionId,
+      text: buildCollectionContextMessage(input.context),
       skipConsultationPersist: true,
       skipAgentEvents: true,
     });
