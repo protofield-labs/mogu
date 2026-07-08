@@ -48,7 +48,7 @@ export function AuthFormSkeleton({ label = "認証状態を確認しています
         <div
           aria-busy="true"
           aria-label={label}
-          className="space-y-6 rounded-3xl border border-border bg-mogu-surface-elevated p-6 shadow-sm sm:p-8"
+          className="space-y-6 rounded-3xl bg-mogu-surface-elevated p-6 shadow-mogu-card sm:p-8"
         >
           <div className="space-y-2">
             <Skeleton className="h-4 w-12 rounded-lg" />
@@ -81,7 +81,7 @@ export function OnboardingFormSkeleton({
         <div
           aria-busy="true"
           aria-label={label}
-          className="rounded-3xl border border-border bg-mogu-surface-elevated p-6 shadow-sm"
+          className="rounded-3xl bg-mogu-surface-elevated p-6 shadow-mogu-card"
         >
           <div className="space-y-2">
             <Skeleton className="h-4 w-16 rounded-lg" />

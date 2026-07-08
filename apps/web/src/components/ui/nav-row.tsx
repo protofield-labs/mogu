@@ -18,7 +18,7 @@ type NavRowProps = {
 };
 
 const rowClassName = cn(
-  "flex min-h-14 w-full items-center gap-3 rounded-mogu-card bg-mogu-surface-elevated px-4 py-3 text-left shadow-sm transition-shadow hover:shadow-md",
+  "flex min-h-14 w-full items-center gap-3 rounded-mogu-card bg-mogu-surface-elevated px-4 py-3 text-left shadow-mogu-card transition-shadow hover:shadow-mogu-card-hover",
   touchRowClass,
 );
 

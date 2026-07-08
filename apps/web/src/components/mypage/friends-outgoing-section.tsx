@@ -28,7 +28,7 @@ export function FriendsOutgoingSection({
   return (
     <section className="space-y-2 px-mogu-screen-x">
       <h2 className="text-xs font-medium text-muted-foreground">申請(送信)</h2>
-      <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-mogu-surface-elevated">
+      <ul className="divide-y divide-border/70 overflow-hidden rounded-mogu-card bg-mogu-surface-elevated shadow-mogu-card">
         {outgoingRequests.map((request) => {
           const isBusy = busyPairId === request.pairId;
           return (

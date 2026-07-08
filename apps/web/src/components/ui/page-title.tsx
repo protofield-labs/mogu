@@ -12,7 +12,7 @@ export function PageTitle({ children, className }: PageTitleProps) {
   return (
     <h1
       className={cn(
-        "text-2xl font-semibold tracking-tight text-foreground",
+        "text-3xl font-semibold tracking-tight text-foreground",
         className,
       )}
     >

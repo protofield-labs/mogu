@@ -32,7 +32,7 @@ export function LoadErrorState({
     return (
       <div
         className={cn(
-          "flex items-center justify-between gap-3 rounded-2xl border border-border bg-mogu-surface-elevated px-4 py-3",
+          "flex items-center justify-between gap-3 rounded-2xl bg-mogu-surface-elevated px-4 py-3 shadow-mogu-card",
           className,
         )}
         role="alert"

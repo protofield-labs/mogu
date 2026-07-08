@@ -74,7 +74,7 @@ export function AgentChatTranscript({
 
       {consultationViewMode === "readonly" ? (
         <MessageScrollerItem>
-          <div className="flex flex-col gap-3 rounded-2xl border border-border bg-mogu-surface-elevated px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 rounded-2xl bg-mogu-surface-elevated px-4 py-3 shadow-mogu-card sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-muted-foreground">
               この相談は再開できません。内容は閲覧のみです。
             </p>
@@ -147,7 +147,7 @@ export function AgentChatTranscript({
       {sessionStatus === "error" && initError ? (
         <MessageScrollerItem>
           <div
-            className="flex flex-col gap-3 rounded-2xl border border-border bg-mogu-surface-elevated px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+            className="flex flex-col gap-3 rounded-2xl bg-mogu-surface-elevated px-4 py-3 shadow-mogu-card sm:flex-row sm:items-center sm:justify-between"
             role="alert"
           >
             <p className="text-sm text-destructive">{initError}</p>

@@ -29,7 +29,7 @@ export function SpotList({
           <button
             type="button"
             onClick={() => onSelect(spot)}
-            className="w-full rounded-2xl border border-border bg-mogu-surface-elevated p-4 text-left transition-colors hover:bg-muted/30"
+            className="w-full rounded-2xl bg-mogu-surface-elevated p-4 text-left shadow-mogu-card transition-colors hover:bg-muted/30"
           >
             <div className="flex gap-3">
               {spot.photoUrls[0] ? (
