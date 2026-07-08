@@ -44,8 +44,13 @@ assert(userRoute.includes("parseRouteParams"), "users/[id] uses parseRouteParams
 const avatarRow = readSource("components/home/avatar-row.tsx");
 assert(avatarRow.includes("onSelectFriend"), "avatar row filters feed by friend");
 
-const friendsView = readSource("components/mypage/friends-view.tsx");
-assert(friendsView.includes("friendProfilePath"), "friends view links to friend profile");
+const friendsApprovedSection = readSource(
+  "components/mypage/friends-approved-section.tsx",
+);
+assert(
+  friendsApprovedSection.includes("friendProfilePath"),
+  "friends list links to friend profile",
+);
 
 const feedItemCard = readSource("components/home/feed-item-card.tsx");
 assert(feedItemCard.includes("actorProfilePath"), "feed item links actor profile");

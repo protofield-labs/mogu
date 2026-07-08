@@ -115,13 +115,13 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
         <AuthImage
           objectUrl={heroPhoto.url}
           alt=""
-          className="-mx-mogu-screen-x mb-3 aspect-[16/10] w-[calc(100%+2*var(--mogu-spacing-screen-x))] rounded-t-2xl object-cover"
+          className="-mx-mogu-screen-x -mt-3 mb-3 aspect-[16/10] w-[calc(100%+2*var(--mogu-spacing-screen-x))] object-cover"
         />
       ) : heroPhoto?.source === "place" ? (
         <PlacePhotoImage
           url={heroPhoto.url}
           alt=""
-          className="-mx-mogu-screen-x mb-3 aspect-[16/10] w-[calc(100%+2*var(--mogu-spacing-screen-x))] rounded-t-2xl object-cover"
+          className="-mx-mogu-screen-x -mt-3 mb-3 aspect-[16/10] w-[calc(100%+2*var(--mogu-spacing-screen-x))] object-cover"
         />
       ) : null}
 

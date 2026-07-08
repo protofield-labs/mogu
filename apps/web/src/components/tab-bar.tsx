@@ -33,7 +33,7 @@ function TabIcon({
         <Avatar
           displayName={tabProfile.displayName}
           avatarColor={tabProfile.avatarColor}
-          size="md"
+          size="tab"
           className={cn(
             "ring-2 ring-offset-2 ring-offset-background",
             active ? "ring-primary" : "ring-transparent",
@@ -44,7 +44,7 @@ function TabIcon({
     return (
       <span
         className={cn(
-          "flex size-11 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground",
+          "flex size-7 items-center justify-center rounded-full bg-muted text-[0.625rem] font-semibold text-muted-foreground",
           active && "text-primary",
         )}
         aria-hidden
