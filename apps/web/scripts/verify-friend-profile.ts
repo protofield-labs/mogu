@@ -47,11 +47,8 @@ assert(avatarRow.includes("onSelectFriend"), "avatar row filters feed by friend"
 const friendsView = readSource("components/mypage/friends-view.tsx");
 assert(friendsView.includes("friendProfilePath"), "friends view links to friend profile");
 
-const feedHero = readSource("components/home/feed-hero-card.tsx");
-assert(feedHero.includes("actorProfilePath"), "feed hero links actor profile");
-
-const feedCompact = readSource("components/home/feed-compact-row.tsx");
-assert(feedCompact.includes("actorProfilePath"), "feed compact links actor profile");
+const feedItemCard = readSource("components/home/feed-item-card.tsx");
+assert(feedItemCard.includes("actorProfilePath"), "feed item links actor profile");
 
 const friendCollectionView = readSource("components/users/friend-collection-detail-view.tsx");
 assert(

@@ -5,8 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { AvatarRow, FeedFilterChip } from "@/components/home/avatar-row";
 import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
 import { MoguWordmark } from "@/components/brand/mogu-wordmark";
-import { FeedCompactRow } from "@/components/home/feed-compact-row";
-import { FeedHeroCard } from "@/components/home/feed-hero-card";
+import { FeedItemCard } from "@/components/home/feed-item-card";
 import { HomeFeedMapView } from "@/components/home/home-feed-map-view";
 import { HomeEmptyState } from "@/components/home/home-empty-state";
 import { HomeNotificationButton } from "@/components/home/home-notification-button";
@@ -212,7 +211,6 @@ export function HomeView() {
   const selectedFriend = selectedFriendId
     ? friends.find((friend) => friend.id === selectedFriendId)
     : null;
-  const [heroItem, ...compactItems] = visibleFeedItems;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5 py-mogu-screen-y">
@@ -266,8 +264,8 @@ export function HomeView() {
       {solo && feedItems.length === 0 ? (
         <HomeEmptyState />
       ) : (
-        <section className="space-y-3 px-mogu-screen-x">
-          <div className="space-y-3 border-t border-dashed border-border pt-4">
+        <section className="space-y-3">
+          <div className="space-y-3 border-t border-dashed border-border px-mogu-screen-x pt-4">
             <h2 className="text-sm font-semibold text-foreground">新着フィード</h2>
             {visibleFeedItems.length > 0 ? (
               <CollectionSpotViewTabs
@@ -278,7 +276,7 @@ export function HomeView() {
           </div>
 
           {visibleFeedItems.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="px-mogu-screen-x text-sm text-muted-foreground">
               {selectedFriend
                 ? nextCursor
                   ? `${selectedFriend.displayName}さんの投稿は、まだ読み込まれていない可能性があります。「もっと見る」で続きを確認できます。`
@@ -286,27 +284,23 @@ export function HomeView() {
                 : "まだ友達の記録がありません。"}
             </p>
           ) : feedViewMode === "map" ? (
-            <HomeFeedMapView
-              key={selectedFriendId ?? "all"}
-              items={visibleFeedItems}
-              viewerId={me.id}
-            />
+            <div className="px-mogu-screen-x">
+              <HomeFeedMapView
+                key={selectedFriendId ?? "all"}
+                items={visibleFeedItems}
+                viewerId={me.id}
+              />
+            </div>
           ) : (
-            <>
-              {heroItem ? <FeedHeroCard item={heroItem} viewerId={me?.id} /> : null}
-
-              {compactItems.length > 0 ? (
-                <div className="space-y-2">
-                  {compactItems.map((item) => (
-                    <FeedCompactRow key={item.spot.id} item={item} viewerId={me?.id} />
-                  ))}
-                </div>
-              ) : null}
-            </>
+            <div>
+              {visibleFeedItems.map((item) => (
+                <FeedItemCard key={item.spot.id} item={item} viewerId={me.id} />
+              ))}
+            </div>
           )}
 
           {feedViewMode === "list" && nextCursor ? (
-            <div className="flex justify-center pt-2">
+            <div className="flex justify-center px-mogu-screen-x pt-2">
               <Button
                 type="button"
                 variant="outline"

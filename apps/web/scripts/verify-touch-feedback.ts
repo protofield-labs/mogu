@@ -47,11 +47,12 @@ function main() {
   const card = readSource("components/ui/card.tsx");
   assert(card.includes("touchCardClass"), "SurfaceCardInteractive uses card feedback");
 
-  const feedHero = readSource("components/home/feed-hero-card.tsx");
-  assert(feedHero.includes("touchCardClass"), "feed hero card uses card feedback");
-
-  const feedCompact = readSource("components/home/feed-compact-row.tsx");
-  assert(feedCompact.includes("touchCardClass"), "feed compact row uses card feedback");
+  const feedItemCard = readSource("components/home/feed-item-card.tsx");
+  assert(feedItemCard.includes("touchRowClass"), "feed item uses row feedback");
+  assert(
+    !feedItemCard.includes("touchCardClass"),
+    "feed item avoids card press chrome",
+  );
 
   const navTiles = readSource("components/mypage/mypage-nav-tiles.tsx");
   assert(navTiles.includes("touchCardClass"), "mypage nav tiles use card feedback");
