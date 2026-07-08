@@ -17,6 +17,7 @@ const required = [
   "avatar.tsx",
   "spinner.tsx",
   "empty-state.tsx",
+  "sheet.tsx",
 ];
 
 for (const file of required) {

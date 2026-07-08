@@ -1,10 +1,11 @@
 "use client";
 
-import { Plus, XIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Plus } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Sheet, SheetBody, SheetFooter, SheetHeader } from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
 import {
   createCollection,
@@ -30,7 +31,6 @@ export function CollectionPickerSheet({
   onClose,
   onSaved,
 }: CollectionPickerSheetProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -40,19 +40,6 @@ export function CollectionPickerSheet({
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) {
-      return;
-    }
-    if (open && !dialog.open) {
-      dialog.showModal();
-    }
-    if (!open && dialog.open) {
-      dialog.close();
-    }
-  }, [open]);
 
   useEffect(() => {
     if (!open) {
@@ -142,122 +129,107 @@ export function CollectionPickerSheet({
   const disabled = saving || creating || busy;
 
   return (
-    <dialog
-      ref={dialogRef}
-      onClose={onClose}
-      className="fixed inset-x-0 bottom-0 top-auto m-0 max-h-[min(85dvh,640px)] w-full max-w-none rounded-t-2xl border border-border bg-mogu-surface-elevated p-0 shadow-lg backdrop:bg-black/40 sm:inset-x-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(80dvh,640px)] sm:w-[min(100%,28rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl"
-    >
-      <div className="flex max-h-[inherit] flex-col">
-        <div className="flex items-center justify-between border-b border-border px-mogu-screen-x py-3">
-          <h2 className="text-sm font-semibold text-foreground">保存先を選ぶ</h2>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="閉じる"
-            onClick={onClose}
-          >
-            <XIcon />
-          </Button>
-        </div>
+    <Sheet open={open} onClose={onClose} className="max-h-[min(85dvh,640px)] sm:max-h-[min(80dvh,640px)]">
+      <SheetHeader>
+        <h2 className="text-sm font-semibold text-foreground">保存先を選ぶ</h2>
+      </SheetHeader>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-mogu-screen-x py-4">
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <Spinner />
-            </div>
-          ) : loadError ? (
-            <p className="text-sm text-destructive">{loadError}</p>
-          ) : (
-            <>
-              {collections.length > 0 ? (
-                <ul className="space-y-2">
-                  {collections.map((collection) => (
-                    <li key={collection.id}>
-                      <button
-                        type="button"
-                        disabled={disabled}
-                        onClick={() => void handleSelectCollection(collection)}
-                        className={cn(
-                          "flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition-colors",
-                          selectedId === collection.id
-                            ? "border-primary bg-primary/5"
-                            : "border-border bg-background hover:bg-muted/40",
-                        )}
-                      >
-                        <span className="text-sm font-medium text-foreground">
-                          {collection.name}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {collection.spotCount}軒
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  まだコレクションがありません。最初のコレクションを作りましょう。
-                </p>
-              )}
-
-              <div className="mt-4 border-t border-border pt-4">
-                {showCreateForm ? (
-                  <div className="space-y-3">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      新しいコレクション
-                    </p>
-                    <Input
-                      value={newName}
-                      onChange={(event) => setNewName(event.target.value)}
-                      placeholder="例: 行きたいところ"
-                      disabled={disabled}
-                    />
-                    <Button
+      <SheetBody>
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <Spinner />
+          </div>
+        ) : loadError ? (
+          <p className="text-sm text-destructive">{loadError}</p>
+        ) : (
+          <>
+            {collections.length > 0 ? (
+              <ul className="space-y-2">
+                {collections.map((collection) => (
+                  <li key={collection.id}>
+                    <button
                       type="button"
-                      size="sm"
-                      className="w-full"
-                      disabled={disabled || newName.trim().length === 0}
-                      onClick={() => void handleCreateCollection()}
-                    >
-                      {creating ? (
-                        <>
-                          <Spinner />
-                          作成中…
-                        </>
-                      ) : (
-                        "作成して保存"
+                      disabled={disabled}
+                      onClick={() => void handleSelectCollection(collection)}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition-colors",
+                        selectedId === collection.id
+                          ? "border-primary bg-primary/5"
+                          : "border-border bg-background hover:bg-muted/40",
                       )}
-                    </Button>
-                  </div>
-                ) : (
+                    >
+                      <span className="text-sm font-medium text-foreground">
+                        {collection.name}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {collection.spotCount}軒
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                まだコレクションがありません。最初のコレクションを作りましょう。
+              </p>
+            )}
+
+            <div className="mt-4 border-t border-border pt-4">
+              {showCreateForm ? (
+                <div className="space-y-3">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    新しいコレクション
+                  </p>
+                  <Input
+                    value={newName}
+                    onChange={(event) => setNewName(event.target.value)}
+                    placeholder="例: 行きたいところ"
+                    disabled={disabled}
+                  />
                   <Button
                     type="button"
-                    variant="outline"
                     size="sm"
                     className="w-full"
-                    disabled={disabled}
-                    onClick={() => setShowCreateForm(true)}
+                    disabled={disabled || newName.trim().length === 0}
+                    onClick={() => void handleCreateCollection()}
                   >
-                    <Plus className="size-4" aria-hidden />
-                    新しいコレクション
+                    {creating ? (
+                      <>
+                        <Spinner />
+                        作成中…
+                      </>
+                    ) : (
+                      "作成して保存"
+                    )}
                   </Button>
-                )}
-              </div>
-            </>
-          )}
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  disabled={disabled}
+                  onClick={() => setShowCreateForm(true)}
+                >
+                  <Plus className="size-4" aria-hidden />
+                  新しいコレクション
+                </Button>
+              )}
+            </div>
+          </>
+        )}
 
-          {saveError ? (
-            <p className="mt-3 text-xs text-destructive" role="alert">
-              {saveError}
-            </p>
-          ) : null}
-        </div>
+        {saveError ? (
+          <p className="mt-3 text-xs text-destructive" role="alert">
+            {saveError}
+          </p>
+        ) : null}
+      </SheetBody>
 
-        <p className="border-t border-border px-mogu-screen-x py-3 text-xs text-muted-foreground">
-          長押しで保存先を選べます（保存済みの場合は保存先の確認のみ）
-        </p>
-      </div>
-    </dialog>
+      <SheetFooter className="text-xs text-muted-foreground">
+        長押しで保存先を選べます（保存済みの場合は保存先の確認のみ）
+      </SheetFooter>
+    </Sheet>
   );
 }
