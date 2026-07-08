@@ -49,6 +49,14 @@ function main() {
 
   const composer = readSource("components/search/agent-chat-composer.tsx");
   assert(!composer.includes("AGENT_FOOTER_CAPTION"), "composer omits footer caption");
+  assert(
+    composer.includes("isComposing"),
+    "composer guards Enter against IME composition (#250)",
+  );
+  assert(
+    composer.includes("keyCode === 229"),
+    "composer guards Enter with keyCode 229 fallback (#250)",
+  );
 
   const user = createUserEntry("中目黒で3人", ["半個室"]);
   if (user.kind !== "user") {
