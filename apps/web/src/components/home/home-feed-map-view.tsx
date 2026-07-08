@@ -6,6 +6,7 @@ import { CollectionSpotMapView } from "@/components/collections/collection-spot-
 import { FeedSpotDetailSheet } from "@/components/home/feed-spot-detail-sheet";
 import { RecollectPicker } from "@/components/recollect/recollect-picker";
 import { formatViaLabel } from "@/lib/home/feed-labels";
+import { canRecollectFeedItem } from "@/lib/home/feed-item";
 import type { FeedItem } from "@/lib/home/types";
 import { usePlace } from "@/lib/places/use-place";
 import { usePlaceNames } from "@/lib/places/use-place-names";
@@ -32,6 +33,7 @@ function HomeFeedMapDetailHost({
 }: HomeFeedMapDetailHostProps) {
   const recollect = useRecollect(item.spot.id, { initialSaved: item.savedByMe });
   const { place, placeName } = usePlace(item.spot.placeId, open);
+  const showSaveActions = canRecollectFeedItem(item, viewerId);
 
   return (
     <>
@@ -45,9 +47,12 @@ function HomeFeedMapDetailHost({
         busy={recollect.busy}
         error={recollect.error}
         viewerId={viewerId}
+        showSaveActions={showSaveActions}
         saveHandlers={recollect.saveHandlers}
       />
-      <RecollectPicker spotId={item.spot.id} recollect={recollect} />
+      {showSaveActions ? (
+        <RecollectPicker spotId={item.spot.id} recollect={recollect} />
+      ) : null}
     </>
   );
 }

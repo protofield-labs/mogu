@@ -9,6 +9,7 @@ import { RecollectPicker } from "@/components/recollect/recollect-picker";
 import { useFeedSpotSave } from "@/lib/recollect/use-feed-spot-save";
 import { Button } from "@/components/ui/button";
 import { formatViaLabel } from "@/lib/home/feed-labels";
+import { canRecollectFeedItem } from "@/lib/home/feed-item";
 import type { FeedItem } from "@/lib/home/types";
 import { actorProfilePath } from "@/lib/friends/paths";
 import { usePlace } from "@/lib/places/use-place";
@@ -28,6 +29,7 @@ export function FeedCompactRow({ item, viewerId }: FeedCompactRowProps) {
   const { place, placeName } = usePlace(item.spot.placeId);
   const photo = item.spot.photoUrls[0];
   const titleFallback = item.spot.comment || item.collectionName;
+  const showSaveActions = canRecollectFeedItem(item, viewerId);
 
   return (
     <>
@@ -80,24 +82,26 @@ export function FeedCompactRow({ item, viewerId }: FeedCompactRowProps) {
             </Link>
             {placeName && item.spot.comment ? ` · ${item.spot.comment}` : ""}
           </p>
-          {recollect.error ? (
+          {showSaveActions && recollect.error ? (
             <p className="mt-1 text-xs text-destructive" role="alert">
               {recollect.error}
             </p>
           ) : null}
         </div>
 
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          className="shrink-0"
-          disabled={recollect.busy}
-          aria-pressed={recollect.saved}
-          {...recollect.saveHandlers}
-        >
-          {recollect.saved ? "保存済み" : "保存"}
-        </Button>
+        {showSaveActions ? (
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="shrink-0"
+            disabled={recollect.busy}
+            aria-pressed={recollect.saved}
+            {...recollect.saveHandlers}
+          >
+            {recollect.saved ? "保存済み" : "保存"}
+          </Button>
+        ) : null}
       </article>
 
       <FeedSpotDetailSheet
@@ -110,10 +114,13 @@ export function FeedCompactRow({ item, viewerId }: FeedCompactRowProps) {
         busy={recollect.busy}
         error={recollect.error}
         viewerId={viewerId}
+        showSaveActions={showSaveActions}
         saveHandlers={recollect.saveHandlers}
       />
 
-      <RecollectPicker spotId={item.spot.id} recollect={recollect} />
+      {showSaveActions ? (
+        <RecollectPicker spotId={item.spot.id} recollect={recollect} />
+      ) : null}
     </>
   );
 }

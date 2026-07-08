@@ -15,6 +15,7 @@ import {
   formatSavedCountBadge,
   formatViaLabel,
 } from "@/lib/home/feed-labels";
+import { canRecollectFeedItem } from "@/lib/home/feed-item";
 import type { FeedItem } from "@/lib/home/types";
 import { actorProfilePath } from "@/lib/friends/paths";
 import { usePlace } from "@/lib/places/use-place";
@@ -36,6 +37,7 @@ export function FeedHeroCard({ item, viewerId }: FeedHeroCardProps) {
   const { place, placeName } = usePlace(item.spot.placeId);
   const savedBadge = formatSavedCountBadge(item.spot.savedCount);
   const titleFallback = item.spot.comment || item.collectionName;
+  const showSaveActions = canRecollectFeedItem(item, viewerId);
 
   function handlePhotoTouchStart(event: React.TouchEvent<HTMLDivElement>) {
     touchStartX.current = event.touches[0]?.clientX ?? 0;
@@ -147,19 +149,21 @@ export function FeedHeroCard({ item, viewerId }: FeedHeroCardProps) {
             <span className="rounded-full border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground">
               {formatRatingChip(item.spot.rating)}
             </span>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              disabled={recollect.busy}
-              aria-pressed={recollect.saved}
-              {...recollect.saveHandlers}
-            >
-              {recollect.saved ? "保存済み" : "保存"}
-            </Button>
+            {showSaveActions ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={recollect.busy}
+                aria-pressed={recollect.saved}
+                {...recollect.saveHandlers}
+              >
+                {recollect.saved ? "保存済み" : "保存"}
+              </Button>
+            ) : null}
           </div>
 
-          {recollect.error ? (
+          {showSaveActions && recollect.error ? (
             <p className="text-xs text-destructive" role="alert">
               {recollect.error}
             </p>
@@ -177,10 +181,13 @@ export function FeedHeroCard({ item, viewerId }: FeedHeroCardProps) {
         busy={recollect.busy}
         error={recollect.error}
         viewerId={viewerId}
+        showSaveActions={showSaveActions}
         saveHandlers={recollect.saveHandlers}
       />
 
-      <RecollectPicker spotId={item.spot.id} recollect={recollect} />
+      {showSaveActions ? (
+        <RecollectPicker spotId={item.spot.id} recollect={recollect} />
+      ) : null}
     </>
   );
 }

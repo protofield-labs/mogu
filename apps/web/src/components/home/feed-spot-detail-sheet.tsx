@@ -24,7 +24,8 @@ type FeedSpotDetailSheetProps = {
   busy: boolean;
   error: string | null;
   viewerId?: string | null;
-  saveHandlers: Pick<
+  showSaveActions?: boolean;
+  saveHandlers?: Pick<
     ComponentProps<typeof Button>,
     | "onPointerDown"
     | "onPointerUp"
@@ -44,9 +45,11 @@ export function FeedSpotDetailSheet({
   busy,
   error,
   viewerId,
+  showSaveActions = true,
   saveHandlers,
 }: FeedSpotDetailSheetProps) {
   const { spot, actor } = item;
+  const canSave = showSaveActions && saveHandlers !== undefined;
 
   return (
     <SpotDetailSheet
@@ -90,18 +93,20 @@ export function FeedSpotDetailSheet({
             >
               地図で開く
             </a>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              disabled={busy}
-              aria-pressed={saved}
-              {...saveHandlers}
-            >
-              {saved ? "保存済み" : "保存"}
-            </Button>
+            {canSave ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={busy}
+                aria-pressed={saved}
+                {...saveHandlers}
+              >
+                {saved ? "保存済み" : "保存"}
+              </Button>
+            ) : null}
           </div>
-          {error ? (
+          {canSave && error ? (
             <p className="text-xs text-destructive" role="alert">
               {error}
             </p>

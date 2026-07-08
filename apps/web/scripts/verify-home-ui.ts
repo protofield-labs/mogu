@@ -18,6 +18,10 @@ import {
   sortFriendsForAvatarRow,
 } from "../src/lib/home/feed-read";
 import {
+  canRecollectFeedItem,
+  isOwnFeedItem,
+} from "../src/lib/home/feed-item";
+import {
   formatRatingChip,
   formatSavedCountBadge,
   formatSpotTagChips,
@@ -128,6 +132,11 @@ function main() {
   assert(kenOnly.length === 1 && kenOnly[0]?.actor.id === "f-ken", "feed filter by actor");
   assert(filterFeedByActor(feedItems, null).length === 2, "null filter keeps all");
 
+  assert(isOwnFeedItem(feedItems[0]!, "f-ken"), "actor matches viewer is own item");
+  assert(!isOwnFeedItem(feedItems[0]!, "viewer-me"), "friend item is not own");
+  assert(!canRecollectFeedItem(feedItems[0]!, "f-ken"), "own item cannot recollect");
+  assert(canRecollectFeedItem(feedItems[0]!, "viewer-me"), "friend item can recollect");
+
   assert(typeof saveSpotToCollection === "function", "save spot helper exported");
   assert(typeof markFeedRead === "function", "markFeedRead exported");
   assert(typeof getLastReadFeedAt === "function", "getLastReadFeedAt exported");
@@ -167,6 +176,19 @@ function main() {
   assert(
     readSource("components/home/home-feed-map-view.tsx").includes("FeedSpotDetailSheet"),
     "home feed map opens feed detail sheet",
+  );
+
+  assert(
+    readSource("components/home/home-feed-map-view.tsx").includes("canRecollectFeedItem"),
+    "home feed map hides save for own items",
+  );
+  assert(
+    readSource("components/home/feed-hero-card.tsx").includes("canRecollectFeedItem"),
+    "feed hero hides save for own items",
+  );
+  assert(
+    readSource("components/home/feed-compact-row.tsx").includes("canRecollectFeedItem"),
+    "feed compact hides save for own items",
   );
 
   console.log("PASS: home UI helpers verified");
