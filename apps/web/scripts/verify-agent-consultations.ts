@@ -91,8 +91,8 @@ assert(
   "agent chat hook resumes consultations",
 );
 assert(
-  agentChatHook.includes("persistConsultationEntries"),
-  "agent chat hook syncs consultation entries",
+  agentChatHook.includes("persistConsultationChainRef"),
+  "agent chat serializes consultation sync",
 );
 assert(
   agentChatHook.includes("syncAgentConsultationEntries"),
