@@ -26,6 +26,8 @@ assert(usersRoute.includes("ensureDefaultCollection"), "onboarding seeds default
 const feedDal = readSource("lib/dal/feed.ts");
 assert(feedDal.includes("savedByMe"), "feed includes savedByMe");
 assert(feedDal.includes("savedSavers"), "feed includes saved savers preview");
+assert(feedDal.includes("likeCount"), "feed includes likeCount");
+assert(feedDal.includes("likedByMe"), "feed includes likedByMe");
 assert(feedDal.includes("excludeOwnSpots"), "feed excludes own spots when viewer has friends");
 assert(feedDal.includes("buildFeedWhere"), "feed where builder centralizes filters");
 
@@ -38,6 +40,8 @@ assert(
 const feedSchema = readSource("lib/api/schemas/home.ts");
 assert(feedSchema.includes("savedByMe"), "feed schema includes savedByMe");
 assert(feedSchema.includes("savedSavers"), "feed schema includes savedSavers");
+assert(feedSchema.includes("likeCount"), "feed schema includes likeCount");
+assert(feedSchema.includes("likedByMe"), "feed schema includes likedByMe");
 
 const picker = readSource("components/recollect/collection-picker-sheet.tsx");
 assert(picker.includes("保存先を選ぶ"), "collection picker sheet exists");

@@ -3,6 +3,10 @@ import "server-only";
 import { withAuthRls } from "@/lib/auth/with-auth-rls";
 import { countSavedInCircleByPlaceIds, listSavedInCircleByPlaceIds } from "@/lib/dal/saved-count";
 import { getSavedSourceSpotIds } from "@/lib/dal/recollect-state";
+import {
+  countLikesInCircleBySpotIds,
+  getLikedSpotIds,
+} from "@/lib/dal/spot-likes";
 import { toSpotDto, type SpotDto } from "@/lib/dal/spot-dto";
 import { toUserDto, type UserDto } from "@/lib/dal/users";
 import { decodeFeedCursor, encodeFeedCursor } from "@/lib/feed/cursor";
@@ -15,6 +19,8 @@ export type FeedItemDto = {
   createdAt: string;
   savedByMe: boolean;
   savedSavers: UserDto[];
+  likeCount: number;
+  likedByMe: boolean;
 };
 
 export type FeedPageDto = {
@@ -115,10 +121,13 @@ export async function listFeed(
     const placeIds = [...new Set(page.map((row) => row.placeId))];
     const savedCounts = await countSavedInCircleByPlaceIds(tx, placeIds);
     const savedSaversByPlace = await listSavedInCircleByPlaceIds(tx, placeIds);
+    const spotIds = page.map((row) => row.id);
+    const likeCounts = await countLikesInCircleBySpotIds(tx, spotIds);
+    const likedSpotIds = await getLikedSpotIds(tx, uid, spotIds);
     const savedSourceIds = await getSavedSourceSpotIds(
       tx,
       uid,
-      page.map((row) => row.id),
+      spotIds,
     );
 
     const items: FeedItemDto[] = page.map((row) => ({
@@ -128,6 +137,8 @@ export async function listFeed(
       createdAt: row.createdAt.toISOString(),
       savedByMe: savedSourceIds.has(row.id),
       savedSavers: savedSaversByPlace.get(row.placeId) ?? [],
+      likeCount: likeCounts.get(row.id) ?? 0,
+      likedByMe: likedSpotIds.has(row.id),
     }));
 
     const last = page.at(-1);

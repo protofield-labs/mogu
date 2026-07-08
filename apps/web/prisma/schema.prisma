@@ -49,6 +49,7 @@ model User {
   dailyRecommendations     DailyRecommendation[]
   agentConsultations       AgentConsultation[]
   agentSessionEvents       AgentSessionEvent[]
+  spotLikes                SpotLike[]
 
   @@map("users")
 }
@@ -145,6 +146,7 @@ model Spot {
   recollectionEdgesAsSource   RecollectionEdge[] @relation("RecollectionSource")
   flags                       Flag[]
   dailyRecommendations        DailyRecommendation[]
+  likes                       SpotLike[]
 
   @@index([placeId], map: "idx_spots_place")
   @@index([collectionId], map: "idx_spots_collection")
@@ -203,4 +205,18 @@ model DailyRecommendation {
 
   @@unique([userId, validDate])
   @@map("daily_recommendations")
+}
+
+/// Lightweight empathy on a visible spot (#212). Distinct from recollect/save.
+model SpotLike {
+  userId    String   @map("user_id")
+  spotId    String   @map("spot_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [firebaseUid], onDelete: Cascade)
+  spot Spot @relation(fields: [spotId], references: [id], onDelete: Cascade)
+
+  @@id([userId, spotId])
+  @@index([spotId], map: "idx_spot_likes_spot")
+  @@map("spot_likes")
 }

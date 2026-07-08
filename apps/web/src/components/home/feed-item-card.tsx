@@ -29,9 +29,13 @@ type FeedItemCardProps = {
 
 /** Borderless Instagram-style feed item: header → media → actions → caption (#192). */
 export function FeedItemCard({ item, viewerId, enterIndex }: FeedItemCardProps) {
-  const { recollect, detailOpen, openDetail, closeDetail } = useFeedSpotSave(
+  const { recollect, like, detailOpen, openDetail, closeDetail } = useFeedSpotSave(
     item.spot.id,
-    { initialSaved: item.savedByMe },
+    {
+      initialSaved: item.savedByMe,
+      initialLikedByMe: item.likedByMe,
+      initialLikeCount: item.likeCount,
+    },
   );
   const touchStartX = useRef(0);
   const didScroll = useRef(false);
@@ -135,12 +139,25 @@ export function FeedItemCard({ item, viewerId, enterIndex }: FeedItemCardProps) 
 
         <FeedItemActions
           rating={item.spot.rating}
+          likedByMe={like.likedByMe}
+          likeCount={like.likeCount}
+          likeBusy={like.busy}
+          onToggleLike={like.toggleLike}
           saved={recollect.saved}
           busy={recollect.busy}
           showSaveActions={showSaveActions}
           saveHandlers={recollect.saveHandlers}
           onOpenDetail={openDetail}
         />
+
+        {like.error ? (
+          <p
+            className="px-mogu-screen-x pt-1 text-xs text-destructive"
+            role="alert"
+          >
+            {like.error}
+          </p>
+        ) : null}
 
         {showSaveActions && recollect.error ? (
           <p

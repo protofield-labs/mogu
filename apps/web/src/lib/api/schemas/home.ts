@@ -10,6 +10,8 @@ export const feedItemSchema = z.object({
   createdAt: z.string(),
   savedByMe: z.boolean(),
   savedSavers: z.array(friendUserSchema),
+  likeCount: z.number().int().nonnegative(),
+  likedByMe: z.boolean(),
 });
 
 export const feedPageSchema = z.object({

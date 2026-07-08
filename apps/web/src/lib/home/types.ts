@@ -8,6 +8,8 @@ export type FeedItem = {
   createdAt: string;
   savedByMe: boolean;
   savedSavers: FriendUser[];
+  likeCount: number;
+  likedByMe: boolean;
 };
 
 export type FeedPage = {
