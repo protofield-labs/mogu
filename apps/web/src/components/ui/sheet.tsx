@@ -246,7 +246,7 @@ export function Sheet({
       >
         <div
           className={cn(
-            "mogu-sheet-panel flex flex-col border border-border bg-mogu-surface-elevated shadow-lg",
+            "mogu-sheet-panel flex flex-col overflow-hidden border border-border bg-mogu-surface-elevated shadow-lg",
             "fixed inset-x-0 bottom-0 top-auto max-h-[min(90dvh,720px)] w-full rounded-t-2xl",
             "sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(85dvh,720px)] sm:w-[min(100%,28rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl",
             state === "open" ? "mogu-sheet-panel-open" : "mogu-sheet-panel-closed",
