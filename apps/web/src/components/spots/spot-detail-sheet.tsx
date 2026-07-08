@@ -57,7 +57,7 @@ export function SpotDetailSheet({
   const showComment = Boolean(spot.comment && placeName);
 
   return (
-    <Sheet open={open} onClose={onClose}>
+    <Sheet open={open} onClose={onClose} ariaLabel={title}>
       <div className="relative shrink-0">
         <SpotDetailMedia
           photoUrls={spot.photoUrls}

@@ -3,6 +3,7 @@
 import { PlacePhotoImage } from "@/components/places/place-photo-image";
 import { AuthImage } from "@/components/mypage/auth-image";
 import type { PlaceDTO } from "@/lib/places/types";
+import { handleHorizontalCarouselKeyDown } from "@/lib/ui/horizontal-carousel-keydown";
 import { cn } from "@/lib/utils";
 
 type SpotDetailMediaProps = {
@@ -35,10 +36,23 @@ export function SpotDetailMedia({
     "flex snap-x snap-mandatory overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
     hero ? "w-full" : "mb-4",
   );
+  const carouselA11yProps =
+    photoUrls.length > 1
+      ? {
+          role: "group" as const,
+          tabIndex: 0,
+          "aria-label": "写真",
+          onKeyDown: handleHorizontalCarouselKeyDown,
+          className: cn(
+            scrollClassName,
+            "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+          ),
+        }
+      : { className: scrollClassName };
 
   if (photoUrls.length > 0) {
     return (
-      <div className={scrollClassName}>
+      <div {...carouselA11yProps}>
         {photoUrls.map((url) => (
           <AuthImage
             key={url}
@@ -66,7 +80,20 @@ export function SpotDetailMedia({
   }
 
   return (
-    <div className={scrollClassName}>
+    <div
+      {...(place.photos.length > 1
+        ? {
+            role: "group" as const,
+            tabIndex: 0,
+            "aria-label": "写真",
+            onKeyDown: handleHorizontalCarouselKeyDown,
+            className: cn(
+              scrollClassName,
+              "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+            ),
+          }
+        : { className: scrollClassName })}
+    >
       {place.photos.map((photo) => {
         const attribution = formatPhotoAttributions(photo.authorAttributions);
         return (

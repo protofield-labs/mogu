@@ -17,6 +17,7 @@ import type { FeedItem } from "@/lib/home/types";
 import { actorProfilePath } from "@/lib/friends/paths";
 import { usePlace } from "@/lib/places/use-place";
 import { moguEnterDelayStyle, moguEnterMotionClass } from "@/lib/ui/motion";
+import { handleHorizontalCarouselKeyDown } from "@/lib/ui/horizontal-carousel-keydown";
 import { touchRowClass } from "@/lib/ui/touch-feedback";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +43,7 @@ export function FeedItemCard({ item, viewerId, enterIndex }: FeedItemCardProps) 
   const { place, placeName, loading: placeLoading } = usePlace(item.spot.placeId);
   const titleFallback = item.spot.comment || item.collectionName;
   const showSaveActions = canRecollectFeedItem(item, viewerId);
+  const hasPhotoCarousel = item.spot.photoUrls.length > 1;
 
   function handlePhotoTouchStart(event: React.TouchEvent<HTMLDivElement>) {
     touchStartX.current = event.touches[0]?.clientX ?? 0;
@@ -91,22 +93,21 @@ export function FeedItemCard({ item, viewerId, enterIndex }: FeedItemCardProps) 
 
         <div className="relative w-full">
           {item.spot.photoUrls.length > 0 ? (
-            <div
-              role="button"
-              tabIndex={0}
-              aria-label="スポット詳細を開く"
-              onClick={handlePhotoActivate}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  openDetail();
+            hasPhotoCarousel ? (
+              <div
+                role="group"
+                tabIndex={0}
+                aria-label="写真"
+                onClick={handlePhotoActivate}
+                onKeyDown={(event) =>
+                  handleHorizontalCarouselKeyDown(event, {
+                    onActivate: openDetail,
+                  })
                 }
-              }}
-              onTouchStart={handlePhotoTouchStart}
-              onTouchMove={handlePhotoTouchMove}
-              className="block w-full cursor-pointer text-left"
-            >
-              <div className="flex snap-x snap-mandatory overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                onTouchStart={handlePhotoTouchStart}
+                onTouchMove={handlePhotoTouchMove}
+                className="flex w-full cursor-pointer snap-x snap-mandatory overflow-x-auto text-left [-ms-overflow-style:none] [scrollbar-width:none] outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 [&::-webkit-scrollbar]:hidden"
+              >
                 {item.spot.photoUrls.map((url) => (
                   <AuthImage
                     key={url}
@@ -116,7 +117,20 @@ export function FeedItemCard({ item, viewerId, enterIndex }: FeedItemCardProps) 
                   />
                 ))}
               </div>
-            </div>
+            ) : (
+              <button
+                type="button"
+                className={cn("block w-full text-left", touchRowClass)}
+                onClick={openDetail}
+                aria-label="スポット詳細を開く"
+              >
+                <AuthImage
+                  objectUrl={item.spot.photoUrls[0]}
+                  alt=""
+                  className="aspect-[4/3] w-full object-cover"
+                />
+              </button>
+            )
           ) : (
             <button
               type="button"
