@@ -33,7 +33,7 @@ export function buildEvidence(
   rating: Rating,
   savedCount: number,
 ): string {
-  return `${actorName}が『${RATING_LABEL[rating]}』・輪で${savedCount}人が保存`;
+  return `${actorName}が『${RATING_LABEL[rating]}』・グループで${savedCount}人が保存`;
 }
 
 async function countSavedInCircle(

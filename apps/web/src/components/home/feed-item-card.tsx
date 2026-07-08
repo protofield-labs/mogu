@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useRef } from "react";
 
+import { FeedItemActions } from "@/components/home/feed-item-actions";
+import { FeedSavedSavers } from "@/components/home/feed-saved-savers";
 import { FeedSpotDetailSheet } from "@/components/home/feed-spot-detail-sheet";
 import { UserAvatar } from "@/components/home/user-avatar";
 import { SpotPlaceName } from "@/components/places/spot-place-name";
@@ -10,11 +12,6 @@ import { SpotThumbnail } from "@/components/places/spot-thumbnail";
 import { AuthImage } from "@/components/mypage/auth-image";
 import { RecollectPicker } from "@/components/recollect/recollect-picker";
 import { useFeedSpotSave } from "@/lib/recollect/use-feed-spot-save";
-import { Button } from "@/components/ui/button";
-import {
-  formatRatingChip,
-  formatSavedCountBadge,
-} from "@/lib/home/feed-labels";
 import { canRecollectFeedItem } from "@/lib/home/feed-item";
 import type { FeedItem } from "@/lib/home/types";
 import { actorProfilePath } from "@/lib/friends/paths";
@@ -39,7 +36,6 @@ export function FeedItemCard({ item, viewerId, enterIndex }: FeedItemCardProps) 
   const touchStartX = useRef(0);
   const didScroll = useRef(false);
   const { place, placeName, loading: placeLoading } = usePlace(item.spot.placeId);
-  const savedBadge = formatSavedCountBadge(item.spot.savedCount);
   const titleFallback = item.spot.comment || item.collectionName;
   const showSaveActions = canRecollectFeedItem(item, viewerId);
 
@@ -70,17 +66,20 @@ export function FeedItemCard({ item, viewerId, enterIndex }: FeedItemCardProps) 
         )}
         style={moguEnterDelayStyle(enterIndex)}
       >
-        <header className="flex items-center gap-2.5 px-mogu-screen-x pb-2.5">
+        <header className="px-mogu-screen-x pb-2.5">
           <Link
             href={actorProfilePath(item.actor.id, viewerId)}
-            className={cn("flex min-w-0 items-center gap-2.5", touchRowClass)}
+            className={cn(
+              "flex min-h-11 min-w-0 items-center gap-2.5",
+              touchRowClass,
+            )}
           >
             <UserAvatar
               displayName={item.actor.displayName}
               avatarColor={item.actor.avatarColor}
               size="md"
             />
-            <span className="truncate text-sm font-semibold text-foreground">
+            <span className="truncate text-sm font-semibold leading-tight text-foreground">
               {item.actor.displayName}
             </span>
           </Link>
@@ -134,27 +133,14 @@ export function FeedItemCard({ item, viewerId, enterIndex }: FeedItemCardProps) 
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-mogu-screen-x pt-2.5">
-          <span className="text-xs font-semibold text-foreground">
-            {formatRatingChip(item.spot.rating)}
-          </span>
-          {savedBadge ? (
-            <span className="text-xs text-muted-foreground">{savedBadge}</span>
-          ) : null}
-          {showSaveActions ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-8 px-2 text-xs font-semibold"
-              disabled={recollect.busy}
-              aria-pressed={recollect.saved}
-              {...recollect.saveHandlers}
-            >
-              {recollect.saved ? "保存済み" : "保存"}
-            </Button>
-          ) : null}
-        </div>
+        <FeedItemActions
+          rating={item.spot.rating}
+          saved={recollect.saved}
+          busy={recollect.busy}
+          showSaveActions={showSaveActions}
+          saveHandlers={recollect.saveHandlers}
+          onOpenDetail={openDetail}
+        />
 
         {showSaveActions && recollect.error ? (
           <p
@@ -164,6 +150,11 @@ export function FeedItemCard({ item, viewerId, enterIndex }: FeedItemCardProps) 
             {recollect.error}
           </p>
         ) : null}
+
+        <FeedSavedSavers
+          savers={item.savedSavers}
+          savedCount={item.spot.savedCount}
+        />
 
         <div className="space-y-1 px-mogu-screen-x pt-1.5">
           <button

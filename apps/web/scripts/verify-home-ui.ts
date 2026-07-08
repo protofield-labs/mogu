@@ -24,6 +24,7 @@ import {
 import {
   formatRatingChip,
   formatSavedCountBadge,
+  formatSavedSaversLabel,
   formatSpotTagChips,
   formatViaLabel,
 } from "../src/lib/home/feed-labels";
@@ -64,6 +65,10 @@ const feedItems = [
     collectionName: "Ken collection",
     createdAt: "2026-07-06T12:00:00.000Z",
     savedByMe: false,
+    savedSavers: [
+      { id: "f-ken", displayName: "Ken", avatarColor: "#336699" },
+      { id: "f-aoi", displayName: "Aoi", avatarColor: "#993366" },
+    ],
   },
   {
     spot: {
@@ -84,6 +89,7 @@ const feedItems = [
     collectionName: "Aoi collection",
     createdAt: "2026-07-05T10:00:00.000Z",
     savedByMe: true,
+    savedSavers: [{ id: "f-aoi", displayName: "Aoi", avatarColor: "#993366" }],
   },
 ];
 
@@ -115,8 +121,16 @@ function main() {
 
   assert(formatRatingChip("again") === "また行きたい", "rating chip");
   assert(formatViaLabel("Ken") === "via Ken", "via label");
-  assert(formatSavedCountBadge(3) === "輪で3人", "saved badge");
+  assert(formatSavedCountBadge(3) === "グループで3人", "saved badge");
   assert(formatSavedCountBadge(0) === null, "hide zero saved badge");
+  assert(
+    formatSavedSaversLabel("Ken", 3) === "Kenさん、グループで3人が保存",
+    "saved savers label",
+  );
+  assert(
+    formatSavedSaversLabel("Ken", 1) === "Kenさんが保存",
+    "single saver label",
+  );
   assert(
     formatSpotTagChips({
       ...feedItems[0]!.spot,
@@ -183,9 +197,12 @@ function main() {
     "home feed map hides save for own items",
   );
   const feedItemCard = readSource("components/home/feed-item-card.tsx");
+  assert(feedItemCard.includes("canRecollectFeedItem"), "feed item hides save for own items");
+  assert(feedItemCard.includes("FeedItemActions"), "feed item uses icon actions");
+  assert(feedItemCard.includes("FeedSavedSavers"), "feed item shows saved savers");
   assert(
-    feedItemCard.includes("canRecollectFeedItem"),
-    "feed item hides save for own items",
+    feedItemCard.includes("leading-tight"),
+    "feed header aligns actor name with avatar",
   );
   assert(
     homeView.includes("RecommendationDetailSheet"),
@@ -213,7 +230,14 @@ function main() {
     !feedItemCard.includes("mogu-elevated"),
     "feed item avoids elevated card chrome",
   );
-  assert(feedItemCard.includes("SpotThumbnail"), "feed item uses spot thumbnail");
+  assert(
+    readSource("components/home/feed-item-actions.tsx").includes("aria-pressed"),
+    "feed bookmark toggle exposes pressed state",
+  );
+  assert(
+    readSource("components/home/feed-saved-savers.tsx").includes("-ml-2"),
+    "saved savers use overlapping avatars",
+  );
 
   console.log("PASS: home UI helpers verified");
 }

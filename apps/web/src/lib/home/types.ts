@@ -7,6 +7,7 @@ export type FeedItem = {
   collectionName: string;
   createdAt: string;
   savedByMe: boolean;
+  savedSavers: FriendUser[];
 };
 
 export type FeedPage = {

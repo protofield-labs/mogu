@@ -9,6 +9,7 @@ export const feedItemSchema = z.object({
   collectionName: z.string(),
   createdAt: z.string(),
   savedByMe: z.boolean(),
+  savedSavers: z.array(friendUserSchema),
 });
 
 export const feedPageSchema = z.object({
