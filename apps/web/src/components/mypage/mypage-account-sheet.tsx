@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState, type FormEvent } from "react";
-import { LogOut, Settings } from "lucide-react";
+import { Settings } from "lucide-react";
 
 import {
   ProfileFormFields,
@@ -16,7 +16,6 @@ import {
   SheetHeader,
 } from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
-import { useAuth } from "@/contexts/auth-context";
 import { updateMeProfile } from "@/lib/mypage/browser-api";
 import { notifyProfileUpdated } from "@/lib/mypage/badge-events";
 import type { MeProfile } from "@/lib/mypage/types";
@@ -31,7 +30,6 @@ export function MypageAccountSheet({
   onProfileUpdated,
 }: MypageAccountSheetProps) {
   const formId = useId();
-  const { logout } = useAuth();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<ProfileFormValues>({
     displayName: me.displayName,
@@ -106,7 +104,7 @@ export function MypageAccountSheet({
             ) : null}
           </form>
         </SheetBody>
-        <SheetFooter className="flex flex-col gap-2">
+        <SheetFooter>
           <Button type="submit" form={formId} disabled={busy} className="w-full">
             {busy ? (
               <>
@@ -116,15 +114,6 @@ export function MypageAccountSheet({
             ) : (
               "変更を保存"
             )}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={() => void logout()}
-          >
-            <LogOut className="size-4" aria-hidden />
-            ログアウト
           </Button>
         </SheetFooter>
       </Sheet>
