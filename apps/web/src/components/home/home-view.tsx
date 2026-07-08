@@ -7,11 +7,16 @@ import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
 import { MoguWordmark } from "@/components/brand/mogu-wordmark";
 import { FeedCompactRow } from "@/components/home/feed-compact-row";
 import { FeedHeroCard } from "@/components/home/feed-hero-card";
+import { HomeFeedMapView } from "@/components/home/home-feed-map-view";
 import { HomeEmptyState } from "@/components/home/home-empty-state";
 import { HomeNotificationButton } from "@/components/home/home-notification-button";
 import { RecommendationCompactRow } from "@/components/home/recommendation-compact-row";
 import { RecommendationEmptyRow } from "@/components/home/recommendation-empty-row";
 import { HomeViewSkeleton } from "@/components/loading/skeletons";
+import {
+  CollectionSpotViewTabs,
+  type CollectionSpotViewMode,
+} from "@/components/collections/collection-spot-view-tabs";
 import { Button } from "@/components/ui/button";
 import { LoadErrorState } from "@/components/ui/load-error-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -74,6 +79,7 @@ export function HomeView() {
   });
   const [lastReadAt, setLastReadAt] = useState<Date | null>(null);
   const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
+  const [feedViewMode, setFeedViewMode] = useState<CollectionSpotViewMode>("list");
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -175,10 +181,16 @@ export function HomeView() {
 
   function handleSelectFriend(friendId: string) {
     setSelectedFriendId((current) => (current === friendId ? null : friendId));
+    setFeedViewMode("list");
   }
 
   function handleClearFeedFilter() {
     setSelectedFriendId(null);
+    setFeedViewMode("list");
+  }
+
+  function handleFeedViewModeChange(mode: CollectionSpotViewMode) {
+    setFeedViewMode(mode);
   }
 
   if (loading) {
@@ -255,8 +267,14 @@ export function HomeView() {
         <HomeEmptyState />
       ) : (
         <section className="space-y-3 px-mogu-screen-x">
-          <div className="border-t border-dashed border-border pt-4">
+          <div className="space-y-3 border-t border-dashed border-border pt-4">
             <h2 className="text-sm font-semibold text-foreground">新着フィード</h2>
+            {visibleFeedItems.length > 0 ? (
+              <CollectionSpotViewTabs
+                mode={feedViewMode}
+                onChange={handleFeedViewModeChange}
+              />
+            ) : null}
           </div>
 
           {visibleFeedItems.length === 0 ? (
@@ -267,19 +285,27 @@ export function HomeView() {
                   : `まだ${selectedFriend.displayName}さんの記録がありません。`
                 : "まだ友達の記録がありません。"}
             </p>
-          ) : null}
+          ) : feedViewMode === "map" ? (
+            <HomeFeedMapView
+              key={selectedFriendId ?? "all"}
+              items={visibleFeedItems}
+              viewerId={me.id}
+            />
+          ) : (
+            <>
+              {heroItem ? <FeedHeroCard item={heroItem} viewerId={me?.id} /> : null}
 
-          {heroItem ? <FeedHeroCard item={heroItem} viewerId={me?.id} /> : null}
+              {compactItems.length > 0 ? (
+                <div className="space-y-2">
+                  {compactItems.map((item) => (
+                    <FeedCompactRow key={item.spot.id} item={item} viewerId={me?.id} />
+                  ))}
+                </div>
+              ) : null}
+            </>
+          )}
 
-          {compactItems.length > 0 ? (
-            <div className="space-y-2">
-              {compactItems.map((item) => (
-                <FeedCompactRow key={item.spot.id} item={item} viewerId={me?.id} />
-              ))}
-            </div>
-          ) : null}
-
-          {nextCursor ? (
+          {feedViewMode === "list" && nextCursor ? (
             <div className="flex justify-center pt-2">
               <Button
                 type="button"

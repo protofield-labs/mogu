@@ -62,4 +62,8 @@ assert(mypageView.includes('href="/mypage/map"'), "mypage links to cross-collect
 const allMySpots = readSource("lib/mypage/all-my-spots.ts");
 assert(allMySpots.includes("dedupeSpotsForMap"), "all-my-spots dedupes map pins");
 
+const homeFeedMapView = readSource("components/home/home-feed-map-view.tsx");
+assert(homeFeedMapView.includes("CollectionSpotMapView"), "home feed map reuses map component");
+assert(homeFeedMapView.includes("showNearbyList={false}"), "home feed map skips nearby list");
+
 console.log("PASS: map view UI verified");
