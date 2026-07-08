@@ -157,6 +157,7 @@ export function HomeView() {
     if (refreshing) {
       return;
     }
+    setOpenRecommendation(null);
     setRefreshing(true);
     setError(null);
     try {
@@ -205,6 +206,7 @@ export function HomeView() {
   }
 
   async function handleRetryRecommendation() {
+    setOpenRecommendation(null);
     setRecommendation({ status: "loading" });
     try {
       const value = await fetchHomeRecommendation();
@@ -215,6 +217,7 @@ export function HomeView() {
   }
 
   function handleRetryInitialLoad() {
+    setOpenRecommendation(null);
     setLoading(true);
     setError(null);
     setReloadToken((current) => current + 1);
@@ -292,7 +295,7 @@ export function HomeView() {
           />
           <RecommendationDetailSheet
             recommendation={openRecommendation ?? recommendation.value}
-            open={openRecommendation !== null}
+            open={openRecommendation !== null && recommendation.status === "ready"}
             onClose={() => setOpenRecommendation(null)}
           />
         </div>

@@ -264,10 +264,13 @@ export function useAgentChat(userId: string | null, authLoading: boolean) {
         }
         setSessionId(id);
         setEntries(initialEntries);
-        setSessionStatus("ready");
         setConsultationViewMode("live");
         sessionPersistEnabledRef.current = true;
-        void persistInitialConsultationEntries(id, initialEntries);
+        await persistInitialConsultationEntries(id, initialEntries);
+        if (generation !== connectGenerationRef.current) {
+          return;
+        }
+        setSessionStatus("ready");
       } catch (err) {
         if (generation !== connectGenerationRef.current) {
           return;
