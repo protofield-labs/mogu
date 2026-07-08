@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { useAuth } from "@/contexts/auth-context";
 import { BADGES_UPDATED_EVENT, PROFILE_UPDATED_EVENT } from "@/lib/mypage/badge-events";
 import { fetchMe } from "@/lib/mypage/browser-api";
 import type { MeProfile } from "@/lib/mypage/types";
@@ -29,11 +30,15 @@ const MeContext = createContext<MeContextValue | null>(null);
 
 /** Session profile cache (#202). Fetched once; refreshed on profile edit events only. */
 export function MeProvider({ children }: { children: ReactNode }) {
+  const { user, loading: authLoading } = useAuth();
   const [me, setMe] = useState<MeProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const refreshMe = useCallback(async () => {
+    if (!user) {
+      return;
+    }
     try {
       const nextMe = await fetchMe();
       setMe(nextMe);
@@ -41,9 +46,13 @@ export function MeProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       setError(err instanceof Error ? err.message : "プロフィールを読み込めませんでした");
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
+    if (authLoading || !user) {
+      return;
+    }
+
     let cancelled = false;
 
     async function load() {
@@ -80,7 +89,7 @@ export function MeProvider({ children }: { children: ReactNode }) {
       window.removeEventListener(PROFILE_UPDATED_EVENT, handleRefresh);
       window.removeEventListener(BADGES_UPDATED_EVENT, handleRefresh);
     };
-  }, [refreshMe]);
+  }, [authLoading, user, refreshMe]);
 
   const updateMe = useCallback((patch: MeUpdate) => {
     setMe((current) => {

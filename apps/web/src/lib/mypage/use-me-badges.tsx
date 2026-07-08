@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { useAuth } from "@/contexts/auth-context";
 import { BADGES_UPDATED_EVENT } from "@/lib/mypage/badge-events";
 import { fetchMeBadges } from "@/lib/mypage/browser-api";
 import { shouldShowMypageTabBadge } from "@/lib/mypage/stats-row";
@@ -23,9 +24,14 @@ const MeBadgesContext = createContext<MeBadgesContextValue | null>(null);
 
 export function MeBadgesProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const { user, loading: authLoading } = useAuth();
   const [badges, setBadges] = useState<MeBadges | null>(null);
 
   useEffect(() => {
+    if (authLoading || !user) {
+      return;
+    }
+
     let cancelled = false;
 
     async function load() {
@@ -52,7 +58,7 @@ export function MeBadgesProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       window.removeEventListener(BADGES_UPDATED_EVENT, handleRefresh);
     };
-  }, [pathname]);
+  }, [authLoading, pathname, user]);
 
   const value: MeBadgesContextValue = {
     badges,
