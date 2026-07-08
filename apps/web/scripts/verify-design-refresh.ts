@@ -7,7 +7,6 @@ import { assert } from "./test-helpers/assert";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { homePageTitle } from "../src/lib/home/page-title";
 import { filterPillClass } from "../src/lib/ui/filter-pill";
 
 function readSource(relativePath: string): string {
@@ -44,15 +43,14 @@ function main() {
   assert(profileHero.includes("shadow-md"), "hero card uses elevation");
 
   const homeView = readSource("components/home/home-view.tsx");
-  assert(homeView.includes("PageTitle"), "home uses page title");
-  assert(homeView.includes("homePageTitle"), "home uses greeting title helper");
+  assert(homeView.includes("MoguWordmark"), "home uses brand wordmark");
 
   const searchHeader = readSource("components/search/agent-chat-header.tsx");
   assert(searchHeader.includes('PageTitle>検索'), "search uses page title");
 
   const tabBar = readSource("components/tab-bar.tsx");
-  assert(tabBar.includes('icon: "avatar"'), "tab bar uses avatar for mypage");
-  assert(tabBar.includes("useMeBadges"), "tab bar reads profile for avatar");
+  assert(tabBar.includes("icon: User"), "tab bar uses profile icon for mypage");
+  assert(tabBar.includes("useMeBadges"), "tab bar reads badge state");
   assert(tabBar.includes("text-primary"), "tab bar accents active tab");
 
   const protectedLayout = readFileSync(
@@ -76,7 +74,6 @@ function main() {
   assert(chatBubbles.includes("filterPillClass"), "quick replies use filter pills");
 
   assert(filterPillClass(true).includes("bg-primary"), "selected pill uses primary");
-  assert(homePageTitle(new Date("2026-07-08T20:00:00")) === "こんばんは", "evening greeting");
 
   console.log("PASS: design refresh verified");
 }

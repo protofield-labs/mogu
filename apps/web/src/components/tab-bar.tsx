@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home } from "lucide-react";
+import { Home, User } from "lucide-react";
 
 import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
-import { Avatar } from "@/components/ui/avatar";
 import { useMeBadges } from "@/lib/mypage/use-me-badges";
 import { touchIconClass } from "@/lib/ui/touch-feedback";
 import { cn } from "@/lib/utils";
@@ -13,47 +12,12 @@ import { cn } from "@/lib/utils";
 type TabItem = {
   href: string;
   label: string;
-  icon: typeof Home | "mogu" | "avatar";
+  icon: typeof Home | typeof User | "mogu";
   isActive: (pathname: string) => boolean;
   showBadge?: boolean;
 };
 
-function TabIcon({
-  tab,
-  active,
-  tabProfile,
-}: {
-  tab: TabItem;
-  active: boolean;
-  tabProfile: { displayName: string; avatarColor: string } | null;
-}) {
-  if (tab.icon === "avatar") {
-    if (tabProfile) {
-      return (
-        <Avatar
-          displayName={tabProfile.displayName}
-          avatarColor={tabProfile.avatarColor}
-          size="tab"
-          className={cn(
-            "ring-2 ring-offset-2 ring-offset-background",
-            active ? "ring-primary" : "ring-transparent",
-          )}
-        />
-      );
-    }
-    return (
-      <span
-        className={cn(
-          "flex size-7 items-center justify-center rounded-full bg-muted text-[0.625rem] font-semibold text-muted-foreground",
-          active && "text-primary",
-        )}
-        aria-hidden
-      >
-        ?
-      </span>
-    );
-  }
-
+function TabIcon({ tab, active }: { tab: TabItem; active: boolean }) {
   const className = cn(
     "size-7 transition-colors transition-transform",
     active ? "text-primary" : "text-muted-foreground",
@@ -69,7 +33,7 @@ function TabIcon({
 
 export function TabBar() {
   const pathname = usePathname();
-  const { showBadge, tabProfile } = useMeBadges();
+  const { showBadge } = useMeBadges();
 
   const tabs: TabItem[] = [
     {
@@ -87,7 +51,7 @@ export function TabBar() {
     {
       href: "/mypage",
       label: "マイページ",
-      icon: "avatar",
+      icon: User,
       isActive: (path) => path.startsWith("/mypage"),
       showBadge: showBadge,
     },
@@ -116,7 +80,7 @@ export function TabBar() {
                   touchIconClass,
                 )}
               >
-                <TabIcon tab={tab} active={active} tabProfile={tabProfile} />
+                <TabIcon tab={tab} active={active} />
                 {tab.showBadge ? (
                   <span
                     className="absolute right-1.5 top-1.5 size-2 rounded-full bg-mogu-badge"
