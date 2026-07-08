@@ -3,13 +3,11 @@
 import { ChevronRight, Star } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-import { AuthImage } from "@/components/mypage/auth-image";
-import { PlacePhotoImage } from "@/components/places/place-photo-image";
+import { SpotThumbnail } from "@/components/places/spot-thumbnail";
 import { Badge } from "@/components/ui/badge";
 import type { Recommendation } from "@/lib/home/types";
 import { HOME_RECOMMENDATION_LABEL } from "@/lib/home/recommendation-labels";
 import { stashPendingRecommendation } from "@/lib/home/pending-recommendation";
-import { resolveSpotHeroPhoto } from "@/lib/places/resolve-spot-hero-photo";
 import { usePlace } from "@/lib/places/use-place";
 import { touchCardClass } from "@/lib/ui/touch-feedback";
 import { cn } from "@/lib/utils";
@@ -23,7 +21,6 @@ export function RecommendationCompactRow({
 }: RecommendationCompactRowProps) {
   const router = useRouter();
   const { place } = usePlace(recommendation.spot.placeId);
-  const heroPhoto = resolveSpotHeroPhoto(recommendation.spot, place);
 
   function handleOpenSearch() {
     stashPendingRecommendation(recommendation);
@@ -39,23 +36,11 @@ export function RecommendationCompactRow({
         touchCardClass,
       )}
     >
-      {heroPhoto?.source === "spot" ? (
-        <AuthImage
-          objectUrl={heroPhoto.url}
-          alt=""
-          className="size-12 shrink-0 rounded-xl object-cover"
-        />
-      ) : heroPhoto?.source === "place" ? (
-        <PlacePhotoImage
-          url={heroPhoto.url}
-          alt=""
-          className="size-12 shrink-0 rounded-xl object-cover"
-        />
-      ) : (
-        <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-muted text-xs text-muted-foreground">
-          店
-        </span>
-      )}
+      <SpotThumbnail
+        spot={recommendation.spot}
+        place={place}
+        className="size-12 shrink-0 rounded-xl object-cover"
+      />
 
       <span className="min-w-0 flex-1">
         <span className="inline-flex items-center gap-1">

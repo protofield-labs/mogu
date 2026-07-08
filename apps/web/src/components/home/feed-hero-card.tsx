@@ -6,6 +6,7 @@ import { useRef } from "react";
 import { FeedSpotDetailSheet } from "@/components/home/feed-spot-detail-sheet";
 import { UserAvatar } from "@/components/home/user-avatar";
 import { SpotPlaceName } from "@/components/places/spot-place-name";
+import { SpotThumbnail } from "@/components/places/spot-thumbnail";
 import { AuthImage } from "@/components/mypage/auth-image";
 import { RecollectPicker } from "@/components/recollect/recollect-picker";
 import { useFeedSpotSave } from "@/lib/recollect/use-feed-spot-save";
@@ -34,7 +35,7 @@ export function FeedHeroCard({ item, viewerId }: FeedHeroCardProps) {
   );
   const touchStartX = useRef(0);
   const didScroll = useRef(false);
-  const { place, placeName } = usePlace(item.spot.placeId);
+  const { place, placeName, loading: placeLoading } = usePlace(item.spot.placeId);
   const savedBadge = formatSavedCountBadge(item.spot.savedCount);
   const titleFallback = item.spot.comment || item.collectionName;
   const showSaveActions = canRecollectFeedItem(item, viewerId);
@@ -96,13 +97,19 @@ export function FeedHeroCard({ item, viewerId }: FeedHeroCardProps) {
           ) : (
             <button
               type="button"
-              className={cn(
-                "flex aspect-[4/3] w-full items-center justify-center bg-muted text-sm text-muted-foreground",
-                touchRowClass,
-              )}
+              className={cn("block w-full text-left", touchRowClass)}
               onClick={openDetail}
+              aria-label="スポット詳細を開く"
             >
-              写真なし
+              <SpotThumbnail
+                spot={item.spot}
+                place={place}
+                placeLoading={placeLoading}
+                showMapsAttribution
+                className="aspect-[4/3] w-full"
+                placeholder="label"
+                placeholderLabel="写真なし"
+              />
             </button>
           )}
           {savedBadge ? (
