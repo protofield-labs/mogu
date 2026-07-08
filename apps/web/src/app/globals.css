@@ -248,6 +248,27 @@
       @apply translate-y-[-50%] scale-95 opacity-0;
     }
   }
+
+  .mogu-avatar-ring-new-pulse {
+    animation: mogu-avatar-ring-pulse 0.55s ease-in-out 2;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mogu-avatar-ring-new-pulse {
+      animation: none;
+    }
+  }
+}
+
+@keyframes mogu-avatar-ring-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.06);
+  }
 }
 
 @keyframes mogu-shimmer-slide {

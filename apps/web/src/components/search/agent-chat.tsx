@@ -6,6 +6,7 @@ import {
   MessageScrollerViewport,
 } from "@/components/chat";
 import { AgentConsultationHistorySheet } from "@/components/search/agent-consultation-history-sheet";
+import { AgentChatAutoScroll } from "@/components/search/agent-chat-auto-scroll";
 import { AgentChatComposer } from "@/components/search/agent-chat-composer";
 import { AgentChatHeader } from "@/components/search/agent-chat-header";
 import { AgentChatTranscript } from "@/components/search/agent-chat-transcript";
@@ -54,18 +55,23 @@ export function AgentChat() {
               />
             </MessageScrollerViewport>
           </MessageScroller>
+          <AgentChatAutoScroll
+            entryCount={chat.entries.length}
+            sending={chat.sending}
+            sessionId={chat.sessionId}
+            consultationViewMode={chat.consultationViewMode}
+          />
+          <AgentChatComposer
+            input={chat.input}
+            inputDisabled={chat.inputDisabled}
+            onInputChange={chat.setInput}
+            onSubmit={chat.handleSubmit}
+            onSend={(text) => {
+              void chat.sendMessage(text);
+            }}
+          />
         </MessageScrollerProvider>
       </div>
-
-      <AgentChatComposer
-        input={chat.input}
-        inputDisabled={chat.inputDisabled}
-        onInputChange={chat.setInput}
-        onSubmit={chat.handleSubmit}
-        onSend={(text) => {
-          void chat.sendMessage(text);
-        }}
-      />
 
       <AgentConsultationHistorySheet
         open={chat.historyOpen}

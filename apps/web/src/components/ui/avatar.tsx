@@ -34,7 +34,7 @@ export function Avatar({
         "flex shrink-0 items-center justify-center rounded-full font-semibold text-white",
         sizeClasses[size],
         showNewRing
-          ? "ring-2 ring-mogu-avatar-ring-new ring-offset-2 ring-offset-background motion-safe:animate-pulse"
+          ? "ring-2 ring-mogu-avatar-ring-new ring-offset-2 ring-offset-background motion-safe:mogu-avatar-ring-new-pulse"
           : size !== "hero" && "ring-1 ring-mogu-avatar-ring-idle",
         className,
       )}
