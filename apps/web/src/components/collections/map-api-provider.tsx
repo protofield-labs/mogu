@@ -24,7 +24,6 @@ import {
 const TILES_LOAD_TIMEOUT_MS = 12_000;
 const GMP_ERROR_SELECTOR = ".gmp-error, .gm-err-container, .gm-err-message";
 const MAPS_REFERRER_ERROR_PATTERN = /RefererNotAllowedMapError|RefererNotAllowed/i;
-const MAP_TILE_IMAGE_SELECTOR = 'img[src*="google"], img[src*="gstatic"]';
 
 type MapApiProviderProps = PropsWithChildren<{
   apiKey: string;
@@ -41,10 +40,6 @@ function reportOnce(
   }
   reportedRef.current = true;
   onLoadError(mapsLoadErrorMessage(kind));
-}
-
-function mapHasLoadedTiles(mapDiv: Element): boolean {
-  return mapDiv.querySelector(MAP_TILE_IMAGE_SELECTOR) !== null;
 }
 
 function MapApiStatusWatcher({
@@ -118,7 +113,6 @@ function MapTilesLoadedWatcher({
       const mapDiv = map.getDiv();
       const hasErrorOverlay = mapDiv.querySelector(GMP_ERROR_SELECTOR);
       const hasRenderedCanvas = mapDiv.querySelector("canvas") !== null;
-      const hasMapTiles = mapHasLoadedTiles(mapDiv);
 
       if (hasErrorOverlay) {
         reportOnce(reportedRef, onLoadError, "authFailure");
@@ -126,11 +120,6 @@ function MapTilesLoadedWatcher({
       }
       if (!hasRenderedCanvas) {
         reportOnce(reportedRef, onLoadError, "tilesTimeout");
-        return;
-      }
-      if (!hasMapTiles) {
-        // Canvas without tiles often means referrer/Billing failure (#209).
-        reportOnce(reportedRef, onLoadError, "authFailure");
       }
     }, TILES_LOAD_TIMEOUT_MS);
 

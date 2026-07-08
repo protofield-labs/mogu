@@ -364,12 +364,12 @@ secret. `PLACES_API_KEY` on Cloud Run comes from Terraform Secret Manager; no
 GitHub secret needed.
 
 **Referrer restrictions** (Terraform `external_apis.tf`): the browser key allows
-`http://localhost:3000/*`, the Cloud Run service URL, and `https://*.a.run.app/*`
-(dev wildcard so a service recreate does not cause `RefererNotAllowedMapError`
-until the next apply — #209). After changing referrers, run
-`terraform apply` in `terraform/environments/dev` (or merge a PR that triggers
-plan/apply). Local dev must use port 3000 unless you extend `allowed_referrers`
-in Terraform.
+`http://localhost:3000/*`, the Cloud Run hash URL (`module.cloud_run.uri`), and
+the deterministic Cloud Run URL
+(`https://<env>-web-<project-number>.<region>.run.app/*` — same pair as Firebase
+authorized domains). If maps show `RefererNotAllowedMapError`, run
+`terraform apply` in `terraform/environments/dev`. Local dev must use port 3000
+unless you extend `allowed_referrers` in Terraform.
 
 **Load failure UX**: if the key is missing, invalid, or referrer/Billing fails,
 the map shows an `EmptyState` message instead of a blank grey box (#185).

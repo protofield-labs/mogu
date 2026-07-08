@@ -1,16 +1,16 @@
 locals {
   cloud_run_origin = trimsuffix(module.cloud_run.uri, "/")
-  # Browser referrers for the Maps JavaScript API key (#130 / #209).
-  # Include the exact Cloud Run origin plus a regional wildcard so a service
-  # recreate (new *.run.app hash) does not leave maps tiles blank with
-  # RefererNotAllowedMapError until the next targeted apply.
-  maps_js_allowed_referrers = [
+  # Cloud Run exposes hash-based (*.a.run.app) and deterministic (*.REGION.run.app) URLs
+  # for the same service. Firebase auth already whitelists both (#14); Maps JS must too (#209).
+  cloud_run_deterministic_origin = "https://${var.environment}-web-${data.google_project.current.number}.${var.region}.run.app"
+  maps_js_allowed_referrers = distinct([
     "${local.cloud_run_origin}/*",
     local.cloud_run_origin,
+    "${local.cloud_run_deterministic_origin}/*",
+    local.cloud_run_deterministic_origin,
     "http://localhost:3000/*",
     "http://127.0.0.1:3000/*",
-    "https://*.a.run.app/*",
-  ]
+  ])
 }
 
 # Places API key + Secret Manager (#47). Gated by enable_external_apis so Phase 1
