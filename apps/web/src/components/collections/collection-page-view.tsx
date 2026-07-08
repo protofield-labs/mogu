@@ -7,7 +7,7 @@ import { CollectionDetailView } from "@/components/mypage/collection-detail-view
 import { FriendAccessGate } from "@/components/share/friend-access-gate";
 import { LoadErrorState } from "@/components/ui/load-error-state";
 import { FriendCollectionDetailView } from "@/components/users/friend-collection-detail-view";
-import { fetchMe } from "@/lib/mypage/browser-api";
+import { useMe } from "@/lib/mypage/me-provider";
 import { loadCollectionPage } from "@/lib/share/browser-api";
 
 type CollectionPageViewProps = {
@@ -21,6 +21,7 @@ export function CollectionPageView({
   collectionId,
   initialSpotId = null,
 }: CollectionPageViewProps) {
+  const { me, loading: meLoading } = useMe();
   const [viewMode, setViewMode] = useState<ViewMode | null>(null);
   const [friendOwnerId, setFriendOwnerId] = useState<string | null>(null);
   const [gateInfo, setGateInfo] = useState<{
@@ -43,15 +44,26 @@ export function CollectionPageView({
   }
 
   useEffect(() => {
+    if (meLoading) {
+      return;
+    }
+
     let cancelled = false;
 
     async function load() {
       try {
-        const [result, me] = await Promise.all([
-          loadCollectionPage(collectionId),
-          fetchMe(),
-        ]);
+        const result = await loadCollectionPage(collectionId);
         if (cancelled) {
+          return;
+        }
+        if (result.kind === "gate") {
+          setViewMode("gate");
+          setGateInfo(result.gate);
+          setFriendOwnerId(null);
+          return;
+        }
+        if (!me) {
+          setLoadError("プロフィールを表示できませんでした");
           return;
         }
         if (result.kind === "detail") {
@@ -64,12 +76,6 @@ export function CollectionPageView({
             setFriendOwnerId(result.detail.ownerId);
             setGateInfo(null);
           }
-          return;
-        }
-        if (result.kind === "gate") {
-          setViewMode("gate");
-          setGateInfo(result.gate);
-          setFriendOwnerId(null);
           return;
         }
         setViewMode("missing");
@@ -92,7 +98,7 @@ export function CollectionPageView({
     return () => {
       cancelled = true;
     };
-  }, [collectionId, reloadToken]);
+  }, [collectionId, me, meLoading, reloadToken]);
 
   function handleRetryLoad() {
     setLoading(true);
@@ -100,7 +106,7 @@ export function CollectionPageView({
     setReloadToken((current) => current + 1);
   }
 
-  if (loading) {
+  if (loading || meLoading) {
     return <CollectionDetailSkeleton />;
   }
 

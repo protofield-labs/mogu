@@ -8,13 +8,13 @@ import {
   cancelFriendRequest,
   fetchFriends,
   fetchIncomingFriendRequests,
-  fetchMe,
   fetchOutgoingFriendRequests,
   rejectFriendRequest,
   removeFriend,
   searchUsers,
   sendFriendRequest,
 } from "@/lib/mypage/browser-api";
+import { useMe } from "@/lib/mypage/me-provider";
 import { friendshipPairIdFromUserIds } from "@/lib/friends/pair-id";
 import {
   findDuplicateDisplayNames,
@@ -28,13 +28,13 @@ import type { FriendListItem, FriendRequest, FriendUser } from "@/lib/mypage/typ
 type RequestAction = "accept" | "reject" | "cancel";
 
 export function useFriendsView() {
+  const { me, loading: meLoading } = useMe();
   const [friends, setFriends] = useState<FriendListItem[]>([]);
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [outgoingRequests, setOutgoingRequests] = useState<FriendRequest[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<FriendUser[]>([]);
   const [searching, setSearching] = useState(false);
-  const [friendCount, setFriendCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
@@ -43,7 +43,6 @@ export function useFriendsView() {
     null,
   );
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
-  const [meId, setMeId] = useState<string | null>(null);
   const [unfriendTarget, setUnfriendTarget] = useState<FriendListItem | null>(null);
   const [unfriendBusy, setUnfriendBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,21 +65,25 @@ export function useFriendsView() {
     [searchResults],
   );
 
+  const friendCount = friends.length;
+  const meId = me?.id ?? null;
+
   const loadFriendsData = useCallback(async () => {
-    const [me, nextFriends, incoming, outgoing] = await Promise.all([
-      fetchMe(),
+    const [nextFriends, incoming, outgoing] = await Promise.all([
       fetchFriends(),
       fetchIncomingFriendRequests(),
       fetchOutgoingFriendRequests(),
     ]);
-    setFriendCount(me.counts.friends);
-    setMeId(me.id);
     setRequests(incoming);
     setOutgoingRequests(outgoing);
     setFriends(nextFriends);
   }, []);
 
   useEffect(() => {
+    if (meLoading) {
+      return;
+    }
+
     let cancelled = false;
 
     async function load() {
@@ -103,7 +106,7 @@ export function useFriendsView() {
     return () => {
       cancelled = true;
     };
-  }, [loadFriendsData, reloadToken]);
+  }, [loadFriendsData, meLoading, reloadToken]);
 
   useEffect(() => {
     const query = searchQuery.trim();
@@ -277,7 +280,7 @@ export function useFriendsView() {
     searchResults,
     searching,
     friendCount,
-    loading,
+    loading: loading || meLoading,
     loadError,
     busyPairId,
     busyRequestAction,
