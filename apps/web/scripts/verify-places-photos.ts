@@ -7,6 +7,8 @@ import { assert } from "./test-helpers/assert";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { resolveSpotHeroPhoto } from "../src/lib/places/resolve-spot-hero-photo";
+
 const root = join(process.cwd(), "src");
 
 function readSource(relativePath: string): string {
@@ -51,5 +53,35 @@ assert(
   "compact row uses updated recommendation label",
 );
 assert(compactRow.includes("evidence"), "compact row shows evidence");
+
+const spotThumbnail = readSource("components/places/spot-thumbnail.tsx");
+assert(spotThumbnail.includes("resolveSpotHeroPhoto"), "spot thumbnail uses hero photo resolver");
+assert(spotThumbnail.includes("PlacePhotoImage"), "spot thumbnail falls back to place photos");
+assert(spotThumbnail.includes("AuthImage"), "spot thumbnail prefers spot photos");
+assert(spotThumbnail.includes("GoogleMapsAttribution"), "spot thumbnail can show maps attribution");
+assert(spotThumbnail.includes("placeLoading"), "spot thumbnail supports place loading shimmer");
+
+const feedHero = readSource("components/home/feed-hero-card.tsx");
+assert(feedHero.includes("SpotThumbnail"), "feed hero uses spot thumbnail fallback");
+assert(feedHero.includes("showMapsAttribution"), "feed hero shows maps attribution on place photos");
+assert(feedHero.includes("placeLoading"), "feed hero waits for place photos while loading");
+
+const feedCompact = readSource("components/home/feed-compact-row.tsx");
+assert(feedCompact.includes("SpotThumbnail"), "feed compact uses spot thumbnail");
+
+assert(
+  resolveSpotHeroPhoto({ photoUrls: ["gs://x/a.jpg"] }, { photos: [{ url: "/p/0", authorAttributions: [] }] })
+    ?.source === "spot",
+  "spot photo wins over place photo",
+);
+assert(
+  resolveSpotHeroPhoto({ photoUrls: [] }, { photos: [{ url: "/p/0", authorAttributions: [] }] })
+    ?.source === "place",
+  "place photo used when spot has none",
+);
+assert(
+  resolveSpotHeroPhoto({ photoUrls: [] }, { photos: [] }) === null,
+  "null when no photos available",
+);
 
 console.log("PASS: place photos verified");

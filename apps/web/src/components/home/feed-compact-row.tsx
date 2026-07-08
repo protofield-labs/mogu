@@ -4,7 +4,7 @@ import Link from "next/link";
 
 import { FeedSpotDetailSheet } from "@/components/home/feed-spot-detail-sheet";
 import { SpotPlaceName } from "@/components/places/spot-place-name";
-import { AuthImage } from "@/components/mypage/auth-image";
+import { SpotThumbnail } from "@/components/places/spot-thumbnail";
 import { RecollectPicker } from "@/components/recollect/recollect-picker";
 import { useFeedSpotSave } from "@/lib/recollect/use-feed-spot-save";
 import { Button } from "@/components/ui/button";
@@ -27,7 +27,6 @@ export function FeedCompactRow({ item, viewerId }: FeedCompactRowProps) {
     { initialSaved: item.savedByMe },
   );
   const { place, placeName } = usePlace(item.spot.placeId);
-  const photo = item.spot.photoUrls[0];
   const titleFallback = item.spot.comment || item.collectionName;
   const showSaveActions = canRecollectFeedItem(item, viewerId);
 
@@ -45,17 +44,11 @@ export function FeedCompactRow({ item, viewerId }: FeedCompactRowProps) {
           onClick={openDetail}
           aria-label="スポット詳細を開く"
         >
-          {photo ? (
-            <AuthImage
-              objectUrl={photo}
-              alt=""
-              className="size-12 rounded-xl object-cover"
-            />
-          ) : (
-            <span className="flex size-12 items-center justify-center rounded-xl bg-muted text-xs text-muted-foreground">
-              店
-            </span>
-          )}
+          <SpotThumbnail
+            spot={item.spot}
+            place={place}
+            className="size-12 rounded-xl object-cover"
+          />
         </button>
 
         <div className="min-w-0 flex-1">
