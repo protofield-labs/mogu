@@ -82,6 +82,10 @@ assert(
   pendingModule.includes("bridgedPendingRecommendation = recommendation"),
   "stash keeps bridge aligned with latest consult CTA",
 );
+assert(
+  pendingModule.includes("clearPendingCollectionConsult"),
+  "recommendation stash clears stale collection handoff",
+);
 
 const agentChat = readSource("lib/agent/use-agent-chat.ts");
 assert(agentChat.includes("recommendationToContext"), "agent chat maps recommendation to context");

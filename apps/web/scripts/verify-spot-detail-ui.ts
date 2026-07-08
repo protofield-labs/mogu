@@ -40,7 +40,10 @@ assert(
   collectionView.includes("エージェントに相談して最初のスポットを追加"),
   "empty state CTA to search",
 );
-assert(collectionView.includes('href="/search"'), "empty state links to search");
+assert(
+  collectionView.includes("stashPendingCollectionConsult"),
+  "empty state stashes collection consult context",
+);
 
 const feedItemCard = readSource("components/home/feed-item-card.tsx");
 assert(

@@ -44,7 +44,9 @@ export type AgentConsultationDetail = AgentConsultationSummary & {
 export async function createAgentSession(
   options?: CreateAgentSessionRequest,
 ): Promise<string> {
-  const hasContext = Boolean(options?.recommendationContext);
+  const hasContext = Boolean(
+    options?.recommendationContext || options?.collectionContext,
+  );
   const data = await apiJson(
     "/api/v1/agent/sessions",
     createAgentSessionResponseSchema,

@@ -33,6 +33,8 @@ export type AgentMessageRequest = {
   chips?: string[];
 };
 
+import type { CollectionConsultContext } from "./collection-context-message";
+
 export type RecommendationContext = {
   placeId: string;
   spotId: string;
@@ -42,6 +44,7 @@ export type RecommendationContext = {
 
 export type CreateAgentSessionRequest = {
   recommendationContext?: RecommendationContext;
+  collectionContext?: CollectionConsultContext;
 };
 
 export type CreateAgentSessionResponse = {

@@ -30,11 +30,18 @@ import {
   type StoredAgentChatSession,
 } from "@/lib/agent/session-storage";
 import { recommendationToContext } from "@/lib/agent/recommendation-context-message";
+import { collectionConsultDisplayMessage } from "@/lib/agent/collection-context-message";
 import {
   clearPendingRecommendation,
   commitPendingRecommendation,
   resolvePendingRecommendation,
 } from "@/lib/home/pending-recommendation";
+import {
+  clearPendingCollectionConsult,
+  commitPendingCollectionConsult,
+  resolvePendingCollectionConsult,
+} from "@/lib/mypage/pending-collection-consult";
+import type { CreateAgentSessionRequest } from "@/lib/agent/types";
 
 export type SessionStatus = "loading" | "ready" | "error";
 export type ConsultationViewMode = "live" | "readonly" | null;
@@ -222,9 +229,11 @@ export function useAgentChat(userId: string | null, authLoading: boolean) {
         setConsultationViewMode(null);
       }
 
-      const pending = resolvePendingRecommendation();
+      const pendingRecommendation = resolvePendingRecommendation();
+      const pendingCollection = resolvePendingCollectionConsult();
+      const pendingHandoff = pendingRecommendation ?? pendingCollection;
 
-      if (pending) {
+      if (pendingHandoff) {
         clearAgentChatSession();
       } else if (userId) {
         const stored = loadAgentChatSession(userId);
@@ -242,23 +251,32 @@ export function useAgentChat(userId: string | null, authLoading: boolean) {
       }
 
       try {
-        const id = await createAgentSession(
-          pending
-            ? { recommendationContext: recommendationToContext(pending) }
-            : undefined,
-        );
+        const sessionOptions: CreateAgentSessionRequest | undefined =
+          pendingRecommendation
+            ? { recommendationContext: recommendationToContext(pendingRecommendation) }
+            : pendingCollection
+              ? { collectionContext: pendingCollection }
+              : undefined;
+        const id = await createAgentSession(sessionOptions);
         if (generation !== connectGenerationRef.current) {
           return;
         }
         const initialEntries: ChatEntry[] = [createWelcomeEntry()];
-        if (pending) {
+        if (pendingRecommendation) {
           initialEntries.push(
             createAgentEntry({
-              text: pending.assertion,
-              recommendation: pending,
+              text: pendingRecommendation.assertion,
+              recommendation: pendingRecommendation,
             }),
           );
           commitPendingRecommendation();
+        } else if (pendingCollection) {
+          initialEntries.push(
+            createAgentEntry({
+              text: collectionConsultDisplayMessage(pendingCollection),
+            }),
+          );
+          commitPendingCollectionConsult();
         }
         setSessionId(id);
         setEntries(initialEntries);
@@ -336,6 +354,7 @@ export function useAgentChat(userId: string | null, authLoading: boolean) {
     setResettingConsultation(true);
     invalidateStoredSession();
     clearPendingRecommendation();
+    clearPendingCollectionConsult();
     try {
       await connectAgentChatSession({ isRetry: true });
     } finally {

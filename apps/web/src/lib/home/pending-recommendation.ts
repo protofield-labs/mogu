@@ -1,6 +1,7 @@
 "use client";
 
 import type { Recommendation } from "@/lib/agent/types";
+import { clearPendingCollectionConsult } from "@/lib/mypage/pending-collection-consult";
 
 const PENDING_RECOMMENDATION_KEY = "mogu:pending-recommendation";
 
@@ -8,6 +9,7 @@ const PENDING_RECOMMENDATION_KEY = "mogu:pending-recommendation";
 let bridgedPendingRecommendation: Recommendation | undefined;
 
 export function stashPendingRecommendation(recommendation: Recommendation): void {
+  clearPendingCollectionConsult();
   sessionStorage.setItem(PENDING_RECOMMENDATION_KEY, JSON.stringify(recommendation));
   // Keep bridge aligned so a new consult CTA overrides a stale in-memory value (#240).
   bridgedPendingRecommendation = recommendation;

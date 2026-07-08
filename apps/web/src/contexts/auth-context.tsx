@@ -20,6 +20,7 @@ import { getFirebaseAuth } from "@/lib/auth/firebase-client";
 import { clearAgentChatSession } from "@/lib/agent/session-storage";
 import { clearLastReadFeedAt } from "@/lib/home/feed-read";
 import { clearPendingRecommendation } from "@/lib/home/pending-recommendation";
+import { clearPendingCollectionConsult } from "@/lib/mypage/pending-collection-consult";
 
 function isFirebaseConfigured(): boolean {
   return Boolean(
@@ -70,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Per-user client state must not leak to the next account on a
     // shared device (stashed recommendation, feed read marker).
     clearPendingRecommendation();
+    clearPendingCollectionConsult();
     clearLastReadFeedAt();
     clearAgentChatSession();
     await signOut(getFirebaseAuth());

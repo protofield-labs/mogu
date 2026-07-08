@@ -4,7 +4,10 @@ import {
   AgentEngineNotConfiguredError,
   AgentSessionError,
 } from "@/lib/agent/errors";
-import { seedAgentRecommendationContext } from "@/lib/agent/message-client";
+import {
+  seedAgentCollectionContext,
+  seedAgentRecommendationContext,
+} from "@/lib/agent/message-client";
 import { createAgentSession } from "@/lib/agent/session-client";
 import { createAgentConsultation } from "@/lib/dal/agent-consultations";
 import {
@@ -23,12 +26,21 @@ export async function POST(request: Request): Promise<Response> {
       const sessionId = await createAgentSession(uid);
       await createAgentConsultation(uid, sessionId);
 
-      const context = parsed.data.recommendationContext;
-      if (context) {
+      const recommendationContext = parsed.data.recommendationContext;
+      if (recommendationContext) {
         await seedAgentRecommendationContext({
           userId: uid,
           sessionId,
-          context,
+          context: recommendationContext,
+        });
+      }
+
+      const collectionContext = parsed.data.collectionContext;
+      if (collectionContext) {
+        await seedAgentCollectionContext({
+          userId: uid,
+          sessionId,
+          context: collectionContext,
         });
       }
 

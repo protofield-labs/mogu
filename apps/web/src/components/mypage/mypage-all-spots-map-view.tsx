@@ -2,13 +2,16 @@
 
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { CollectionSpotMapView } from "@/components/collections/collection-spot-map-view";
 import { MypageViewSkeleton } from "@/components/loading/skeletons";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Button } from "@/components/ui/button";
 import { LoadErrorState } from "@/components/ui/load-error-state";
 import { loadAllMySpots } from "@/lib/mypage/load-all-my-spots";
+import { stashPendingCollectionConsult } from "@/lib/mypage/pending-collection-consult";
 import { useUserLocation } from "@/lib/places/use-user-location";
 import { spotPath } from "@/lib/share/paths";
 import { touchRowClass } from "@/lib/ui/touch-feedback";
@@ -16,6 +19,7 @@ import type { Spot } from "@/lib/spots/browser-api";
 import { cn } from "@/lib/utils";
 
 export function MypageAllSpotsMapView() {
+  const router = useRouter();
   const [spots, setSpots] = useState<Spot[]>([]);
   const [mapSpots, setMapSpots] = useState<Spot[]>([]);
   const [collectionNameBySpotId, setCollectionNameBySpotId] = useState<
@@ -60,6 +64,11 @@ export function MypageAllSpotsMapView() {
     };
   }, [reloadToken]);
 
+  function handleConsultAgentForFirstSpot() {
+    stashPendingCollectionConsult({ kind: "first-spot" });
+    router.push("/search");
+  }
+
   if (loading) {
     return <MypageViewSkeleton />;
   }
@@ -98,12 +107,9 @@ export function MypageAllSpotsMapView() {
         {spots.length === 0 ? (
           <EmptyState className="space-y-4 p-6">
             <p>まだスポットがありません。</p>
-            <Link
-              href="/search"
-              className="inline-flex min-h-11 items-center justify-center rounded-2xl bg-primary px-4 text-sm font-medium text-primary-foreground"
-            >
+            <Button type="button" onClick={handleConsultAgentForFirstSpot}>
               エージェントに相談して最初のスポットを追加
-            </Link>
+            </Button>
           </EmptyState>
         ) : (
           <CollectionSpotMapView
