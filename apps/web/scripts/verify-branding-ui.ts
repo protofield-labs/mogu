@@ -36,6 +36,10 @@ assert(searchHeader.includes('PageTitle>検索'), "search header uses page title
 
 const mypageView = readSource("components/mypage/mypage-view.tsx");
 assert(mypageView.includes("MoguBrandIcon"), "mypage agent promo uses brand icon");
+
+const mypageTopBar = readSource("components/mypage/mypage-top-bar.tsx");
+assert(mypageTopBar.includes("MoguWordmark"), "mypage header uses wordmark");
+assert(mypageTopBar.includes("logout"), "mypage header wires logout");
 assert(!mypageView.includes("Sparkles"), "mypage no longer uses Sparkles");
 
 const collectionGrid = readSource("components/mypage/collection-grid.tsx");

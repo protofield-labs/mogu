@@ -75,7 +75,13 @@ function main() {
     accountSheet.includes('description="名前・アバター色"'),
     "account settings row omits logout from description",
   );
-  assert(accountSheet.includes("ログアウト"), "logout remains in account sheet");
+  assert(!accountSheet.includes("ログアウト"), "logout removed from account sheet");
+
+  const mypageTopBar = readSource("components/mypage/mypage-top-bar.tsx");
+  assert(mypageTopBar.includes("MoguBrandIcon"), "mypage header uses brand icon");
+  assert(mypageTopBar.includes("MoguWordmark"), "mypage header uses wordmark");
+  assert(!mypageTopBar.includes("プロフィール"), "mypage header drops profile title text");
+  assert(mypageTopBar.includes('aria-label="ログアウト"'), "mypage header exposes logout");
 
   const profileHero = readSource("components/mypage/profile-hero-card.tsx");
   assert(!profileHero.includes("rotateY"), "hero card is display-only");
