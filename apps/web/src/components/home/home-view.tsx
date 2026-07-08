@@ -294,6 +294,7 @@ export function HomeView() {
             onOpen={setOpenRecommendation}
           />
           <RecommendationDetailSheet
+            key={(openRecommendation ?? recommendation.value).spot.id}
             recommendation={openRecommendation ?? recommendation.value}
             open={openRecommendation !== null && recommendation.status === "ready"}
             onClose={() => setOpenRecommendation(null)}
