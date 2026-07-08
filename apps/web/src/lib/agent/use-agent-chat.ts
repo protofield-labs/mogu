@@ -61,6 +61,7 @@ export function useAgentChat(userId: string | null, authLoading: boolean) {
   const mountInitStartedRef = useRef(false);
   const connectGenerationRef = useRef(0);
   const sessionPersistEnabledRef = useRef(true);
+  const persistConsultationChainRef = useRef(Promise.resolve());
 
   useEffect(() => {
     entriesRef.current = entries;
@@ -71,16 +72,18 @@ export function useAgentChat(userId: string | null, authLoading: boolean) {
     sessionPersistEnabledRef.current = false;
   }, []);
 
-  const persistInitialConsultationEntries = useCallback(
-    async (vertexSessionId: string, nextEntries: ChatEntry[]) => {
+  const persistConsultationEntries = useCallback(
+    (vertexSessionId: string, nextEntries: ChatEntry[]) => {
       if (!userId) {
         return;
       }
-      try {
-        await syncAgentConsultationEntries(vertexSessionId, nextEntries);
-      } catch {
-        // Best-effort; live chat should continue even if history sync fails.
-      }
+      persistConsultationChainRef.current = persistConsultationChainRef.current
+        .then(async () => {
+          await syncAgentConsultationEntries(vertexSessionId, nextEntries);
+        })
+        .catch(() => {
+          // Best-effort; live chat should continue even if history sync fails.
+        });
     },
     [userId],
   );
@@ -266,7 +269,8 @@ export function useAgentChat(userId: string | null, authLoading: boolean) {
         setEntries(initialEntries);
         setConsultationViewMode("live");
         sessionPersistEnabledRef.current = true;
-        await persistInitialConsultationEntries(id, initialEntries);
+        persistConsultationEntries(id, initialEntries);
+        await persistConsultationChainRef.current;
         if (generation !== connectGenerationRef.current) {
           return;
         }
@@ -283,7 +287,7 @@ export function useAgentChat(userId: string | null, authLoading: boolean) {
         setSessionStatus("error");
       }
     },
-    [userId, resumeInflightTurn, persistInitialConsultationEntries],
+    [userId, resumeInflightTurn, persistConsultationEntries],
   );
 
   useEffect(() => {

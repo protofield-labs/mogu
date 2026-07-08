@@ -4,8 +4,10 @@
  */
 import { assert } from "./test-helpers/assert";
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import {
-  AGENT_FOOTER_CAPTION,
   AGENT_OPENING_MESSAGE,
   createAgentEntry,
   createUserEntry,
@@ -33,12 +35,20 @@ import {
   structuredSelectionsToChips,
 } from "../src/lib/agent/structured-chips";
 
+const root = join(process.cwd(), "src");
+
+function readSource(relativePath: string): string {
+  return readFileSync(join(root, relativePath), "utf8");
+}
+
 function main() {
   assert(
     createWelcomeEntry().text === AGENT_OPENING_MESSAGE,
     "welcome message copy",
   );
-  assert(AGENT_FOOTER_CAPTION.includes("コレクション"), "footer caption");
+
+  const composer = readSource("components/search/agent-chat-composer.tsx");
+  assert(!composer.includes("AGENT_FOOTER_CAPTION"), "composer omits footer caption");
 
   const user = createUserEntry("中目黒で3人", ["半個室"]);
   if (user.kind !== "user") {

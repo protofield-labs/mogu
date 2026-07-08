@@ -91,6 +91,22 @@ assert(
   "agent chat hook resumes consultations",
 );
 assert(
+  agentChatHook.includes("persistConsultationChainRef"),
+  "agent chat serializes initial consultation sync",
+);
+assert(
+  agentChatHook.includes("persistConsultationEntries(id, initialEntries)"),
+  "agent chat syncs only initial session entries",
+);
+const applySendTurnResultBlock = agentChatHook.slice(
+  agentChatHook.indexOf("const applySendTurnResult"),
+  agentChatHook.indexOf("const resumeInflightTurn"),
+);
+assert(
+  !applySendTurnResultBlock.includes("persistConsultationEntries"),
+  "turn persistence stays server-side via append",
+);
+assert(
   agentChatHook.includes('consultationViewMode === "readonly"') ||
     agentChat.includes('consultationViewMode === "readonly"'),
   "readonly consultation mode",
@@ -103,8 +119,16 @@ assert(browserApi.includes("syncAgentConsultationEntries"), "browser api syncs i
 
 assert(dal.includes("appendAgentConsultationTurn"), "dal appends turns");
 assert(
-  dal.includes('entry.kind === "user"'),
-  "sync skips when live turns already persisted",
+  dal.includes("existing.length > entries.length"),
+  "sync rejects stale client snapshots",
+);
+assert(
+  dal.includes("buildConsultationTitle(entries)"),
+  "sync always updates consultation title",
+);
+assert(
+  !dal.includes('entry.kind === "user"'),
+  "sync no longer skips after user turns",
 );
 assert(dal.includes("createAgentConsultation"), "dal creates consultation rows");
 

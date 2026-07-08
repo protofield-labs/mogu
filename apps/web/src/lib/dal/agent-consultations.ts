@@ -56,8 +56,8 @@ export async function syncAgentConsultationEntries(
     }
 
     const existing = parseConsultationEntries(row.entries);
-    if (existing.some((entry) => entry.kind === "user")) {
-      // A live turn may have landed first; append owns updates after that.
+    // Avoid overwriting a newer append with a stale client snapshot (#207).
+    if (existing.length > entries.length) {
       return;
     }
 
@@ -79,8 +79,8 @@ export async function appendAgentConsultationTurn(
   agentMessage: AgentMessage,
 ): Promise<void> {
   await withAuthRls(uid, async (tx) => {
-    const row = await tx.agentConsultation.findUnique({
-      where: { vertexSessionId },
+    const row = await tx.agentConsultation.findFirst({
+      where: { userId: uid, vertexSessionId },
       select: { id: true, userId: true, entries: true },
     });
     if (!row || row.userId !== uid) {
