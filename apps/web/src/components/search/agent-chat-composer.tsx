@@ -3,7 +3,6 @@
 import { SparklesIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { AGENT_FOOTER_CAPTION } from "@/lib/agent/chat-helpers";
 import { useVisualViewportOffset } from "@/lib/ui/use-visual-viewport-offset";
 import { cn } from "@/lib/utils";
 
@@ -64,9 +63,6 @@ export function AgentChatComposer({
           <SparklesIcon className="size-4" />
         </Button>
       </form>
-      <p className="mt-2 text-center text-xs text-muted-foreground">
-        {AGENT_FOOTER_CAPTION}
-      </p>
     </footer>
   );
 }

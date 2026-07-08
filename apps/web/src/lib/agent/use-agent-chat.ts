@@ -71,7 +71,7 @@ export function useAgentChat(userId: string | null, authLoading: boolean) {
     sessionPersistEnabledRef.current = false;
   }, []);
 
-  const persistInitialConsultationEntries = useCallback(
+  const persistConsultationEntries = useCallback(
     async (vertexSessionId: string, nextEntries: ChatEntry[]) => {
       if (!userId) {
         return;
@@ -147,6 +147,9 @@ export function useAgentChat(userId: string | null, authLoading: boolean) {
       if (result.ok) {
         setEntries(result.entries);
         setSendError(null);
+        if (sessionId) {
+          void persistConsultationEntries(sessionId, result.entries);
+        }
         return;
       }
 
@@ -165,7 +168,7 @@ export function useAgentChat(userId: string | null, authLoading: boolean) {
         formatAgentUserError(result.error, "メッセージの送信に失敗しました"),
       );
     },
-    [invalidateStoredSession],
+    [invalidateStoredSession, sessionId, persistConsultationEntries],
   );
 
   const resumeInflightTurn = useCallback(
@@ -266,7 +269,7 @@ export function useAgentChat(userId: string | null, authLoading: boolean) {
         setEntries(initialEntries);
         setConsultationViewMode("live");
         sessionPersistEnabledRef.current = true;
-        await persistInitialConsultationEntries(id, initialEntries);
+        await persistConsultationEntries(id, initialEntries);
         if (generation !== connectGenerationRef.current) {
           return;
         }
@@ -283,7 +286,7 @@ export function useAgentChat(userId: string | null, authLoading: boolean) {
         setSessionStatus("error");
       }
     },
-    [userId, resumeInflightTurn, persistInitialConsultationEntries],
+    [userId, resumeInflightTurn, persistConsultationEntries],
   );
 
   useEffect(() => {

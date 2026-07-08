@@ -4,9 +4,6 @@ import type { AgentEvent, Recommendation } from "./types";
 export const AGENT_OPENING_MESSAGE =
   "今夜はどんな気分？\nエリアや人数だけでもOK。";
 
-export const AGENT_FOOTER_CAPTION =
-  "自分と友達のコレクションを参照して答えます";
-
 const AGENT_ENGINE_NOT_CONFIGURED = "Agent Engine is not configured";
 
 /** Map API / network errors to user-facing Japanese (#83). */

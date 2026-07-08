@@ -91,6 +91,14 @@ assert(
   "agent chat hook resumes consultations",
 );
 assert(
+  agentChatHook.includes("persistConsultationEntries"),
+  "agent chat hook syncs consultation entries",
+);
+assert(
+  agentChatHook.includes("syncAgentConsultationEntries"),
+  "agent chat hook calls consultation sync api",
+);
+assert(
   agentChatHook.includes('consultationViewMode === "readonly"') ||
     agentChat.includes('consultationViewMode === "readonly"'),
   "readonly consultation mode",
@@ -103,8 +111,12 @@ assert(browserApi.includes("syncAgentConsultationEntries"), "browser api syncs i
 
 assert(dal.includes("appendAgentConsultationTurn"), "dal appends turns");
 assert(
-  dal.includes('entry.kind === "user"'),
-  "sync skips when live turns already persisted",
+  dal.includes("buildConsultationTitle(entries)"),
+  "sync always updates consultation title",
+);
+assert(
+  !dal.includes('entry.kind === "user"'),
+  "sync no longer skips after user turns",
 );
 assert(dal.includes("createAgentConsultation"), "dal creates consultation rows");
 
