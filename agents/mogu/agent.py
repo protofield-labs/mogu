@@ -1,4 +1,4 @@
-"""mogu orchestrator agent (#43). Ken/Aoi wired as AgentTools (#44/#269/#270)."""
+"""mogu orchestrator agent (#43). Ken/Aoi wired as AgentTools (#44/#269/#270/#271)."""
 
 from google.adk.agents import Agent
 from google.adk.tools.agent_tool import AgentTool
@@ -33,8 +33,9 @@ root_agent = Agent(
         "Aoi 寄りの相談では落ち着いて雰囲気を大切にする提案トーンを保つ。"
         "店名や理由は具体的に。根拠のない断定は避け、迷ったら聞き返す。\n"
         "Ken / Aoi に委譲した提案では、ユーザー向け本文に味覚の手がかりを必ず1つ入れる。"
-        "例: 「Kenの『渋谷ワイワイ飲み』寄りだと…」"
-        "「Aoiの『中目黒しずかデート』の雰囲気だと…」。"
+        "例: 「Kenの『中目黒サク飲み』寄りだと…」"
+        "「Aoiの『静かな二人時間』の雰囲気だと…」。"
+        "デモでは Ken / Aoi の友達コレクション由来の根拠を優先して語る。"
         "『参照:』という内部ラベルやコレクション参照の生ログはユーザーに出さない。"
         "委譲した事実そのものは説明せず、味覚の根拠だけ地の文に溶かす。\n"
         "\n"

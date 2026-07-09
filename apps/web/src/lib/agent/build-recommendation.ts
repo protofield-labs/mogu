@@ -6,7 +6,10 @@ import { hasRecollectedSourceSpot } from "@/lib/dal/recollect-state";
 import { countSavedInCircleByPlaceIds } from "@/lib/dal/saved-count";
 import { toSpotDto } from "@/lib/dal/spot-dto";
 import { pickDailyRecommendation } from "@/lib/recommendations/pick";
-import { withPersonaTasteEvidence } from "@/lib/agent/stream-parser";
+import {
+  PERSONA_COLLECTION_HINTS,
+  withPersonaTasteEvidence,
+} from "@/lib/agent/stream-parser";
 
 const spotSelect = {
   id: true,
@@ -26,22 +29,31 @@ const spotSelect = {
 } as const;
 
 /**
- * Build a Recommendation card payload for agent assertion turns (#161 / #270).
+ * Build a Recommendation card payload for agent assertion turns (#161 / #270 / #271).
  * Uses the same spot-picking rules as the daily batch, with the agent text as assertion.
- * When a persona taste hint is available, prefix it onto evidence (demo 案1; DB tools are #264).
+ * When a persona is known, prefer that demo friend's spots and keep evidence in the
+ * home-style "Nameが『すき』・グループでn人が保存" format, optionally prefixed with
+ * a collection taste hint when the friend name is not already present.
  */
 export async function buildAgentRecommendation(
   uid: string,
   assertionText: string,
   personaTasteHint: string | null = null,
+  personaKey: "ken" | "aoi" | null = null,
 ): Promise<Recommendation | null> {
   const trimmedAssertion = assertionText.trim();
   if (trimmedAssertion.length === 0) {
     return null;
   }
 
+  const preferAddedByUids = personaKey
+    ? [PERSONA_COLLECTION_HINTS[personaKey]!.demoUid]
+    : [];
+
   return withAuthRls(uid, async (tx) => {
-    const picked = await pickDailyRecommendation(tx, uid);
+    const picked = await pickDailyRecommendation(tx, uid, {
+      preferAddedByUids,
+    });
     if (!picked) {
       return null;
     }
@@ -58,6 +70,9 @@ export async function buildAgentRecommendation(
       where: {
         id: { not: picked.spotId },
         rating: "again",
+        ...(preferAddedByUids.length > 0
+          ? { addedBy: { in: preferAddedByUids } }
+          : {}),
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 2,

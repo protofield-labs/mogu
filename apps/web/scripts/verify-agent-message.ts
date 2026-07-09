@@ -126,46 +126,46 @@ function main() {
 
   assert(
     stripPersonaReferenceLines(
-      "参照: Kenのコレクション『渋谷ワイワイ飲み』（居酒屋・コスパ・友人）\n渋谷ならこの店がいい。",
+      "参照: Kenのコレクション『中目黒サク飲み』（居酒屋・コスパ・友人）\n渋谷ならこの店がいい。",
     ) === "渋谷ならこの店がいい。",
     "drop persona reference line",
   );
   assert(
     stripPersonaReferenceLines(
-      "参照: Kenのコレクション『渋谷ワイワイ飲み』（居酒屋・コスパ・友人）。渋谷ならこの店がいい。",
+      "参照: Kenのコレクション『中目黒サク飲み』（居酒屋・コスパ・友人）。渋谷ならこの店がいい。",
     ) === "渋谷ならこの店がいい。",
     "keep same-line proposal after reference label",
   );
   assert(
-    stripPersonaReferenceLines("Kenの『渋谷ワイワイ飲み』寄りだとこの店。") ===
-      "Kenの『渋谷ワイワイ飲み』寄りだとこの店。",
+    stripPersonaReferenceLines("Kenの『中目黒サク飲み』寄りだとこの店。") ===
+      "Kenの『中目黒サク飲み』寄りだとこの店。",
     "keep natural taste prose without 参照 label",
   );
 
   assert(
     inferPersonaTasteEvidence(
-      "Aoiの『中目黒しずかデート』の雰囲気だとこの店。",
+      "Aoiの『静かな二人時間』の雰囲気だとこの店。",
       ["Kenのコレクションを参照中…"],
-    ) === "Aoiの『中目黒しずかデート』寄り",
+    ) === "Aoiの『静かな二人時間』寄り",
     "prefer reply text over earlier thinking",
   );
   assert(
     inferPersonaTasteEvidence("今夜はおすすめです", [
       "Kenのコレクションを参照中…",
       "Aoiのコレクションを参照中…",
-    ]) === "Aoiの『中目黒しずかデート』寄り",
+    ]) === "Aoiの『静かな二人時間』寄り",
     "use last thinking label when reply has no taste prose",
   );
   assert(
-    withPersonaTasteEvidence("輪で4人が保存", "Kenの『渋谷ワイワイ飲み』寄り") ===
-      "Kenの『渋谷ワイワイ飲み』寄り・輪で4人が保存",
+    withPersonaTasteEvidence("輪で4人が保存", "Kenの『中目黒サク飲み』寄り") ===
+      "Kenの『中目黒サク飲み』寄り・輪で4人が保存",
     "prefix persona taste onto evidence",
   );
   assert(
     withPersonaTasteEvidence(
-      "Kenの『渋谷ワイワイ飲み』寄り・輪で4人が保存",
-      "Kenの『渋谷ワイワイ飲み』寄り",
-    ) === "Kenの『渋谷ワイワイ飲み』寄り・輪で4人が保存",
+      "Kenの『中目黒サク飲み』寄り・輪で4人が保存",
+      "Kenの『中目黒サク飲み』寄り",
+    ) === "Kenの『中目黒サク飲み』寄り・輪で4人が保存",
     "do not double-prefix evidence",
   );
 
@@ -236,7 +236,7 @@ function main() {
   );
 
   const referenceFiltered = parseAgentStreamResponse(
-    '{"author":"ken","content":{"parts":[{"text":"参照: Kenのコレクション『渋谷ワイワイ飲み』（居酒屋・コスパ・友人）\\n渋谷の居酒屋がおすすめです。"}]}}',
+    '{"author":"ken","content":{"parts":[{"text":"参照: Kenのコレクション『中目黒サク飲み』（居酒屋・コスパ・友人）\\n渋谷の居酒屋がおすすめです。"}]}}',
   );
   assert(
     referenceFiltered.text === "渋谷の居酒屋がおすすめです。",

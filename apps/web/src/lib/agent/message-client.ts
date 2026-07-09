@@ -14,6 +14,7 @@ import {
   drainJsonObjects,
   extractThinkingEvent,
   inferPersonaTasteEvidence,
+  inferPersonaKey,
   resolveAgentReplyText,
   type StreamEvent,
 } from "./stream-parser";
@@ -179,9 +180,15 @@ export async function sendAgentMessage(
     }
   }
 
+  const personaKey = inferPersonaKey(text, thinkingMessages);
   const personaTasteHint = inferPersonaTasteEvidence(text, thinkingMessages);
   const recommendation = isAgentAssertionTurn(text)
-    ? await buildAgentRecommendation(input.userId, text, personaTasteHint)
+    ? await buildAgentRecommendation(
+        input.userId,
+        text,
+        personaTasteHint,
+        personaKey,
+      )
     : null;
 
   const agentMessage: AgentMessage = {

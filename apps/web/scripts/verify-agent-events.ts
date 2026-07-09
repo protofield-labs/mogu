@@ -48,7 +48,7 @@ function main() {
     content: {
       parts: [
         {
-          text: "参照: Kenのコレクション『渋谷ワイワイ飲み』（居酒屋・コスパ・友人）",
+          text: "参照: Kenのコレクション『中目黒サク飲み』（居酒屋・コスパ・友人）",
         },
       ],
     },
@@ -62,7 +62,7 @@ function main() {
       parts: [
         { function_call: { name: "some_tool" } },
         {
-          text: "参照: Aoiのコレクション『中目黒しずかデート』（デート・雰囲気・記念日）",
+          text: "参照: Aoiのコレクション『静かな二人時間』（デート・雰囲気・記念日）",
         },
       ],
     },
