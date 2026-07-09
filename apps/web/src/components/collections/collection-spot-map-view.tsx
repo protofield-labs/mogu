@@ -152,6 +152,9 @@ export function CollectionSpotMapView({
   onClearSelection,
   onOpenDetail,
   detailHrefForSpot,
+  // Prefer explicit `h-*` (not only `min-h-*`): @vis.gl/react-google-maps drops
+  // its default `height: 100%` when `className` is set, and Maps JS needs a
+  // non-zero used height or tiles never paint (#258).
   mapClassName = "aspect-[4/3] w-full",
   showNearbyList = true,
   userLocation: userLocationProp,
