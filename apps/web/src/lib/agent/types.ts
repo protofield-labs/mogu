@@ -12,13 +12,20 @@ export type Recommendation = {
   savedByMe?: boolean;
 };
 
-/** OpenAPI AgentMessage (#44). */
+/** OpenAPI AgentMessage (#44). Candidate cards for consult turns (#287). */
 export type AgentMessage = {
   role: "agent";
   text: string;
   thinking?: string[];
   recommendation?: Recommendation;
+  candidateSpots?: Spot[];
   quickReplies?: string[];
+};
+
+/** Tapped candidate card reference sent with a follow-up turn (#287). */
+export type CandidateSpotRef = {
+  spotId: string;
+  placeId: string;
 };
 
 /** OpenAPI AgentEvent (#45). */
@@ -31,6 +38,7 @@ export type AgentEvent = {
 export type AgentMessageRequest = {
   text: string;
   chips?: string[];
+  candidateSpot?: CandidateSpotRef;
 };
 
 import type { CollectionConsultContext } from "./collection-context-message";

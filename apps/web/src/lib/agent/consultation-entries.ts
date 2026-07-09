@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { recommendationSchema } from "@/lib/api/schemas/home";
+import { spotSchema } from "@/lib/api/schemas/spot";
 import type { ChatEntry } from "@/lib/agent/chat-helpers";
 
 const userEntrySchema = z.object({
@@ -15,6 +16,7 @@ const agentEntrySchema = z.object({
   kind: z.literal("agent"),
   text: z.string(),
   recommendation: recommendationSchema.optional(),
+  candidateSpots: z.array(spotSchema).optional(),
   quickReplies: z.array(z.string()).optional(),
 });
 

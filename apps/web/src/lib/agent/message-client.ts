@@ -2,14 +2,21 @@ import "server-only";
 
 import { isAgentAssertionTurn } from "./assertion-turn";
 import { buildAgentRecommendation } from "./build-recommendation";
+import {
+  buildAgentCandidateSpots,
+  getCandidatePinContext,
+} from "./candidate-spots";
+import { extractCandidateSpotMarkers } from "./candidate-spot-markers";
 import { publishAgentEvent } from "./event-bus";
 import {
   AgentSessionError,
   AgentSessionNotFoundError,
 } from "./errors";
 import {
+  buildCandidateFollowUpUserMessage,
   buildFollowUpUserMessage,
   isSamePlaceFollowUp,
+  type CandidatePinContext,
 } from "./followup-context";
 import {
   applyStreamEvent,
@@ -32,7 +39,12 @@ import {
   buildPersonaCollectionContextMessage,
   hasPersonaCollectionSpots,
 } from "./persona-collection-message";
-import type { AgentEvent, AgentMessage, RecommendationContext } from "./types";
+import type {
+  AgentEvent,
+  AgentMessage,
+  CandidateSpotRef,
+  RecommendationContext,
+} from "./types";
 import type { CollectionConsultContext } from "./collection-context-message";
 import { assertAgentSessionOwnership } from "./session-client";
 import {
@@ -51,6 +63,8 @@ type SendAgentMessageInput = {
   sessionId: string;
   text: string;
   chips?: string[];
+  /** Tapped candidate card — pins the follow-up to that spot (#287). */
+  candidateSpot?: CandidateSpotRef;
   skipConsultationPersist?: boolean;
   skipAgentEvents?: boolean;
 };
@@ -138,14 +152,35 @@ export async function sendAgentMessage(
     activeRecommendation = null;
   }
 
+  // Tapped candidate cards hard-pin the follow-up to the selected spot (#287).
+  let candidatePin: CandidatePinContext | null = null;
+  if (input.candidateSpot) {
+    try {
+      candidatePin = await getCandidatePinContext(
+        input.userId,
+        input.candidateSpot,
+      );
+    } catch {
+      candidatePin = null;
+    }
+  }
+
   const userMessage = buildAgentUserMessage(input.text, input.chips);
   // Soft-pin LLM context on same-place follow-ups only; new searches stay free (#264).
-  const message = buildFollowUpUserMessage(
-    userMessage,
-    activeRecommendation && isSamePlaceFollowUp(input.text)
-      ? recommendationToContext(activeRecommendation)
-      : null,
-  );
+  // Candidate taps must never fall back to the #264 pin — a stale tap would
+  // otherwise explain the previous recommendation instead of the tapped card.
+  const pinSamePlace =
+    !input.candidateSpot &&
+    Boolean(activeRecommendation) &&
+    isSamePlaceFollowUp(input.text);
+  const message = candidatePin
+    ? buildCandidateFollowUpUserMessage(userMessage, candidatePin)
+    : buildFollowUpUserMessage(
+        userMessage,
+        pinSamePlace && activeRecommendation
+          ? recommendationToContext(activeRecommendation)
+          : null,
+      );
 
   const response = await fetch(url, {
     method: "POST",
@@ -201,9 +236,9 @@ export async function sendAgentMessage(
     publishChain = publishChain.then(() => publishEventBestEffort(event));
   };
 
-  let text: string;
+  let rawText: string;
   try {
-    text = await consumeStreamQueryResponse(response, (streamEvent) => {
+    rawText = await consumeStreamQueryResponse(response, (streamEvent) => {
       const thinking = extractThinkingEvent(streamEvent);
       if (thinking) {
         publishThinking(thinking);
@@ -216,13 +251,15 @@ export async function sendAgentMessage(
     }
   }
 
+  // Candidate markers become thumbnail cards; the visible text drops them (#287).
+  const { text, markers: candidateMarkers } =
+    extractCandidateSpotMarkers(rawText);
+
   const personaKey = inferPersonaKey(text, thinkingMessages);
   const personaTasteHint = inferPersonaTasteEvidence(text, thinkingMessages);
-  const pinSamePlace =
-    Boolean(activeRecommendation) && isSamePlaceFollowUp(input.text);
-  const anchorSpotId = pinSamePlace
-    ? activeRecommendation?.spot.id
-    : undefined;
+  const anchorSpotId =
+    candidatePin?.spotId ??
+    (pinSamePlace ? activeRecommendation?.spot.id : undefined);
   const recommendation = isAgentAssertionTurn(text)
     ? await buildAgentRecommendation(
         input.userId,
@@ -235,11 +272,25 @@ export async function sendAgentMessage(
       )
     : null;
 
+  let candidateSpots: AgentMessage["candidateSpots"];
+  if (!recommendation && candidateMarkers.length > 0) {
+    try {
+      const spots = await buildAgentCandidateSpots(
+        input.userId,
+        candidateMarkers,
+      );
+      candidateSpots = spots.length > 0 ? spots : undefined;
+    } catch {
+      // Candidate cards are best-effort; the text reply already succeeded.
+    }
+  }
+
   const agentMessage: AgentMessage = {
     role: "agent",
     text,
     ...(thinkingMessages.length > 0 ? { thinking: thinkingMessages } : {}),
     ...(recommendation ? { recommendation } : {}),
+    ...(candidateSpots ? { candidateSpots } : {}),
   };
 
   if (!input.skipConsultationPersist) {

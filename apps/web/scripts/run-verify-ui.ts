@@ -38,6 +38,7 @@ const scripts = [
   "verify-places-cache.ts",
   "verify-agent-recommendation.ts",
   "verify-agent-followup-context.ts",
+  "verify-agent-candidate-spots.ts",
   "verify-agent-scenarios.ts",
   "verify-persona-intro.ts",
   "verify-recommendation-chat.ts",

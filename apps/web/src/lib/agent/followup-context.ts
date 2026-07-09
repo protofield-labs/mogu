@@ -24,6 +24,36 @@ export function buildFollowUpUserMessage(
   ].join("\n");
 }
 
+export type CandidatePinContext = {
+  spotId: string;
+  placeId: string;
+  tagLine?: string | null;
+  comment?: string | null;
+};
+
+/**
+ * Prepend tapped-candidate context so the follow-up stays on the selected place (#287).
+ * The user-visible transcript still shows only `userText`.
+ */
+export function buildCandidateFollowUpUserMessage(
+  userText: string,
+  candidate: CandidatePinContext,
+): string {
+  const trimmed = userText.trim();
+  return [
+    "[候補スポットのフォローアップ]",
+    "ユーザーは直前の候補カードからこの店を選びました。",
+    `選択スポット place_id: ${candidate.placeId}`,
+    `スポットID: ${candidate.spotId}`,
+    ...(candidate.tagLine?.trim() ? [`タグ: ${candidate.tagLine.trim()}`] : []),
+    ...(candidate.comment?.trim() ? [`友達のコメント: ${candidate.comment.trim()}`] : []),
+    "別の店にすり替えず、この店の魅力・根拠・雰囲気を詳しく説明してください。",
+    "",
+    "[ユーザーの発言]",
+    trimmed,
+  ].join("\n");
+}
+
 /**
  * True when the user is asking about the current recommendation, not a new search (#264).
  * Used to pin the assertion card spot and re-seed place context.

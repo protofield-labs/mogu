@@ -3,7 +3,9 @@
 import { createContext, use, type FormEvent, type ReactNode } from "react";
 
 import { useAuth } from "@/contexts/auth-context";
+import { CANDIDATE_FOLLOWUP_TEXT } from "@/lib/agent/candidate-spot-markers";
 import type { ChatEntry } from "@/lib/agent/chat-helpers";
+import type { Spot } from "@/lib/agent/types";
 import {
   useAgentChat,
   type ConsultationViewMode,
@@ -38,6 +40,8 @@ interface AgentChatActions {
   retrySession: () => void;
   newConsultation: () => void;
   sendMessage: (text: string, chips?: string[]) => void;
+  /** 候補カードタップ → 同一 place_id 固定のフォローアップを送る (#287)。 */
+  sendCandidateFollowUp: (spot: Spot) => void;
   handleSubmit: (event: FormEvent) => void;
   handleChipSelect: (chip: string) => void;
   dismissPersonaIntro: () => void;
@@ -97,6 +101,11 @@ export function AgentChatProvider({ children }: { children: ReactNode }) {
       },
       sendMessage: (text, chips) => {
         void chat.sendMessage(text, chips);
+      },
+      sendCandidateFollowUp: (spot) => {
+        void chat.sendMessage(CANDIDATE_FOLLOWUP_TEXT, undefined, {
+          candidateSpot: { spotId: spot.id, placeId: spot.placeId },
+        });
       },
       handleSubmit: chat.handleSubmit,
       handleChipSelect: chat.handleChipSelect,

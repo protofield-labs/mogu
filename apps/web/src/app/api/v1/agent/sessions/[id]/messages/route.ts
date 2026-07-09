@@ -20,6 +20,12 @@ import {
 const messageBodySchema = z.object({
   text: z.string().trim().min(1).max(4000),
   chips: z.array(z.string().trim().min(1).max(100)).max(10).optional(),
+  candidateSpot: z
+    .object({
+      spotId: z.string().min(1).max(100),
+      placeId: z.string().min(1).max(200),
+    })
+    .optional(),
 });
 
 type RouteParams = {
@@ -48,6 +54,7 @@ export async function POST(
         sessionId,
         text: parsed.data.text,
         chips: parsed.data.chips,
+        candidateSpot: parsed.data.candidateSpot,
       });
       return Response.json(agentMessage);
     } catch (error) {
