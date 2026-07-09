@@ -9,28 +9,13 @@ import {
 
 import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
 import { MoguWordmark } from "@/components/brand/mogu-wordmark";
+import { useAgentChatContext } from "@/components/search/agent-chat-context";
 import { Button } from "@/components/ui/button";
-import type { SessionStatus } from "@/lib/agent/use-agent-chat";
 
-type AgentChatHeaderProps = {
-  sessionStatus: SessionStatus;
-  loadingConsultation: boolean;
-  sending: boolean;
-  resettingConsultation: boolean;
-  onOpenHistory: () => void;
-  onNewConsultation: () => void;
-  onShowPersonaIntro: () => void;
-};
-
-export function AgentChatHeader({
-  sessionStatus,
-  loadingConsultation,
-  sending,
-  resettingConsultation,
-  onOpenHistory,
-  onNewConsultation,
-  onShowPersonaIntro,
-}: AgentChatHeaderProps) {
+export function AgentChatHeader() {
+  const { state, actions } = useAgentChatContext();
+  const { sessionStatus, loadingConsultation, sending, resettingConsultation } =
+    state;
   return (
     <header className="flex shrink-0 items-center justify-between px-mogu-screen-x py-3">
       <div className="flex items-center gap-2">
@@ -45,7 +30,7 @@ export function AgentChatHeader({
             size="icon-sm"
             aria-label="味覚アドバイザーの紹介"
             disabled={loadingConsultation || sending}
-            onClick={onShowPersonaIntro}
+            onClick={actions.showPersonaIntroAgain}
             className="text-muted-foreground"
           >
             <UsersIcon className="size-4" aria-hidden />
@@ -55,7 +40,7 @@ export function AgentChatHeader({
             variant="ghost"
             size="sm"
             disabled={loadingConsultation || sending}
-            onClick={onOpenHistory}
+            onClick={actions.openHistory}
             className="text-muted-foreground"
           >
             <HistoryIcon className="size-4" aria-hidden />
@@ -66,7 +51,7 @@ export function AgentChatHeader({
             variant="ghost"
             size="sm"
             disabled={resettingConsultation || sending || loadingConsultation}
-            onClick={onNewConsultation}
+            onClick={actions.newConsultation}
             className="text-muted-foreground"
           >
             {resettingConsultation ? (

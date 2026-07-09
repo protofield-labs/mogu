@@ -3,25 +3,16 @@
 import { useEffect } from "react";
 
 import { useMessageScroller } from "@/components/chat";
-import type { ConsultationViewMode } from "@/lib/agent/use-agent-chat";
-
-type AgentChatAutoScrollProps = {
-  entryCount: number;
-  sending: boolean;
-  sessionId: string | null;
-  consultationViewMode: ConsultationViewMode;
-  /** Keep persona intro (#291) in view until the user starts chatting. */
-  preferStart?: boolean;
-};
+import { useAgentChatContext } from "@/components/search/agent-chat-context";
 
 /** Scroll transcript to latest message on send / new entries (#128). */
-export function AgentChatAutoScroll({
-  entryCount,
-  sending,
-  sessionId,
-  consultationViewMode,
-  preferStart = false,
-}: AgentChatAutoScrollProps) {
+export function AgentChatAutoScroll() {
+  const { state, meta } = useAgentChatContext();
+  const { sending, consultationViewMode } = state;
+  const entryCount = state.entries.length;
+  // Keep persona intro (#291) in view until the user starts chatting.
+  const preferStart = state.showPersonaIntro;
+  const sessionId = meta.sessionId;
   const { scrollToEnd, scrollToStart } = useMessageScroller();
 
   useEffect(() => {

@@ -20,57 +20,29 @@ import {
   TypingIndicator,
   UserBubble,
 } from "@/components/search/agent-chat-bubbles";
+import { useAgentChatContext } from "@/components/search/agent-chat-context";
 import { AgentStructuredChips } from "@/components/search/agent-structured-chips";
 import { PersonaIntroCard } from "@/components/search/persona-intro-card";
 import { Button } from "@/components/ui/button";
-import type { ChatEntry } from "@/lib/agent/chat-helpers";
 import { personaImageForThinkingMessage } from "@/lib/agent/persona-intro";
-import type {
-  ConsultationViewMode,
-  SessionStatus,
-} from "@/lib/agent/use-agent-chat";
 
-type AgentChatTranscriptProps = {
-  entries: ChatEntry[];
-  thinkingMessages: string[];
-  sessionStatus: SessionStatus;
-  consultationViewMode: ConsultationViewMode;
-  showInitialSkeleton: boolean;
-  showStructuredChips: boolean;
-  showPersonaIntro: boolean;
-  sending: boolean;
-  retryingSession: boolean;
-  resettingConsultation: boolean;
-  initError: string | null;
-  sendError: string | null;
-  inputDisabled: boolean;
-  onChipSelect: (chip: string) => void;
-  onSendStructured: (text: string, chips?: string[]) => void;
-  onRetrySession: () => void;
-  onNewConsultation: () => void;
-  onDismissPersonaIntro: () => void;
-};
-
-export function AgentChatTranscript({
-  entries,
-  thinkingMessages,
-  sessionStatus,
-  consultationViewMode,
-  showInitialSkeleton,
-  showStructuredChips,
-  showPersonaIntro,
-  sending,
-  retryingSession,
-  resettingConsultation,
-  initError,
-  sendError,
-  inputDisabled,
-  onChipSelect,
-  onSendStructured,
-  onRetrySession,
-  onNewConsultation,
-  onDismissPersonaIntro,
-}: AgentChatTranscriptProps) {
+export function AgentChatTranscript() {
+  const { state, actions } = useAgentChatContext();
+  const {
+    entries,
+    thinkingMessages,
+    sessionStatus,
+    consultationViewMode,
+    showInitialSkeleton,
+    showStructuredChips,
+    showPersonaIntro,
+    sending,
+    retryingSession,
+    resettingConsultation,
+    initError,
+    sendError,
+    inputDisabled,
+  } = state;
   return (
     <MessageScrollerContent>
       {showInitialSkeleton ? (
@@ -90,7 +62,7 @@ export function AgentChatTranscript({
               variant="outline"
               size="sm"
               disabled={resettingConsultation}
-              onClick={onNewConsultation}
+              onClick={actions.newConsultation}
               className="shrink-0"
             >
               新しい相談
@@ -101,7 +73,7 @@ export function AgentChatTranscript({
 
       {showPersonaIntro && !showInitialSkeleton ? (
         <MessageScrollerItem>
-          <PersonaIntroCard onDismiss={onDismissPersonaIntro} />
+          <PersonaIntroCard onDismiss={actions.dismissPersonaIntro} />
         </MessageScrollerItem>
       ) : null}
 
@@ -114,7 +86,7 @@ export function AgentChatTranscript({
               <>
                 <AgentBubble
                   entry={entry}
-                  onChipSelect={onChipSelect}
+                  onChipSelect={actions.handleChipSelect}
                   disabled={inputDisabled}
                 />
                 {entry.id === "welcome" && showStructuredChips ? (
@@ -123,7 +95,7 @@ export function AgentChatTranscript({
                     <MessageContent>
                       <AgentStructuredChips
                         disabled={inputDisabled}
-                        onSend={onSendStructured}
+                        onSend={actions.sendMessage}
                       />
                     </MessageContent>
                   </Message>
@@ -182,7 +154,7 @@ export function AgentChatTranscript({
               variant="outline"
               size="sm"
               disabled={retryingSession}
-              onClick={onRetrySession}
+              onClick={actions.retrySession}
               className="shrink-0"
             >
               {retryingSession ? (

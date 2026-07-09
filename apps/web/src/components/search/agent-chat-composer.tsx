@@ -3,25 +3,14 @@
 import { useRef } from "react";
 import { ArrowUp } from "lucide-react";
 
+import { useAgentChatContext } from "@/components/search/agent-chat-context";
 import { Button } from "@/components/ui/button";
 import { useVisualViewportOffset } from "@/lib/ui/use-visual-viewport-offset";
 import { cn } from "@/lib/utils";
 
-type AgentChatComposerProps = {
-  input: string;
-  inputDisabled: boolean;
-  onInputChange: (value: string) => void;
-  onSubmit: (event: React.FormEvent) => void;
-  onSend: (text: string) => void;
-};
-
-export function AgentChatComposer({
-  input,
-  inputDisabled,
-  onInputChange,
-  onSubmit,
-  onSend,
-}: AgentChatComposerProps) {
+export function AgentChatComposer() {
+  const { state, actions } = useAgentChatContext();
+  const { input, inputDisabled } = state;
   const keyboardOffset = useVisualViewportOffset();
   // Chrome は IME 確定 Enter で compositionend → keydown の順になり、
   // keydown 時点では isComposing が false になる (#250)。
@@ -38,7 +27,7 @@ export function AgentChatComposer({
           : undefined
       }
     >
-      <form onSubmit={onSubmit} className="flex items-end gap-2">
+      <form onSubmit={actions.handleSubmit} className="flex items-end gap-2">
         <label className="sr-only" htmlFor="agent-message-input">
           メッセージ
         </label>
@@ -47,7 +36,7 @@ export function AgentChatComposer({
           rows={1}
           value={input}
           disabled={inputDisabled}
-          onChange={(event) => onInputChange(event.target.value)}
+          onChange={(event) => actions.setInput(event.target.value)}
           onCompositionEnd={() => {
             skipEnterAfterCompositionRef.current = true;
             // マウス/タップ確定では Enter keydown が来ない。macrotask で keydown 後にクリア。
@@ -69,7 +58,7 @@ export function AgentChatComposer({
                 return;
               }
               event.preventDefault();
-              onSend(input);
+              actions.sendMessage(input);
             }
           }}
           placeholder="メッセージを入力..."

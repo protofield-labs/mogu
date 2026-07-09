@@ -54,9 +54,15 @@ const introCard = readSource("components/search/persona-intro-card.tsx");
 assert(introCard.includes("PersonaIntroCard"), "intro card component");
 assert(introCard.includes("わかった"), "intro card dismiss control");
 
-const agentChat = readSource("components/search/agent-chat.tsx");
-assert(agentChat.includes("usePersonaIntro"), "agent chat uses persona intro hook");
-assert(agentChat.includes("onShowPersonaIntro"), "header can re-show intro");
+const agentChatContext = readSource("components/search/agent-chat-context.tsx");
+assert(
+  agentChatContext.includes("usePersonaIntro"),
+  "agent chat context uses persona intro hook",
+);
+assert(
+  agentChatContext.includes("showPersonaIntroAgain"),
+  "context exposes re-show intro action",
+);
 
 const personaIntroHook = readSource("lib/agent/use-persona-intro.ts");
 assert(
@@ -68,9 +74,11 @@ assert(
   "intro hook gates on storage",
 );
 
-assert(agentChat.includes("preferStart={personaIntro.showPersonaIntro}"), "auto-scroll keeps intro in view");
-
 const autoScroll = readSource("components/search/agent-chat-auto-scroll.tsx");
+assert(
+  autoScroll.includes("preferStart = state.showPersonaIntro"),
+  "auto-scroll keeps intro in view",
+);
 assert(autoScroll.includes("preferStart"), "auto-scroll accepts preferStart");
 assert(autoScroll.includes("scrollToStart"), "auto-scroll can scroll to start");
 assert(
@@ -89,6 +97,10 @@ const header = readSource("components/search/agent-chat-header.tsx");
 assert(
   header.includes("味覚アドバイザーの紹介"),
   "header exposes re-show control",
+);
+assert(
+  header.includes("actions.showPersonaIntroAgain"),
+  "header re-show wired to context action",
 );
 
 console.log("PASS: persona intro verified");
