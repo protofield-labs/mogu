@@ -23,7 +23,7 @@ type FeedItemActionsProps = {
 };
 
 const RATING_BADGE_CLASS: Record<Spot["rating"], string> = {
-  again: "bg-emerald-500/10 text-emerald-700",
+  again: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
   either: "bg-muted text-muted-foreground",
   no: "bg-destructive/10 text-destructive",
 };

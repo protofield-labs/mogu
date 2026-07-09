@@ -91,7 +91,9 @@ function main() {
   assert(homeView.includes("MoguWordmark"), "home uses brand wordmark");
 
   const searchHeader = readSource("components/search/agent-chat-header.tsx");
-  assert(searchHeader.includes('PageTitle>検索'), "search uses page title");
+  assert(searchHeader.includes("MoguBrandIcon"), "search header uses brand icon");
+  assert(searchHeader.includes("MoguWordmark"), "search header uses wordmark");
+  assert(!searchHeader.includes("PageTitle"), "search header no longer uses PageTitle");
 
   const tabBar = readSource("components/tab-bar.tsx");
   assert(tabBar.includes("icon: User"), "tab bar uses profile icon for mypage");
