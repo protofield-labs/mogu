@@ -3,17 +3,14 @@
 import { Star } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-import { RecollectPicker } from "@/components/recollect/recollect-picker";
+import { SpotSaveFooter } from "@/components/recollect/spot-save-footer";
 import { SpotDetailSheet } from "@/components/spots/spot-detail-sheet";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { googleMapsPlaceUrl } from "@/lib/agent/chat-helpers";
 import type { Recommendation } from "@/lib/home/types";
 import { HOME_RECOMMENDATION_LABEL } from "@/lib/home/recommendation-labels";
 import { stashPendingRecommendation } from "@/lib/home/pending-recommendation";
 import { usePlace } from "@/lib/places/use-place";
 import { useRecollect } from "@/lib/recollect/use-recollect";
-import { cn } from "@/lib/utils";
 
 type RecommendationDetailSheetProps = {
   recommendation: Recommendation;
@@ -60,38 +57,20 @@ export function RecommendationDetailSheet({
         </div>
       }
       footer={
-        <>
-          <Button
-            type="button"
+        <SpotSaveFooter spotId={spot.id} recollect={recollect}>
+          <SpotSaveFooter.SaveButton className="w-full" />
+          <SpotSaveFooter.MapLink
+            placeId={spot.placeId}
+            placeName={placeName}
+            place={place}
             className="w-full"
-            disabled={recollect.busy}
-            aria-pressed={recollect.saved}
-            {...recollect.saveHandlers}
-          >
-            {recollect.saved ? "保存済み" : "保存する"}
-          </Button>
-          <a
-            href={googleMapsPlaceUrl({
-              placeId: spot.placeId,
-              name: placeName,
-              location: place?.location,
-            })}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(buttonVariants({ variant: "outline" }), "w-full")}
-          >
-            地図で開く
-          </a>
-          <Button type="button" variant="secondary" className="w-full" onClick={handleConsultAgent}>
+          />
+          <SpotSaveFooter.ConsultAgent onClick={handleConsultAgent}>
             エージェントに相談
-          </Button>
-          {recollect.error ? (
-            <p className="text-xs text-destructive" role="alert">
-              {recollect.error}
-            </p>
-          ) : null}
-          <RecollectPicker spotId={spot.id} recollect={recollect} />
-        </>
+          </SpotSaveFooter.ConsultAgent>
+          <SpotSaveFooter.Error />
+          <SpotSaveFooter.Picker />
+        </SpotSaveFooter>
       }
     />
   );

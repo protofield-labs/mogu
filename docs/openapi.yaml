@@ -465,6 +465,26 @@ paths:
                 $ref: "#/components/schemas/Spot"
         default:
           $ref: "#/components/responses/Error"
+    delete:
+      tags: [spots]
+      summary: リコレクション解除（自分の複製スポットを削除）
+      description: 冪等。savedCount は削除後の place 単位の輪集計（削除対象なしのとき null）。
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [savedCount]
+                properties:
+                  savedCount:
+                    type: integer
+                    nullable: true
+        default:
+          $ref: "#/components/responses/Error"
 
   /feed:
     get:

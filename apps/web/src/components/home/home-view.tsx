@@ -237,6 +237,39 @@ export function HomeView() {
     setFeedViewMode(mode);
   }
 
+  /**
+   * Keep item.savedByMe (and the savedCount snapshot) in sync with save
+   * toggles so list/map switches don't revive stale server state (#283).
+   * savedCount counts DISTINCT savers per place (erd-api §5), so the
+   * server-refreshed count is applied to every row of that place.
+   */
+  function handleSpotSavedChange(
+    spotId: string,
+    saved: boolean,
+    savedCount: number | null,
+  ) {
+    setFeedItems((current) => {
+      const toggled = current.find((item) => item.spot.id === spotId);
+      if (!toggled) {
+        return current;
+      }
+      const placeId = toggled.spot.placeId;
+      return current.map((item) => {
+        if (item.spot.placeId !== placeId) {
+          return item;
+        }
+        return {
+          ...item,
+          savedByMe: item.spot.id === spotId ? saved : item.savedByMe,
+          spot:
+            savedCount === null || item.spot.savedCount === savedCount
+              ? item.spot
+              : { ...item.spot, savedCount },
+        };
+      });
+    });
+  }
+
   if (loading || meLoading) {
     return <HomeViewSkeleton embedded />;
   }
@@ -347,6 +380,7 @@ export function HomeView() {
                 key={selectedFriendId ?? "all"}
                 items={visibleFeedItems}
                 viewerId={me.id}
+                onSavedChange={handleSpotSavedChange}
               />
             </div>
           ) : (
@@ -360,6 +394,9 @@ export function HomeView() {
                     initialFeedCount !== null && index < initialFeedCount
                       ? index
                       : undefined
+                  }
+                  onSavedChange={(saved, savedCount) =>
+                    handleSpotSavedChange(item.spot.id, saved, savedCount)
                   }
                 />
               ))}

@@ -13,3 +13,7 @@ export function showRecollectSuccessToast(
       : undefined,
   });
 }
+
+export function showRecollectRemovedToast(): void {
+  toast("保存を解除しました");
+}

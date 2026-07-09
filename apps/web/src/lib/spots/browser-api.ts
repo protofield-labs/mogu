@@ -1,5 +1,7 @@
 "use client";
 
+import { z } from "zod";
+
 import { apiJson, apiVoid, parseApiJson } from "@/lib/api/browser-client";
 import { spotSchema } from "@/lib/api/schemas/spot";
 import { readApiErrorResponse } from "@/lib/auth/api-error";
@@ -96,6 +98,25 @@ export async function recollectSpot(
       error: err instanceof Error ? err.message : "保存に失敗しました",
     };
   }
+}
+
+const unrecollectResponseSchema = z.object({
+  savedCount: z.number().int().min(0).nullable(),
+});
+
+/**
+ * Remove the viewer's recollection copy created from this source spot (#283).
+ * Returns the refreshed place-level savedCount (null when nothing was deleted).
+ */
+export async function unrecollectSpot(
+  spotId: string,
+): Promise<{ savedCount: number | null }> {
+  return apiJson(
+    `/api/v1/spots/${spotId}/recollect`,
+    unrecollectResponseSchema,
+    "保存を解除できませんでした",
+    { init: { method: "DELETE" } },
+  );
 }
 
 export { getSpotDetail, type SpotDetail } from "@/lib/share/browser-api";
