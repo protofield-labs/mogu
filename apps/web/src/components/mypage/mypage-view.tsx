@@ -193,7 +193,6 @@ export function MypageView() {
           collectionsState.moveCollection(collection, "down")
         }
         onPinTop={collectionsState.pinCollectionToTop}
-        showUpsell={!collectionsState.reorderMode}
       />
     </div>
   );

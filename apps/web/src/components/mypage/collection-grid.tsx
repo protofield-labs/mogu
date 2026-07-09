@@ -2,7 +2,6 @@
 
 import { Lock, Pin, ChevronDown, ChevronUp } from "lucide-react";
 
-import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
 import Link from "next/link";
 
 import { CollectionCover } from "@/components/mypage/collection-cover";
@@ -17,7 +16,6 @@ import { cn } from "@/lib/utils";
 type CollectionGridProps = {
   collections: Collection[];
   getCollectionHref?: (collection: Collection) => string;
-  showUpsell?: boolean;
   emptyMessage?: string;
   reorderMode?: boolean;
   reorderBusy?: boolean;
@@ -136,7 +134,6 @@ function CollectionTile({
 export function CollectionGrid({
   collections,
   getCollectionHref = (collection) => collectionPath(collection.id),
-  showUpsell = true,
   emptyMessage = "まだコレクションがありません。最初のコレクションを作ってみましょう。",
   reorderMode = false,
   reorderBusy = false,
@@ -167,18 +164,6 @@ export function CollectionGrid({
           ))}
         </div>
       )}
-
-      {showUpsell && !reorderMode ? (
-        <EmptyState className="p-5">
-          <p className="inline-flex items-center justify-center gap-2 text-sm font-medium text-foreground">
-            <MoguBrandIcon className="size-4" />
-            + このコレクションに合いそうなお店
-          </p>
-          <p className="mt-2 text-xs text-muted-foreground">
-            スポットが増えるほど、断言が鋭くなります
-          </p>
-        </EmptyState>
-      ) : null}
     </section>
   );
 }

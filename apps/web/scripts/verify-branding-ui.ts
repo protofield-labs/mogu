@@ -45,7 +45,11 @@ assert(mypageTopBar.includes("logout"), "mypage header wires logout");
 assert(!mypageView.includes("Sparkles"), "mypage no longer uses Sparkles");
 
 const collectionGrid = readSource("components/mypage/collection-grid.tsx");
-assert(collectionGrid.includes("MoguBrandIcon"), "collection upsell uses brand icon");
+assert(
+  !collectionGrid.includes("合いそうなお店"),
+  "collection grid no longer shows non-interactive upsell (#257)",
+);
+assert(!collectionGrid.includes("showUpsell"), "collection grid dropped showUpsell prop");
 assert(!collectionGrid.includes("Sparkles"), "collection grid no longer uses Sparkles");
 
 const agentComposer = readSource("components/search/agent-chat-composer.tsx");
