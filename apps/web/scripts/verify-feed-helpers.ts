@@ -8,7 +8,12 @@ import { Rating } from "@prisma/client";
 
 import { decodeFeedCursor, encodeFeedCursor } from "../src/lib/feed/cursor";
 import { buildAssertion, buildEvidence } from "../src/lib/recommendations/pick";
-import { jstTodayDate } from "../src/lib/recommendations/valid-date";
+import {
+  addJstCalendarDays,
+  jstTodayDate,
+} from "../src/lib/recommendations/valid-date";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 const createdAt = new Date("2026-07-06T12:00:00.000Z");
 const id = "11111111-1111-4111-8111-111111111111";
@@ -35,6 +40,30 @@ assert(
     .toISOString()
     .startsWith("2026-07-06"),
   "jstTodayDate keeps same day before JST midnight",
+);
+
+// Overnight window before 4:00 JST batch: 2026-07-07 01:30 JST = 2026-07-06T16:30Z.
+const overnight = jstTodayDate(new Date("2026-07-06T16:30:00.000Z"));
+assert(
+  overnight.toISOString().startsWith("2026-07-07"),
+  "overnight 01:30 JST is already next calendar day",
+);
+assert(
+  addJstCalendarDays(overnight, -1).toISOString().startsWith("2026-07-06"),
+  "previous JST calendar day for overnight fallback",
+);
+
+const recommendationsDal = readFileSync(
+  join(process.cwd(), "src/lib/dal/recommendations.ts"),
+  "utf8",
+);
+assert(
+  recommendationsDal.includes("orderBy: [{ validDate: \"desc\" }"),
+  "home recommendation falls back to newest row (#252)",
+);
+assert(
+  recommendationsDal.includes("findFirst"),
+  "home recommendation uses findFirst for overnight gap (#252)",
 );
 
 assert(

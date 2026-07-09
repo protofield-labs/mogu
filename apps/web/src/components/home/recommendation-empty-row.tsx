@@ -17,7 +17,7 @@ type RecommendationEmptyRowProps = {
 };
 
 /**
- * Fallback when GET /home/recommendation has no pick for today (204).
+ * Fallback when GET /home/recommendation has no today or previous pick (204).
  */
 export function RecommendationEmptyRow({
   ownSpotCount,
