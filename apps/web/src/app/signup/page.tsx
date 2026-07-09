@@ -50,14 +50,16 @@ export default function SignupPage() {
 
   return (
     <AuthFormShell
-      eyebrow="mogu"
-      title="新規登録"
+      title="mogu をはじめよう"
       description="アカウントを作成して、食の記録をはじめましょう。"
       submitting={submitting}
       footer={
         <p className="text-center text-sm text-muted-foreground">
           すでにアカウントをお持ちの方は{" "}
-          <Link href="/login" className="font-medium text-primary hover:underline">
+          <Link
+            href="/login"
+            className="font-medium text-foreground underline underline-offset-2 hover:text-primary"
+          >
             ログイン
           </Link>
         </p>

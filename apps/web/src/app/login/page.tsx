@@ -70,27 +70,21 @@ export default function LoginPage() {
 
   return (
     <AuthFormShell
-      eyebrow="mogu"
-      title="ログイン"
-      description="友達の食の記録と、AI の店づけにアクセスします。"
+      title="mogu へようこそ"
+      description="ログインして、友達の食の記録と AI のお店探しをはじめましょう。"
       submitting={busy}
       footer={
         <p className="text-center text-sm text-muted-foreground">
           アカウントをお持ちでない方は{" "}
-          <Link href="/signup" className="font-medium text-primary hover:underline">
+          <Link
+            href="/signup"
+            className="font-medium text-foreground underline underline-offset-2 hover:text-primary"
+          >
             新規登録
           </Link>
         </p>
       }
     >
-      <GoogleSignInButton
-        disabled={submitting}
-        loading={googleSubmitting}
-        onClick={() => void handleGoogleSignIn()}
-      />
-
-      <AuthDivider />
-
       <form className="space-y-4" onSubmit={(e) => void handleEmailSignIn(e)}>
         <AuthFormField
           label="メールアドレス"
@@ -116,10 +110,18 @@ export default function LoginPage() {
               ログイン中…
             </>
           ) : (
-            "メールアドレスでログイン"
+            "ログイン"
           )}
         </Button>
       </form>
+
+      <AuthDivider />
+
+      <GoogleSignInButton
+        disabled={submitting}
+        loading={googleSubmitting}
+        onClick={() => void handleGoogleSignIn()}
+      />
     </AuthFormShell>
   );
 }
