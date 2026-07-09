@@ -71,34 +71,60 @@ const candidateSelect = {
 /**
  * Rule-based daily recommendation (#42 MVP batch).
  * Prefers a friend's newest "again" spot, then own "again", then any visible spot.
+ * When preferAddedByUids is set (agent persona turns, #271), try those friends first.
  */
 export async function pickDailyRecommendation(
   tx: PrismaTransaction,
   viewerUid: string,
+  options?: { preferAddedByUids?: string[] },
 ): Promise<GeneratedDailyRecommendation | null> {
-  const friendSpot = await tx.spot.findFirst({
-    where: { rating: "again", addedBy: { not: viewerUid } },
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    select: candidateSelect,
-  });
+  const preferredUids = (options?.preferAddedByUids ?? []).filter(
+    (uid) => uid && uid !== viewerUid,
+  );
 
-  const ownSpot = friendSpot
+  let preferredSpot: CandidateSpot | null = null;
+  for (const addedBy of preferredUids) {
+    preferredSpot = await tx.spot.findFirst({
+      where: { rating: "again", addedBy },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      select: candidateSelect,
+    });
+    if (preferredSpot) {
+      break;
+    }
+  }
+
+  const friendSpot = preferredSpot
     ? null
     : await tx.spot.findFirst({
-        where: { rating: "again", addedBy: viewerUid },
+        where: {
+          rating: "again",
+          addedBy: {
+            notIn: [viewerUid, ...preferredUids],
+          },
+        },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         select: candidateSelect,
       });
 
+  const ownSpot =
+    preferredSpot || friendSpot
+      ? null
+      : await tx.spot.findFirst({
+          where: { rating: "again", addedBy: viewerUid },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          select: candidateSelect,
+        });
+
   const fallback =
-    friendSpot || ownSpot
+    preferredSpot || friendSpot || ownSpot
       ? null
       : await tx.spot.findFirst({
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           select: candidateSelect,
         });
 
-  const chosen = friendSpot ?? ownSpot ?? fallback;
+  const chosen = preferredSpot ?? friendSpot ?? ownSpot ?? fallback;
   if (!chosen) {
     return null;
   }

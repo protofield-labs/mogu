@@ -1,14 +1,18 @@
 /**
- * Agent recommendation verification (#161 / #270).
+ * Agent recommendation verification (#161 / #270 / #271).
  * Run via: pnpm exec tsx scripts/verify-agent-recommendation.ts
  */
+import { Rating } from "@prisma/client";
+
 import { assert } from "./test-helpers/assert";
 
 import { isAgentAssertionTurn } from "../src/lib/agent/assertion-turn";
 import {
+  inferPersonaKey,
   inferPersonaTasteEvidence,
   withPersonaTasteEvidence,
 } from "../src/lib/agent/stream-parser";
+import { buildEvidence } from "../src/lib/recommendations/pick";
 
 function main() {
   assert(
@@ -33,11 +37,28 @@ function main() {
   );
 
   assert(
+    inferPersonaKey("", ["Kenのコレクションを参照中…"]) === "ken",
+    "infers ken persona key from thinking",
+  );
+  assert(
+    inferPersonaKey("Aoiの『静かな二人時間』の雰囲気だとこの店。") === "aoi",
+    "infers aoi persona key from prose",
+  );
+
+  const homeStyle = buildEvidence("Ken", Rating.again, 3);
+  assert(
     withPersonaTasteEvidence(
-      "Kenが『また行きたい』・輪で4人が保存",
+      homeStyle,
       inferPersonaTasteEvidence("", ["Kenのコレクションを参照中…"]),
-    ).startsWith("Kenの『渋谷ワイワイ飲み』寄り"),
-    "assertion evidence can carry persona taste hint",
+    ) === homeStyle,
+    "keep home-style Ken evidence without double-prefix",
+  );
+  assert(
+    withPersonaTasteEvidence(
+      "Mikaが『すき』・グループで2人が保存",
+      "Aoiの『静かな二人時間』寄り",
+    ).startsWith("Aoiの『静かな二人時間』寄り・"),
+    "prefix taste hint when friend name differs from persona",
   );
 
   console.log("PASS: agent recommendation helpers verified");

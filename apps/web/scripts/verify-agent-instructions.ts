@@ -56,8 +56,8 @@ function main() {
   );
   assert(
     orchestrator.includes("味覚の手がかり") ||
-      orchestrator.includes("渋谷ワイワイ飲み") ||
-      orchestrator.includes("中目黒しずかデート"),
+      orchestrator.includes("中目黒サク飲み") ||
+      orchestrator.includes("静かな二人時間"),
     "orchestrator surfaces persona taste in final reply",
   );
 
@@ -77,7 +77,7 @@ function main() {
     "ken avoids quiet/formal date venues",
   );
   assert(
-    ken.includes("渋谷ワイワイ飲み") && ken.includes("参照:"),
+    ken.includes("中目黒サク飲み") && ken.includes("参照:"),
     "ken declares demo collection reference",
   );
 
@@ -97,7 +97,7 @@ function main() {
     "aoi avoids loud izakaya-style venues",
   );
   assert(
-    aoi.includes("中目黒しずかデート") && aoi.includes("参照:"),
+    aoi.includes("静かな二人時間") && aoi.includes("参照:"),
     "aoi declares demo collection reference",
   );
 

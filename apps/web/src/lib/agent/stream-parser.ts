@@ -19,18 +19,20 @@ export const PERSONA_THINKING: Record<string, string> = {
   aoi: "Aoiのコレクションを参照中…",
 };
 
-/** Demo-fixed collection labels for persona taste hints (#270 案1). */
+/** Demo-fixed collection labels aligned with seed DEMO_PERSONAS (#270/#271). */
 export const PERSONA_COLLECTION_HINTS: Record<
   string,
-  { collection: string; evidence: string }
+  { collection: string; evidence: string; demoUid: string }
 > = {
   ken: {
-    collection: "渋谷ワイワイ飲み",
-    evidence: "Kenの『渋谷ワイワイ飲み』寄り",
+    collection: "中目黒サク飲み",
+    evidence: "Kenの『中目黒サク飲み』寄り",
+    demoUid: "demo-ken",
   },
   aoi: {
-    collection: "中目黒しずかデート",
-    evidence: "Aoiの『中目黒しずかデート』寄り",
+    collection: "静かな二人時間",
+    evidence: "Aoiの『静かな二人時間』寄り",
+    demoUid: "demo-aoi",
   },
 };
 
@@ -38,7 +40,7 @@ const PERSONA_AUTHORS = new Set(Object.keys(PERSONA_THINKING));
 
 /** Internal persona "参照:" lines must not reach the user bubble (#270). */
 const PERSONA_REFERENCE_LINE =
-  /^\s*参照\s*[:：].*(?:コレクション|Ken|Aoi|ケン|アオイ|渋谷ワイワイ飲み|中目黒しずかデート)/i;
+  /^\s*参照\s*[:：].*(?:コレクション|Ken|Aoi|ケン|アオイ|中目黒サク飲み|静かな二人時間)/i;
 
 /** Labels Gemini sometimes leaks into text parts (#251). */
 const LEAKED_THINKING_LABEL =
@@ -231,14 +233,14 @@ export function sanitizeAgentReplyText(text: string): string {
 }
 
 /**
- * Infer a persona taste evidence fragment from reply text or thinking labels (#270).
+ * Infer which persona (ken/aoi) a turn leaned on (#270/#271).
  * Prefer the final reply text so mid-turn delegation thinking does not override
  * the persona the orchestrator actually used in the user-facing answer.
  */
-export function inferPersonaTasteEvidence(
+export function inferPersonaKey(
   text: string,
   thinkingMessages: string[] = [],
-): string | null {
+): "ken" | "aoi" | null {
   const kenHint = PERSONA_COLLECTION_HINTS.ken!;
   const aoiHint = PERSONA_COLLECTION_HINTS.aoi!;
   if (
@@ -246,30 +248,40 @@ export function inferPersonaTasteEvidence(
     /Kenの[『「].+?[』」]/.test(text) ||
     /ケンの[『「].+?[』」]/.test(text)
   ) {
-    return kenHint.evidence;
+    return "ken";
   }
   if (
     text.includes(aoiHint.collection) ||
     /Aoiの[『「].+?[』」]/.test(text) ||
     /アオイの[『「].+?[』」]/.test(text)
   ) {
-    return aoiHint.evidence;
+    return "aoi";
   }
 
-  // Fall back to the last persona thinking label in this turn.
   for (let i = thinkingMessages.length - 1; i >= 0; i--) {
     const message = thinkingMessages[i];
     if (message === PERSONA_THINKING.ken) {
-      return kenHint.evidence;
+      return "ken";
     }
     if (message === PERSONA_THINKING.aoi) {
-      return aoiHint.evidence;
+      return "aoi";
     }
   }
   return null;
 }
 
-/** Prefixed evidence when a persona taste hint is available (#270). */
+/**
+ * Infer a persona taste evidence fragment from reply text or thinking labels (#270/#271).
+ */
+export function inferPersonaTasteEvidence(
+  text: string,
+  thinkingMessages: string[] = [],
+): string | null {
+  const persona = inferPersonaKey(text, thinkingMessages);
+  return persona ? PERSONA_COLLECTION_HINTS[persona]!.evidence : null;
+}
+
+/** Prefixed evidence when a persona taste hint is available (#270/#271). */
 export function withPersonaTasteEvidence(
   evidence: string,
   tasteHint: string | null,
@@ -278,7 +290,11 @@ export function withPersonaTasteEvidence(
   if (!tasteHint) {
     return trimmed;
   }
-  if (trimmed.includes(tasteHint) || trimmed.includes("コレクション")) {
+  if (trimmed.includes(tasteHint)) {
+    return trimmed;
+  }
+  // Home-style evidence already names the person (「Kenが『すき』…」).
+  if (/^(?:Ken|Aoi|ケン|アオイ)が[『「]/.test(trimmed)) {
     return trimmed;
   }
   return trimmed ? `${tasteHint}・${trimmed}` : tasteHint;
@@ -433,12 +449,12 @@ function resolvePersonaKeyFromBlob(blob: string): "ken" | "aoi" | null {
   const lower = blob.toLowerCase();
   const kenIdx = Math.min(
     firstRegexIndex(lower, /(?:^|[^a-z0-9_])ken(?:[^a-z0-9_]|$)/i),
-    firstIndex(blob, "渋谷ワイワイ飲み"),
+    firstIndex(blob, "中目黒サク飲み"),
     firstRegexIndex(blob, /(?:^|[^\p{L}\p{N}])ケン(?:[^\p{L}\p{N}]|$)/u),
   );
   const aoiIdx = Math.min(
     firstRegexIndex(lower, /(?:^|[^a-z0-9_])aoi(?:[^a-z0-9_]|$)/i),
-    firstIndex(blob, "中目黒しずかデート"),
+    firstIndex(blob, "静かな二人時間"),
     firstRegexIndex(blob, /(?:^|[^\p{L}\p{N}])(?:アオイ|あおい)(?:[^\p{L}\p{N}]|$)/u),
   );
 
