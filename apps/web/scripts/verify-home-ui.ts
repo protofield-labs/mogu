@@ -245,6 +245,14 @@ function main() {
     "feed heart toggles likes",
   );
   assert(
+    readSource("components/home/feed-item-actions.tsx").includes("Badge"),
+    "feed rating chip uses Badge",
+  );
+  assert(
+    readSource("components/home/feed-item-actions.tsx").includes("RATING_BADGE_CLASS"),
+    "feed rating chip has rating-specific styles",
+  );
+  assert(
     readSource("components/home/home-view.tsx").includes(
       "item.likedByMe}:${item.likeCount}",
     ),
