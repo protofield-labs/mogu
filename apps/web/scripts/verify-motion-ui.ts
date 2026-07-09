@@ -56,7 +56,11 @@ function main() {
 
   const agentChat = readSource("components/search/agent-chat.tsx");
   assert(agentChat.includes("AgentChatAutoScroll"), "agent chat auto-scrolls on send");
-  assert(agentChat.includes("sessionId={chat.sessionId}"), "auto-scroll tracks consultation session");
+  const agentAutoScroll = readSource("components/search/agent-chat-auto-scroll.tsx");
+  assert(
+    agentAutoScroll.includes("sessionId = meta.sessionId"),
+    "auto-scroll tracks consultation session",
+  );
   assert(
     agentChat.includes("MessageScrollerProvider"),
     "agent chat composer stays in scroller provider",
