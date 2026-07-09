@@ -53,7 +53,11 @@ type SavedSaverRow = {
   avatar_url: string | null;
 };
 
-/** Recent distinct savers per place_id for feed avatar stacks (#205). */
+/**
+ * Recent distinct friend savers per place_id for feed avatar stacks (#205).
+ * Excludes the viewer — social proof is about friends (#284).
+ * `savedCount` still includes self (erd-api §5); only this preview list differs.
+ */
 export async function listSavedInCircleByPlaceIds(
   tx: PrismaTransaction,
   placeIds: string[],
@@ -71,10 +75,7 @@ export async function listSavedInCircleByPlaceIds(
         MAX(s.created_at) AS latest_save
       FROM spots s
       WHERE s.place_id = ANY(${placeIds}::text[])
-        AND (
-          s.added_by = app_current_user()
-          OR are_friends(s.added_by, app_current_user())
-        )
+        AND are_friends(s.added_by, app_current_user())
       GROUP BY s.place_id, s.added_by
     ),
     ranked AS (

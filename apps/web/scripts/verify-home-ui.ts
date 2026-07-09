@@ -206,6 +206,22 @@ function main() {
   assert(feedItemCard.includes("canRecollectFeedItem"), "feed item hides save for own items");
   assert(feedItemCard.includes("FeedItemActions"), "feed item uses icon actions");
   assert(feedItemCard.includes("FeedSavedSavers"), "feed item shows saved savers");
+  const savedCountDal = readSource("lib/dal/saved-count.ts");
+  const listSaversFn = savedCountDal.slice(
+    savedCountDal.indexOf("listSavedInCircleByPlaceIds"),
+  );
+  assert(
+    listSaversFn.includes("are_friends(s.added_by, app_current_user())"),
+    "saver preview filters to friends",
+  );
+  assert(
+    !listSaversFn.includes("s.added_by = app_current_user()"),
+    "saver preview excludes viewer (#284)",
+  );
+  assert(
+    savedCountDal.includes("s.added_by = app_current_user()"),
+    "savedCount still includes viewer (erd-api §5)",
+  );
   assert(
     feedItemCard.includes("leading-tight"),
     "feed header aligns actor name with avatar",
