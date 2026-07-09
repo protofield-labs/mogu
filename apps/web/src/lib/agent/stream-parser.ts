@@ -19,11 +19,33 @@ const PERSONA_THINKING: Record<string, string> = {
   aoi: "Aoiのコレクションを参照中…",
 };
 
+const PERSONA_AUTHORS = new Set(Object.keys(PERSONA_THINKING));
+
 /** Labels Gemini sometimes leaks into text parts (#251). */
 const LEAKED_THINKING_LABEL =
   /^(?:thinking\s*process|chain\s*of\s*thought|internal\s*monologue)\s*:?\s*/i;
 
 const CJK_CHAR = /[\u3040-\u30ff\u3400-\u9fff\uff66-\uff9d]/;
+
+/**
+ * Orchestrator sometimes narrates AgentTool delegation to the user (#263).
+ * Require persona name at line start (or 『』 wrap) so shop names like
+ * 「焼き鳥ケン」 are not treated as the Ken persona.
+ */
+const PERSONA_NAME = "(?:アオイ|あおい|Aoi|AOI|ケン|けん|Ken|KEN)";
+const DELEGATION_NARRATION_LINE = new RegExp(
+  [
+    // Line-leading: 「アオイに相談してみましょう」
+    `^\\s*${PERSONA_NAME}(?:さん)?(?:に相談|に聞|に頼|へ相談|へ聞|から提案|からの提案|に任せ|に確認)`,
+    // 『アオイ』 anywhere (quoted persona label from the repro)
+    `『${PERSONA_NAME}』(?:さん)?(?:に相談|に聞|に頼|へ相談|へ聞)`,
+    // Line-leading internal ask: 「アオイさん、〜ありますか？」
+    `^\\s*${PERSONA_NAME}さん[、,].{0,80}(?:ありますか|教えて|おすすめ)`,
+    // Line-leading report: 「アオイから提案がありました」
+    `^\\s*${PERSONA_NAME}(?:さん)?から提案がありました`,
+  ].join("|"),
+  "i",
+);
 
 function isLeakedThinkingLine(line: string): boolean {
   const trimmed = line.trim();
@@ -90,6 +112,94 @@ export function stripLeakedThinkingText(text: string): string {
   }
 
   return lines.slice(index).join("\n").trim();
+}
+
+/**
+ * Remove persona-delegation narration that leaked into the user bubble (#263).
+ * Drops narration-only lines; for mixed lines, keeps non-narration clauses.
+ */
+export function stripDelegationNarration(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  const internalAskOrReport = new RegExp(
+    [
+      `^\\s*${PERSONA_NAME}さん[、,]`,
+      `^\\s*${PERSONA_NAME}(?:さん)?から提案がありました`,
+    ].join("|"),
+    "i",
+  );
+
+  const keptLines: string[] = [];
+  for (const line of trimmed.split(/\r?\n/)) {
+    const value = line.trim();
+    if (!value) {
+      keptLines.push(line);
+      continue;
+    }
+    if (!DELEGATION_NARRATION_LINE.test(value)) {
+      keptLines.push(line);
+      continue;
+    }
+
+    // Internal asks / reports are narration-only — drop the whole line.
+    if (internalAskOrReport.test(value)) {
+      continue;
+    }
+
+    // Mixed lines like 「アオイに相談する前に、エリアを教えてください。」
+    const clauses = value
+      .split(/(?<=[。！？])|(?<=、)/)
+      .map((clause) => clause.trim())
+      .filter(Boolean);
+    const keptClauses = clauses.filter(
+      (clause) => !DELEGATION_NARRATION_LINE.test(clause),
+    );
+    if (keptClauses.length > 0) {
+      keptLines.push(keptClauses.join("").replace(/^、+/, "").trim());
+    }
+  }
+
+  return keptLines
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/** Final cleanup before display/persist (#251 + #263). */
+export function sanitizeAgentReplyText(text: string): string {
+  return stripDelegationNarration(stripLeakedThinkingText(text));
+}
+
+/** Only treat pure acknowledgements as thin — keep clarifying questions. */
+const THIN_ORCHESTRATOR_REPLY =
+  /^(?:わかりました|了解です|少々お待ちください|お待ちください|確認します|調べます|はい)[。．!！…]*$/;
+
+function isThinOrchestratorReply(text: string): boolean {
+  return THIN_ORCHESTRATOR_REPLY.test(text.trim());
+}
+
+/**
+ * Prefer orchestrator text; fall back to persona when primary is empty or a pure ack (#263).
+ */
+export function resolveAgentReplyText(
+  orchestratorText: string,
+  personaText = "",
+): string {
+  const primary = sanitizeAgentReplyText(orchestratorText);
+  const fallback = sanitizeAgentReplyText(personaText);
+  if (!primary) {
+    return fallback;
+  }
+  if (!fallback) {
+    return primary;
+  }
+  if (isThinOrchestratorReply(primary) && fallback.length > primary.length) {
+    return fallback;
+  }
+  return primary;
 }
 
 function scanJsonObjects(
@@ -162,7 +272,11 @@ export function extractJsonObjects(raw: string): StreamEvent[] {
   return scanJsonObjects(raw).events;
 }
 
-export function applyStreamEvent(event: StreamEvent, textParts: string[]): void {
+export function applyStreamEvent(
+  event: StreamEvent,
+  textParts: string[],
+  personaTextParts: string[] = [],
+): void {
   if (event.error_code) {
     throw new AgentSessionError(
       event.error_message ?? event.message ?? "Vertex AI agent query failed",
@@ -171,30 +285,52 @@ export function applyStreamEvent(event: StreamEvent, textParts: string[]): void 
 
   if (
     textParts.length === 0 &&
+    personaTextParts.length === 0 &&
     typeof event.message === "string" &&
     event.message.startsWith("404")
   ) {
     throw new AgentSessionNotFoundError();
   }
 
+  const author = event.author?.trim().toLowerCase();
+  const isPersona = Boolean(author && PERSONA_AUTHORS.has(author));
+
   for (const part of event.content?.parts ?? []) {
-    if (part.text) {
-      textParts.push(part.text);
+    if (!part.text) {
+      continue;
     }
+    if (isPersona) {
+      // Keep persona text as fallback if orchestrator never emits a final reply.
+      personaTextParts.push(part.text);
+      continue;
+    }
+    textParts.push(part.text);
   }
 }
 
 /** Map Vertex stream event to OpenAPI AgentEvent thinking (#45). */
 export function extractThinkingEvent(event: StreamEvent): AgentEvent | null {
-  const personaMessage = event.author
-    ? PERSONA_THINKING[event.author]
-    : undefined;
+  const author = event.author?.trim().toLowerCase();
+  const personaMessage = author ? PERSONA_THINKING[author] : undefined;
   if (personaMessage) {
     return createThinkingEvent(personaMessage);
   }
 
   for (const part of event.content?.parts ?? []) {
     if (part.function_call) {
+      const name =
+        typeof part.function_call === "object" &&
+        part.function_call &&
+        "name" in part.function_call &&
+        typeof (part.function_call as { name?: unknown }).name === "string"
+          ? (part.function_call as { name: string }).name.toLowerCase()
+          : "";
+      if (name.includes("ken")) {
+        return createThinkingEvent(PERSONA_THINKING.ken!);
+      }
+      if (name.includes("aoi")) {
+        return createThinkingEvent(PERSONA_THINKING.aoi!);
+      }
       return createThinkingEvent("エージェントが情報を集めています…");
     }
   }
@@ -221,13 +357,14 @@ export function createDoneEvent(message = "思考が完了しました"): AgentE
 /** Parse Reasoning Engine :streamQuery body into AgentMessage (#44). */
 export function parseAgentStreamResponse(raw: string): AgentMessage {
   const textParts: string[] = [];
+  const personaTextParts: string[] = [];
   const events = extractJsonObjects(raw);
 
   for (const event of events) {
-    applyStreamEvent(event, textParts);
+    applyStreamEvent(event, textParts, personaTextParts);
   }
 
-  const text = stripLeakedThinkingText(textParts.join(""));
+  const text = resolveAgentReplyText(textParts.join(""), personaTextParts.join(""));
   if (!text) {
     if (raw.trim() && events.length === 0) {
       throw new AgentSessionError(

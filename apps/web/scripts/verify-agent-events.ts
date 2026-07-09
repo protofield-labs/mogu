@@ -29,6 +29,12 @@ function delivery(
 function main() {
   const kenEvent = extractThinkingEvent({ author: "ken" });
   assert(kenEvent?.message === "Kenのコレクションを参照中…", "ken thinking");
+  const aoiEvent = extractThinkingEvent({ author: "Aoi" });
+  assert(aoiEvent?.message === "Aoiのコレクションを参照中…", "aoi thinking case-insensitive");
+  const kenTool = extractThinkingEvent({
+    content: { parts: [{ function_call: { name: "ken" } }] },
+  });
+  assert(kenTool?.message === "Kenのコレクションを参照中…", "ken tool call thinking");
 
   const thinking = createThinkingEvent("test");
   const sse = formatAgentEventSse(thinking, "1");

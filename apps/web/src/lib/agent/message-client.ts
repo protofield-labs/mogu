@@ -13,7 +13,7 @@ import {
   createDoneEvent,
   drainJsonObjects,
   extractThinkingEvent,
-  stripLeakedThinkingText,
+  resolveAgentReplyText,
   type StreamEvent,
 } from "./stream-parser";
 import { buildRecommendationContextMessage } from "./recommendation-context-message";
@@ -42,11 +42,12 @@ function drainStreamBuffer(
   buffer: string,
   onEvent: (event: StreamEvent) => void,
   textParts: string[],
+  personaTextParts: string[],
 ): string {
   const drained = drainJsonObjects(buffer);
   for (const event of drained.events) {
     onEvent(event);
-    applyStreamEvent(event, textParts);
+    applyStreamEvent(event, textParts, personaTextParts);
   }
   return drained.remainder;
 }
@@ -63,6 +64,7 @@ async function consumeStreamQueryResponse(
   const decoder = new TextDecoder();
   let buffer = "";
   const textParts: string[] = [];
+  const personaTextParts: string[] = [];
 
   while (true) {
     const { done, value } = await reader.read();
@@ -74,12 +76,18 @@ async function consumeStreamQueryResponse(
       buffer + decoder.decode(value, { stream: true }),
       onEvent,
       textParts,
+      personaTextParts,
     );
   }
 
-  buffer = drainStreamBuffer(buffer + decoder.decode(), onEvent, textParts);
+  buffer = drainStreamBuffer(
+    buffer + decoder.decode(),
+    onEvent,
+    textParts,
+    personaTextParts,
+  );
 
-  const text = stripLeakedThinkingText(textParts.join(""));
+  const text = resolveAgentReplyText(textParts.join(""), personaTextParts.join(""));
   if (!text) {
     throw new AgentSessionError("Vertex AI agent returned empty response");
   }
