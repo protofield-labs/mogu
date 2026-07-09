@@ -379,7 +379,35 @@ the map shows an `EmptyState` message instead of a blank grey box (#185).
 `aspect-[…]`) on the map — `min-h-[…]` alone leaves the Maps JS div at height 0
 and triggers a false `tilesTimeout`.
 
-## 8. Monitoring alerts (Slack)
+## 8. Agent Engine redeploy & observability (#264)
+
+Orchestrator / Maps Grounding source lives in `agents/mogu` and
+`agents/mogu_maps`. Terraform packages them as inline tar.gz into
+`google_vertex_ai_reasoning_engine` (`terraform/environments/dev/agent_engine.tf`).
+
+**After changing `agents/**/*.py`**, redeploy the engines:
+
+```bash
+./scripts/plan.sh terraform/environments/dev
+terraform -chdir=terraform/environments/dev apply
+```
+
+Cloud Run already receives `AGENT_ENGINE_RESOURCE_NAME` (and optional
+`MAPS_GROUNDING_ENGINE_RESOURCE_NAME`). Web deploys do **not** refresh Agent
+Engine — only Terraform apply does.
+
+**Tracing / cost:** both `AdkApp` instances set `enable_tracing=True`. Inspect
+turns in Cloud Trace (Vertex AI / Agent Engine spans). Monthly spend alerts
+use the billing budget in `terraform/environments/dev/budget.tf` (§9 Slack).
+Per-turn LLM cost is not yet aggregated in-app; use Trace + Billing for demos.
+
+**Session context (#264):** on `POST /api/v1/agent/sessions`, Cloud Run seeds
+Ken/Aoi demo collection spots from Cloud SQL (hidden turn). Follow-up messages
+that ask about the current recommendation re-inject `place_id` / `spot_id` so
+the assertion card stays on the same place. Maps Grounding Engine and Memory
+Bank remain backlog (not called from web yet).
+
+## 9. Monitoring alerts (Slack)
 
 Cloud Monitoring alert policies (Cloud Run 5xx / latency / request spike,
 Cloud SQL CPU / disk) notify Slack via a Monitoring notification channel.

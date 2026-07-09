@@ -7,7 +7,7 @@ import {
 } from "@/lib/agent/chat-helpers";
 import { parseConsultationEntries } from "@/lib/agent/consultation-entries";
 import { buildConsultationTitle } from "@/lib/agent/consultation-title";
-import type { AgentMessage } from "@/lib/agent/types";
+import type { AgentMessage, Recommendation } from "@/lib/agent/types";
 import { withAuthRls } from "@/lib/auth/with-auth-rls";
 
 export const AGENT_CONSULTATION_LIST_LIMIT = 20;
@@ -130,6 +130,30 @@ export async function listAgentConsultations(
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     }));
+  });
+}
+
+/** Latest recommendation card in a Vertex session's consultation history (#264). */
+export async function getLatestRecommendationForSession(
+  uid: string,
+  vertexSessionId: string,
+): Promise<Recommendation | null> {
+  return withAuthRls(uid, async (tx) => {
+    const row = await tx.agentConsultation.findFirst({
+      where: { userId: uid, vertexSessionId },
+      select: { entries: true },
+    });
+    if (!row) {
+      return null;
+    }
+    const entries = parseConsultationEntries(row.entries);
+    for (let i = entries.length - 1; i >= 0; i -= 1) {
+      const entry = entries[i];
+      if (entry?.kind === "agent" && entry.recommendation) {
+        return entry.recommendation;
+      }
+    }
+    return null;
   });
 }
 

@@ -40,6 +40,7 @@ export async function buildAgentRecommendation(
   assertionText: string,
   personaTasteHint: string | null = null,
   personaKey: "ken" | "aoi" | null = null,
+  options?: { anchorSpotId?: string },
 ): Promise<Recommendation | null> {
   const trimmedAssertion = assertionText.trim();
   if (trimmedAssertion.length === 0) {
@@ -49,10 +50,12 @@ export async function buildAgentRecommendation(
   const preferAddedByUids = personaKey
     ? [PERSONA_COLLECTION_HINTS[personaKey]!.demoUid]
     : [];
+  const anchorSpotId = options?.anchorSpotId;
 
   return withAuthRls(uid, async (tx) => {
     const picked = await pickDailyRecommendation(tx, uid, {
       preferAddedByUids,
+      ...(anchorSpotId ? { anchorSpotId } : {}),
     });
     if (!picked) {
       return null;

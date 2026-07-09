@@ -6,6 +6,7 @@ import {
 } from "@/lib/agent/errors";
 import {
   seedAgentCollectionContext,
+  seedAgentPersonaCollectionContext,
   seedAgentRecommendationContext,
 } from "@/lib/agent/message-client";
 import { createAgentSession } from "@/lib/agent/session-client";
@@ -25,6 +26,12 @@ export async function POST(request: Request): Promise<Response> {
     try {
       const sessionId = await createAgentSession(uid);
       await createAgentConsultation(uid, sessionId);
+
+      // Prefetch Ken/Aoi demo spots so personas ground on real seed data (#264).
+      await seedAgentPersonaCollectionContext({
+        userId: uid,
+        sessionId,
+      });
 
       const recommendationContext = parsed.data.recommendationContext;
       if (recommendationContext) {

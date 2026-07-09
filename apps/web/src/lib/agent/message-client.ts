@@ -8,6 +8,10 @@ import {
   AgentSessionNotFoundError,
 } from "./errors";
 import {
+  buildFollowUpUserMessage,
+  isSamePlaceFollowUp,
+} from "./followup-context";
+import {
   applyStreamEvent,
   buildAgentUserMessage,
   createDoneEvent,
@@ -18,12 +22,23 @@ import {
   resolveAgentReplyText,
   type StreamEvent,
 } from "./stream-parser";
-import { buildRecommendationContextMessage } from "./recommendation-context-message";
+import {
+  buildRecommendationContextMessage,
+  recommendationToContext,
+} from "./recommendation-context-message";
 import { buildCollectionContextMessage } from "./collection-context-message";
+import { loadPersonaCollectionBlocks } from "./persona-collection-context";
+import {
+  buildPersonaCollectionContextMessage,
+  hasPersonaCollectionSpots,
+} from "./persona-collection-message";
 import type { AgentEvent, AgentMessage, RecommendationContext } from "./types";
 import type { CollectionConsultContext } from "./collection-context-message";
 import { assertAgentSessionOwnership } from "./session-client";
-import { appendAgentConsultationTurn } from "@/lib/dal/agent-consultations";
+import {
+  appendAgentConsultationTurn,
+  getLatestRecommendationForSession,
+} from "@/lib/dal/agent-consultations";
 import { fetchPlaceDetails } from "@/lib/places/google-places-client";
 import {
   getAccessToken,
@@ -109,7 +124,28 @@ export async function sendAgentMessage(
   const config = requireAgentEngineConfig();
   const token = await getAccessToken();
   const url = `${vertexApiBase(config.location)}/${config.orchestratorResourceName}:streamQuery`;
-  const message = buildAgentUserMessage(input.text, input.chips);
+
+  // Re-seed the active recommendation so follow-ups stay on the same place (#264).
+  let activeRecommendation = null as Awaited<
+    ReturnType<typeof getLatestRecommendationForSession>
+  >;
+  try {
+    activeRecommendation = await getLatestRecommendationForSession(
+      input.userId,
+      input.sessionId,
+    );
+  } catch {
+    activeRecommendation = null;
+  }
+
+  const userMessage = buildAgentUserMessage(input.text, input.chips);
+  // Soft-pin LLM context on same-place follow-ups only; new searches stay free (#264).
+  const message = buildFollowUpUserMessage(
+    userMessage,
+    activeRecommendation && isSamePlaceFollowUp(input.text)
+      ? recommendationToContext(activeRecommendation)
+      : null,
+  );
 
   const response = await fetch(url, {
     method: "POST",
@@ -182,12 +218,20 @@ export async function sendAgentMessage(
 
   const personaKey = inferPersonaKey(text, thinkingMessages);
   const personaTasteHint = inferPersonaTasteEvidence(text, thinkingMessages);
+  const pinSamePlace =
+    Boolean(activeRecommendation) && isSamePlaceFollowUp(input.text);
+  const anchorSpotId = pinSamePlace
+    ? activeRecommendation?.spot.id
+    : undefined;
   const recommendation = isAgentAssertionTurn(text)
     ? await buildAgentRecommendation(
         input.userId,
-        text,
+        pinSamePlace && activeRecommendation
+          ? activeRecommendation.assertion
+          : text,
         personaTasteHint,
         personaKey,
+        anchorSpotId ? { anchorSpotId } : undefined,
       )
     : null;
 
@@ -257,5 +301,30 @@ export async function seedAgentCollectionContext(input: {
     });
   } catch {
     // Context seeding must not block chat start.
+  }
+}
+
+/**
+ * Seed Ken/Aoi demo collection spots from Cloud SQL into the session (#264).
+ * Bridge until ADK FunctionTools can query collections directly. Best-effort.
+ */
+export async function seedAgentPersonaCollectionContext(input: {
+  userId: string;
+  sessionId: string;
+}): Promise<void> {
+  try {
+    const blocks = await loadPersonaCollectionBlocks(input.userId);
+    if (!hasPersonaCollectionSpots(blocks)) {
+      return;
+    }
+    await sendAgentMessage({
+      userId: input.userId,
+      sessionId: input.sessionId,
+      text: buildPersonaCollectionContextMessage(blocks),
+      skipConsultationPersist: true,
+      skipAgentEvents: true,
+    });
+  } catch {
+    // Persona collection seeding must not block chat start.
   }
 }
