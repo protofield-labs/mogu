@@ -3,6 +3,7 @@
 import { Eye, EyeOff } from "lucide-react";
 import { useState, type InputHTMLAttributes, type ReactNode } from "react";
 
+import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
 import { Input } from "@/components/ui/input";
 import { FieldHint, Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -83,7 +84,6 @@ export function AuthPasswordField({
 }
 
 type AuthFormShellProps = {
-  eyebrow?: string;
   title: string;
   description?: string;
   submitting?: boolean;
@@ -92,7 +92,6 @@ type AuthFormShellProps = {
 };
 
 export function AuthFormShell({
-  eyebrow,
   title,
   description,
   submitting = false,
@@ -104,27 +103,27 @@ export function AuthFormShell({
       <div className="flex min-h-dvh w-full max-w-mogu-shell flex-col justify-center px-mogu-screen-x py-10">
         <div
           className={cn(
-            "rounded-mogu-card border border-border bg-mogu-surface-elevated p-6 shadow-sm transition-opacity sm:p-8",
+            "transition-opacity sm:rounded-mogu-card sm:border sm:border-border sm:bg-mogu-surface-elevated sm:p-8 sm:shadow-sm",
             submitting && "pointer-events-none opacity-60",
           )}
         >
-          <div className="space-y-2 text-center sm:text-left">
-            {eyebrow ? (
-              <p className="text-sm font-medium text-muted-foreground">
-                {eyebrow}
-              </p>
-            ) : null}
-            <h1 className="text-2xl font-semibold text-foreground">{title}</h1>
-            {description ? (
-              <p className="text-sm leading-6 text-muted-foreground">
-                {description}
-              </p>
-            ) : null}
+          <div className="space-y-4">
+            <MoguBrandIcon className="size-9 text-primary" />
+            <div className="space-y-1.5">
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+                {title}
+              </h1>
+              {description ? (
+                <p className="text-sm leading-6 text-muted-foreground">
+                  {description}
+                </p>
+              ) : null}
+            </div>
           </div>
 
           <div className="mt-6 space-y-6">{children}</div>
 
-          {footer ? <div className="mt-6">{footer}</div> : null}
+          {footer ? <div className="mt-8">{footer}</div> : null}
         </div>
       </div>
     </main>
@@ -133,9 +132,10 @@ export function AuthFormShell({
 
 export function AuthDivider() {
   return (
-    <div className="relative text-center text-xs text-muted-foreground">
-      <span className="bg-mogu-surface-elevated px-2">または</span>
-      <div className="absolute inset-x-0 top-1/2 -z-10 border-t border-border" />
+    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+      <div className="h-px flex-1 bg-border" aria-hidden />
+      <span>または</span>
+      <div className="h-px flex-1 bg-border" aria-hidden />
     </div>
   );
 }

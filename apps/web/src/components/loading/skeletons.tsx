@@ -48,11 +48,11 @@ export function AuthFormSkeleton({ label = "認証状態を確認しています
         <div
           aria-busy="true"
           aria-label={label}
-          className="space-y-6 rounded-3xl bg-mogu-surface-elevated p-6 shadow-mogu-card sm:p-8"
+          className="space-y-6 sm:rounded-3xl sm:bg-mogu-surface-elevated sm:p-8 sm:shadow-mogu-card"
         >
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-12 rounded-lg" />
-            <Skeleton className="h-8 w-32 rounded-xl" />
+          <div className="space-y-4">
+            <Skeleton className="size-9 rounded-xl" />
+            <Skeleton className="h-8 w-48 rounded-xl" />
             <Skeleton className="h-4 w-full max-w-xs rounded-lg" />
           </div>
           <Skeleton className="h-11 w-full rounded-2xl" />
