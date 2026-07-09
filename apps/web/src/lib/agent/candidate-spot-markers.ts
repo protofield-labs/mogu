@@ -19,8 +19,11 @@ export const CANDIDATE_FOLLOWUP_TEXT = "この店について詳しく教えて"
 export const CANDIDATE_ONLY_REPLY_TEXT =
   "こちらの候補はいかがでしょう。気になるお店をタップすると詳しくお話しします。";
 
+// ID charsets are intentionally loose (`[^\s\]]`): Google does not guarantee
+// a place_id alphabet, and a single unexpected character must not drop the
+// whole card row. Hallucinated values are filtered later against the DB.
 const CANDIDATE_MARKER_PATTERN =
-  /\[\[\s*候補\s+spot_id=([A-Za-z0-9_-]+)\s+place_id=([A-Za-z0-9_-]+)\s*\]\]/g;
+  /\[\[\s*候補\s+spot_id=([^\s\]]+)\s+place_id=([^\s\]]+)\s*\]\]/g;
 
 export type ExtractedCandidateMarkers = {
   /** Reply text with marker lines removed (original text if it would become empty). */

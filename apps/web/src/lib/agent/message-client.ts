@@ -260,17 +260,21 @@ export async function sendAgentMessage(
   const anchorSpotId =
     candidatePin?.spotId ??
     (pinSamePlace ? activeRecommendation?.spot.id : undefined);
-  const recommendation = isAgentAssertionTurn(text)
-    ? await buildAgentRecommendation(
-        input.userId,
-        pinSamePlace && activeRecommendation
-          ? activeRecommendation.assertion
-          : text,
-        personaTasteHint,
-        personaKey,
-        anchorSpotId ? { anchorSpotId } : undefined,
-      )
-    : null;
+  // Candidate markers are the machine-readable "not an assertion yet" signal
+  // (#287) — they win over the text heuristic so candidate turns whose prose
+  // happens to sound assertive still render cards instead of a recommendation.
+  const recommendation =
+    candidateMarkers.length === 0 && isAgentAssertionTurn(text)
+      ? await buildAgentRecommendation(
+          input.userId,
+          pinSamePlace && activeRecommendation
+            ? activeRecommendation.assertion
+            : text,
+          personaTasteHint,
+          personaKey,
+          anchorSpotId ? { anchorSpotId } : undefined,
+        )
+      : null;
 
   let candidateSpots: AgentMessage["candidateSpots"];
   if (!recommendation && candidateMarkers.length > 0) {

@@ -49,6 +49,17 @@ assert(
   "keeps visible reply text",
 );
 
+// Google does not guarantee a place_id alphabet — unusual chars must not
+// drop the marker (thumbnails would silently vanish otherwise).
+const oddIds = extractCandidateSpotMarkers(
+  "候補です。\n[[候補 spot_id=22222222-2222-4222-8222-222222222303 place_id=ChIJ+odd/Chars==]]",
+);
+assert(oddIds.markers.length === 1, "tolerates non-base64url place_id chars");
+assert(
+  oddIds.markers[0]?.placeId === "ChIJ+odd/Chars==",
+  "keeps unusual place_id verbatim",
+);
+
 const noMarkers = extractCandidateSpotMarkers("今夜はどんな気分？");
 assert(noMarkers.markers.length === 0, "no markers on plain reply");
 assert(noMarkers.text === "今夜はどんな気分？", "plain reply unchanged");
@@ -159,6 +170,12 @@ assert(
 assert(
   messageClient.includes("!input.candidateSpot"),
   "candidate taps never fall back to the #264 recommendation pin",
+);
+assert(
+  messageClient.includes(
+    "candidateMarkers.length === 0 && isAgentAssertionTurn(text)",
+  ),
+  "candidate markers take precedence over the assertion-turn heuristic",
 );
 
 const candidateSpots = readSource("lib/agent/candidate-spots.ts");
