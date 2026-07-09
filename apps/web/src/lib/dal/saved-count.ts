@@ -50,6 +50,7 @@ type SavedSaverRow = {
   firebase_uid: string;
   display_name: string;
   avatar_color: string;
+  avatar_url: string | null;
 };
 
 /** Recent distinct savers per place_id for feed avatar stacks (#205). */
@@ -90,7 +91,8 @@ export async function listSavedInCircleByPlaceIds(
       r.place_id,
       u.firebase_uid,
       u.display_name,
-      u.avatar_color
+      u.avatar_color,
+      u.avatar_url
     FROM ranked r
     JOIN users u ON u.firebase_uid = r.added_by
     WHERE r.rank <= ${limitPerPlace}
@@ -105,6 +107,7 @@ export async function listSavedInCircleByPlaceIds(
         firebaseUid: row.firebase_uid,
         displayName: row.display_name,
         avatarColor: row.avatar_color,
+        avatarUrl: row.avatar_url,
       }),
     );
     grouped.set(row.place_id, savers);

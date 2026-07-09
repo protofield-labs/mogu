@@ -20,6 +20,7 @@ export type FlagEventDto = {
     id: string;
     displayName: string;
     avatarColor: string;
+    avatarUrl: string | null;
   } | null;
   isAnonymous: boolean;
   createdAt: string;

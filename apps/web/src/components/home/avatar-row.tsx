@@ -65,6 +65,7 @@ export function AvatarRow({
             <UserAvatar
               displayName={friend.displayName}
               avatarColor={friend.avatarColor}
+              avatarUrl={friend.avatarUrl}
               showNewRing={
                 !selected &&
                 friendHasUnreadFeed(friend.id, feedItems, lastReadAt)

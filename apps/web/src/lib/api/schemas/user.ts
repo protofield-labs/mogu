@@ -4,6 +4,7 @@ export const userSchema = z.object({
   id: z.string(),
   displayName: z.string(),
   avatarColor: z.string(),
+  avatarUrl: z.string().nullable(),
 });
 
 export const meProfileSchema = userSchema.extend({

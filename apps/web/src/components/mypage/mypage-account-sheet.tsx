@@ -3,6 +3,7 @@
 import { useId, useState, type FormEvent } from "react";
 import { Settings } from "lucide-react";
 
+import { AvatarPhotoField } from "@/components/mypage/avatar-photo-field";
 import {
   ProfileFormFields,
   type ProfileFormValues,
@@ -22,7 +23,9 @@ import type { MeProfile } from "@/lib/mypage/types";
 
 type MypageAccountSheetProps = {
   me: MeProfile;
-  onProfileUpdated: (profile: Pick<MeProfile, "displayName" | "avatarColor">) => void;
+  onProfileUpdated: (
+    profile: Pick<MeProfile, "displayName" | "avatarColor" | "avatarUrl">,
+  ) => void;
 };
 
 export function MypageAccountSheet({
@@ -34,7 +37,12 @@ export function MypageAccountSheet({
   const [form, setForm] = useState<ProfileFormValues>({
     displayName: me.displayName,
     avatarColor: me.avatarColor,
+    avatarUrl: me.avatarUrl,
   });
+  /** Snapshot at sheet open — omit avatarUrl from PATCH when unchanged (#259). */
+  const [openedAvatarUrl, setOpenedAvatarUrl] = useState<string | null>(
+    me.avatarUrl,
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -43,7 +51,9 @@ export function MypageAccountSheet({
     setForm({
       displayName: me.displayName,
       avatarColor: me.avatarColor,
+      avatarUrl: me.avatarUrl,
     });
+    setOpenedAvatarUrl(me.avatarUrl);
     setError(null);
     setSaved(false);
     setOpen(true);
@@ -55,7 +65,13 @@ export function MypageAccountSheet({
     setError(null);
     setSaved(false);
     try {
-      const updated = await updateMeProfile(form);
+      const nextAvatarUrl = form.avatarUrl ?? null;
+      const avatarChanged = nextAvatarUrl !== openedAvatarUrl;
+      const updated = await updateMeProfile({
+        displayName: form.displayName,
+        avatarColor: form.avatarColor,
+        ...(avatarChanged ? { avatarUrl: nextAvatarUrl } : {}),
+      });
       onProfileUpdated(updated);
       notifyProfileUpdated();
       setSaved(true);
@@ -73,7 +89,7 @@ export function MypageAccountSheet({
         <NavRow
           icon={Settings}
           label="アカウントの設定"
-          description="名前・アバター色"
+          description="名前・写真・アバター色"
           onClick={openSheet}
         />
       </section>
@@ -93,6 +109,18 @@ export function MypageAccountSheet({
                 setSaved(false);
               }}
               colorLegend="アバターの色"
+              photoField={
+                <AvatarPhotoField
+                  displayName={form.displayName}
+                  avatarColor={form.avatarColor}
+                  avatarUrl={form.avatarUrl ?? null}
+                  disabled={busy}
+                  onChange={(avatarUrl) => {
+                    setForm((current) => ({ ...current, avatarUrl }));
+                    setSaved(false);
+                  }}
+                />
+              }
             />
             {error ? (
               <p className="text-sm text-destructive" role="alert">

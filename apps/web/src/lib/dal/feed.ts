@@ -78,6 +78,7 @@ const spotSelect = {
       firebaseUid: true,
       displayName: true,
       avatarColor: true,
+      avatarUrl: true,
     },
   },
 } as const;

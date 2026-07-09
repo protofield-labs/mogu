@@ -29,6 +29,7 @@ export function ProfileHeroCard({
           <Avatar
             displayName={me.displayName}
             avatarColor={me.avatarColor}
+            avatarUrl={me.avatarUrl}
             size="hero"
           />
           <div className="min-w-0">

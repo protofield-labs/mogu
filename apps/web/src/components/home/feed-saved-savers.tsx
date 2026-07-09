@@ -27,6 +27,7 @@ export function FeedSavedSavers({ savers, savedCount }: FeedSavedSaversProps) {
             key={saver.id}
             displayName={saver.displayName}
             avatarColor={saver.avatarColor}
+            avatarUrl={saver.avatarUrl}
             className={cn(
               "size-7 text-[11px] ring-2 ring-background",
               index > 0 && "-ml-2",

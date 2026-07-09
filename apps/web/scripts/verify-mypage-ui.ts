@@ -104,9 +104,9 @@ function main() {
     "localized error passthrough",
   );
   const duplicates = findDuplicateDisplayNames([
-    { id: "1", displayName: "dev", avatarColor: "#2563EB" },
-    { id: "2", displayName: "dev", avatarColor: "#DC2626" },
-    { id: "3", displayName: "Ken", avatarColor: "#059669" },
+    { id: "1", displayName: "dev", avatarColor: "#2563EB", avatarUrl: null },
+    { id: "2", displayName: "dev", avatarColor: "#DC2626", avatarUrl: null },
+    { id: "3", displayName: "Ken", avatarColor: "#059669", avatarUrl: null },
   ]);
   assert(duplicates.has("dev") && !duplicates.has("Ken"), "duplicate names");
   assert(formatAvatarColorLabel("#2563EB") === "ブルー", "avatar color label");

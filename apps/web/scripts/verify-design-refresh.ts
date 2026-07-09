@@ -72,7 +72,7 @@ function main() {
 
   const accountSheet = readSource("components/mypage/mypage-account-sheet.tsx");
   assert(
-    accountSheet.includes('description="名前・アバター色"'),
+    accountSheet.includes('description="名前・写真・アバター色"'),
     "account settings row omits logout from description",
   );
   assert(!accountSheet.includes("ログアウト"), "logout removed from account sheet");

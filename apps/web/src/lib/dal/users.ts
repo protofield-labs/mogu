@@ -7,6 +7,7 @@ export type UserDto = {
   id: string;
   displayName: string;
   avatarColor: string;
+  avatarUrl: string | null;
 };
 
 export type FriendListItemDto = UserDto & {
@@ -32,11 +33,13 @@ export function toUserDto(user: {
   firebaseUid: string;
   displayName: string;
   avatarColor: string;
+  avatarUrl?: string | null;
 }): UserDto {
   return {
     id: user.firebaseUid,
     displayName: user.displayName,
     avatarColor: user.avatarColor,
+    avatarUrl: user.avatarUrl ?? null,
   };
 }
 
@@ -44,6 +47,7 @@ export const userSelect = {
   firebaseUid: true,
   displayName: true,
   avatarColor: true,
+  avatarUrl: true,
 } as const;
 
 /** Fetch the authenticated user's profile plus mypage counts (RLS-scoped). */
@@ -231,16 +235,21 @@ export async function upsertOnboardingUser(
   return toUserDto(user);
 }
 
-/** Update profile fields for an existing user (#81). */
+/** Update profile fields for an existing user (#81, #259). */
 export async function updateUserProfile(
   uid: string,
   displayName: string,
   avatarColor: string,
+  avatarUrl?: string | null,
 ): Promise<UserDto> {
   const user = await withAuthRls(uid, (tx) =>
     tx.user.update({
       where: { firebaseUid: uid },
-      data: { displayName, avatarColor },
+      data: {
+        displayName,
+        avatarColor,
+        ...(avatarUrl !== undefined ? { avatarUrl } : {}),
+      },
       select: userSelect,
     }),
   );

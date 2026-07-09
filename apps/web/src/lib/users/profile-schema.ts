@@ -16,6 +16,8 @@ export const profileBodySchema = z.object({
         color.toUpperCase(),
       ),
     ),
+  /** GCS object URL for photo avatar; null clears (#259). Omitted on onboarding. */
+  avatarUrl: z.union([z.string().url(), z.null()]).optional(),
 });
 
 export type ProfileBody = z.infer<typeof profileBodySchema>;

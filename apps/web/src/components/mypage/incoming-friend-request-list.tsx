@@ -8,12 +8,13 @@ import { Spinner } from "@/components/ui/spinner";
 import type { FriendRequest, FriendUser } from "@/lib/mypage/types";
 
 export function friendAvatarProps(
-  user: Pick<FriendUser, "displayName" | "avatarColor">,
+  user: Pick<FriendUser, "displayName" | "avatarColor" | "avatarUrl">,
   options?: { emphasizeColor?: boolean; showInitial?: boolean },
 ) {
   return {
     displayName: user.displayName,
     avatarColor: user.avatarColor,
+    avatarUrl: user.avatarUrl,
     size: options?.emphasizeColor ? ("xl" as const) : ("sm" as const),
     showInitial: options?.showInitial ?? true,
   };

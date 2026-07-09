@@ -28,7 +28,7 @@ assert(
 
 assert(
   formatFlagEventMessage({
-    actor: { id: "u1", displayName: "Ken", avatarColor: "#336699" },
+    actor: { id: "u1", displayName: "Ken", avatarColor: "#336699", avatarUrl: null },
     isAnonymous: false,
   }) === "Kenさんがあなたのスポットを保存しました",
   "named flag message",
@@ -49,7 +49,7 @@ assert(
     collectionId: "col-1",
     placeId: "ChIJ1",
     spotComment: "nice",
-    actor: { id: "u1", displayName: "Ken", avatarColor: "#336699" },
+    actor: { id: "u1", displayName: "Ken", avatarColor: "#336699", avatarUrl: null },
     isAnonymous: false,
     createdAt: fiveMinutesAgo,
   }) === "/spots/spot-1",

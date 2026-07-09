@@ -23,6 +23,7 @@ export async function fetchUsersMe(): Promise<UserProfile | null> {
     id: profile.id,
     displayName: profile.displayName,
     avatarColor: profile.avatarColor,
+    avatarUrl: profile.avatarUrl,
   };
 }
 

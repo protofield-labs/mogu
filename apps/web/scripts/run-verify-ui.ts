@@ -41,6 +41,7 @@ const scripts = [
   "verify-recollect.ts",
   "verify-component-splits.ts",
   "verify-photo-url.ts",
+  "verify-avatar-url.ts",
   "verify-feed-helpers.ts",
   "verify-home-ui.ts",
   "verify-touch-feedback.ts",

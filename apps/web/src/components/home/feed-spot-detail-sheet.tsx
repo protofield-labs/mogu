@@ -70,6 +70,7 @@ export function FeedSpotDetailSheet({
             <UserAvatar
               displayName={actor.displayName}
               avatarColor={actor.avatarColor}
+              avatarUrl={actor.avatarUrl}
               size="md"
             />
             <p className="truncate text-sm text-muted-foreground">

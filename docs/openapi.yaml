@@ -60,7 +60,7 @@ paths:
           $ref: "#/components/responses/Error"
     patch:
       tags: [users]
-      summary: プロフィール更新（displayName / avatarColor）
+      summary: プロフィール更新（displayName / avatarColor / avatarUrl）
       requestBody:
         required: true
         content:
@@ -751,7 +751,7 @@ components:
 
     User:
       type: object
-      required: [id, displayName, avatarColor]
+      required: [id, displayName, avatarColor, avatarUrl]
       properties:
         id:
           type: string
@@ -760,6 +760,10 @@ components:
           type: string
         avatarColor:
           type: string
+        avatarUrl:
+          type: string
+          nullable: true
+          description: GCS object URL for photo avatar; null uses color + initial
 
     FriendListItem:
       allOf:
@@ -815,6 +819,10 @@ components:
           type: string
         avatarColor:
           type: string
+        avatarUrl:
+          type: string
+          nullable: true
+          description: Owned GCS upload URL, or null to clear photo avatar
 
     FriendRequestStatus:
       type: object

@@ -41,8 +41,8 @@ function readSource(relativePath: string): string {
 }
 
 const friends = [
-  { id: "f-ken", displayName: "Ken", avatarColor: "#336699" },
-  { id: "f-aoi", displayName: "Aoi", avatarColor: "#993366" },
+  { id: "f-ken", displayName: "Ken", avatarColor: "#336699", avatarUrl: null },
+  { id: "f-aoi", displayName: "Aoi", avatarColor: "#993366", avatarUrl: null },
 ];
 
 const feedItems = [
@@ -66,8 +66,8 @@ const feedItems = [
     createdAt: "2026-07-06T12:00:00.000Z",
     savedByMe: false,
     savedSavers: [
-      { id: "f-ken", displayName: "Ken", avatarColor: "#336699" },
-      { id: "f-aoi", displayName: "Aoi", avatarColor: "#993366" },
+      { id: "f-ken", displayName: "Ken", avatarColor: "#336699", avatarUrl: null },
+      { id: "f-aoi", displayName: "Aoi", avatarColor: "#993366", avatarUrl: null },
     ],
     likeCount: 2,
     likedByMe: false,
@@ -91,7 +91,7 @@ const feedItems = [
     collectionName: "Aoi collection",
     createdAt: "2026-07-05T10:00:00.000Z",
     savedByMe: true,
-    savedSavers: [{ id: "f-aoi", displayName: "Aoi", avatarColor: "#993366" }],
+    savedSavers: [{ id: "f-aoi", displayName: "Aoi", avatarColor: "#993366", avatarUrl: null }],
     likeCount: 0,
     likedByMe: true,
   },

@@ -41,7 +41,7 @@ assert(
     collectionId: "col-2",
     placeId: "ChIJ2",
     spotComment: "named",
-    actor: { id: "u1", displayName: "Ken", avatarColor: "#336699" },
+    actor: { id: "u1", displayName: "Ken", avatarColor: "#336699", avatarUrl: null },
     isAnonymous: false,
     createdAt: new Date().toISOString(),
   }) === "/spots/spot-2",
