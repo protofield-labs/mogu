@@ -10,7 +10,7 @@ import { UserAvatar } from "@/components/home/user-avatar";
 import { SpotPlaceName } from "@/components/places/spot-place-name";
 import { SpotThumbnail } from "@/components/places/spot-thumbnail";
 import { AuthImage } from "@/components/mypage/auth-image";
-import { RecollectPicker } from "@/components/recollect/recollect-picker";
+import { SpotSaveFooter } from "@/components/recollect/spot-save-footer";
 import { useFeedSpotSave } from "@/lib/recollect/use-feed-spot-save";
 import { canRecollectFeedItem } from "@/lib/home/feed-item";
 import type { FeedItem } from "@/lib/home/types";
@@ -26,16 +26,24 @@ type FeedItemCardProps = {
   viewerId?: string | null;
   /** Stagger index for first-paint enter motion (#128). */
   enterIndex?: number;
+  /** Lets the feed owner keep item.savedByMe in sync across view switches (#283). */
+  onSavedChange?: (saved: boolean, savedCount: number | null) => void;
 };
 
 /** Borderless Instagram-style feed item: header → media → actions → caption (#192). */
-export function FeedItemCard({ item, viewerId, enterIndex }: FeedItemCardProps) {
+export function FeedItemCard({
+  item,
+  viewerId,
+  enterIndex,
+  onSavedChange,
+}: FeedItemCardProps) {
   const { recollect, like, detailOpen, openDetail, closeDetail } = useFeedSpotSave(
     item.spot.id,
     {
       initialSaved: item.savedByMe,
       initialLikedByMe: item.likedByMe,
       initialLikeCount: item.likeCount,
+      onSavedChange,
     },
   );
   const touchStartX = useRef(0);
@@ -64,7 +72,7 @@ export function FeedItemCard({ item, viewerId, enterIndex }: FeedItemCardProps) 
   }
 
   return (
-    <>
+    <SpotSaveFooter spotId={item.spot.id} recollect={recollect}>
       <article
         className={cn(
           "border-b border-border/50 pb-5 pt-3 first:pt-0 last:border-b-0",
@@ -174,15 +182,12 @@ export function FeedItemCard({ item, viewerId, enterIndex }: FeedItemCardProps) 
           </p>
         ) : null}
 
-        {showSaveActions && recollect.error ? (
-          <p
-            className="px-mogu-screen-x pt-1 text-xs text-destructive"
-            role="alert"
-          >
-            {recollect.error}
-          </p>
+        {showSaveActions ? (
+          <SpotSaveFooter.Error className="px-mogu-screen-x pt-1" />
         ) : null}
 
+        {/* savedCount staleness after toggles is corrected by the feed owner
+            via onSavedChange (home-view handleSpotSavedChange, #283). */}
         <FeedSavedSavers
           savers={item.savedSavers}
           savedCount={item.spot.savedCount}
@@ -216,17 +221,12 @@ export function FeedItemCard({ item, viewerId, enterIndex }: FeedItemCardProps) 
         placeName={placeName}
         open={detailOpen}
         onClose={closeDetail}
-        saved={recollect.saved}
-        busy={recollect.busy}
-        error={recollect.error}
         viewerId={viewerId}
         showSaveActions={showSaveActions}
-        saveHandlers={recollect.saveHandlers}
+        recollect={recollect}
       />
 
-      {showSaveActions ? (
-        <RecollectPicker spotId={item.spot.id} recollect={recollect} />
-      ) : null}
-    </>
+      {showSaveActions ? <SpotSaveFooter.Picker /> : null}
+    </SpotSaveFooter>
   );
 }

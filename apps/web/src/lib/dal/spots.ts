@@ -123,6 +123,38 @@ export async function recollectSpot(
   return result;
 }
 
+/**
+ * Undo a recollection (#283): delete the viewer's copy spot created from
+ * the given source spot. The recollection edge is removed via FK cascade.
+ * Idempotent like recollectSpot: deleting an already-removed recollection
+ * succeeds, so stale clients self-heal on retry. Returns the refreshed
+ * place-level savedCount so clients can update their snapshots exactly.
+ */
+export async function unrecollectSpot(
+  uid: string,
+  sourceSpotId: string,
+): Promise<{ deleted: number; savedCount: number | null }> {
+  return withAuthRls(uid, async (tx) => {
+    const edges = await tx.recollectionEdge.findMany({
+      where: { actorId: uid, sourceSpotId },
+      select: { spot: { select: { id: true, placeId: true } } },
+    });
+    if (edges.length === 0) {
+      return { deleted: 0, savedCount: null };
+    }
+
+    const placeId = edges[0]!.spot.placeId;
+    const result = await tx.spot.deleteMany({
+      where: {
+        id: { in: edges.map((edge) => edge.spot.id) },
+        addedBy: uid,
+      },
+    });
+    const savedCount = await countSavedInCircle(tx, placeId);
+    return { deleted: result.count, savedCount };
+  });
+}
+
 /** Add a spot to an owned collection (#34 / erd-api spots_insert). */
 export async function createSpot(
   uid: string,

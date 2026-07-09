@@ -9,6 +9,7 @@ type UseFeedSpotSaveOptions = {
   initialSaved?: boolean;
   initialLikedByMe?: boolean;
   initialLikeCount?: number;
+  onSavedChange?: (saved: boolean, savedCount: number | null) => void;
 };
 
 /** Feed card save + like state and detail sheet open state (#112, #212). */

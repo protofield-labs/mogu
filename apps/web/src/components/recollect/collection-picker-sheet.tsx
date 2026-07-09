@@ -21,7 +21,11 @@ type CollectionPickerSheetProps = {
   spotId: string;
   busy?: boolean;
   onClose: () => void;
-  onSaved: (collectionId: string, collectionName: string) => void;
+  onSaved: (
+    collectionId: string,
+    collectionName: string,
+    savedCount: number | null,
+  ) => void;
 };
 
 export function CollectionPickerSheet({
@@ -94,7 +98,7 @@ export function CollectionPickerSheet({
     const result = await saveSpotToCollection(spotId, collection.id, collection.name);
     setSaving(false);
     if (result.ok) {
-      onSaved(collection.id, collection.name);
+      onSaved(collection.id, collection.name, result.savedCount);
     } else {
       setSaveError(result.error);
     }
@@ -228,7 +232,7 @@ export function CollectionPickerSheet({
       </SheetBody>
 
       <SheetFooter className="text-xs text-muted-foreground">
-        長押しで保存先を選べます（保存済みの場合は保存先の確認のみ）
+        長押しで保存先を選べます（保存済みはタップで解除できます）
       </SheetFooter>
     </Sheet>
   );

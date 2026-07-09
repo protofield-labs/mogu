@@ -76,4 +76,36 @@ const defaultCollection = readSource("lib/recollect/recollect-to-default-collect
 assert(defaultCollection.includes("pickDefaultCollection"), "default collection picker helper");
 assert(defaultCollection.includes("saveSpotToDefaultCollection"), "default collection save helper");
 
+// Unsave path (#283): tapping the saved toggle removes the recollection.
+const useRecollect = readSource("lib/recollect/use-recollect.ts");
+assert(useRecollect.includes("performUnsave"), "use-recollect has unsave path");
+assert(!useRecollect.includes("if (saved) {\n      return;"), "saved tap no longer early-returns");
+assert(saveSpot.includes("export async function unsaveSpot"), "unsave helper exported");
+assert(spotsApi.includes("export async function unrecollectSpot"), "unrecollect browser api exists");
+const recollectRoute = readSource("app/api/v1/spots/[id]/recollect/route.ts");
+assert(recollectRoute.includes("export async function DELETE"), "recollect route supports DELETE");
+assert(readSource("lib/dal/spots.ts").includes("export async function unrecollectSpot"), "unrecollect DAL exists");
+assert(readSource("lib/ui/recollect-toast.ts").includes("showRecollectRemovedToast"), "unsave toast exists");
+
+// Shared save footer (#292): compound component replaces copy-pasted footers.
+const saveFooter = readSource("components/recollect/spot-save-footer.tsx");
+assert(saveFooter.includes("SpotSaveFooterContext"), "save footer uses shared context");
+assert(saveFooter.includes("SaveButton"), "save footer exposes SaveButton");
+assert(saveFooter.includes("MapLink"), "save footer exposes MapLink");
+assert(saveFooter.includes("aria-pressed"), "save footer button exposes pressed state");
+for (const consumer of [
+  "components/home/feed-spot-detail-sheet.tsx",
+  "components/home/feed-item-card.tsx",
+  "components/home/recommendation-detail-sheet.tsx",
+  "components/home/home-feed-map-view.tsx",
+  "components/search/recommendation-card.tsx",
+  "components/users/friend-spot-list.tsx",
+  "components/spots/spot-detail-page-view.tsx",
+]) {
+  assert(
+    readSource(consumer).includes("SpotSaveFooter"),
+    `${consumer} uses SpotSaveFooter`,
+  );
+}
+
 console.log("PASS: recollect UX verified");

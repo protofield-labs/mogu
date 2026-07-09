@@ -4,9 +4,8 @@ import { Bookmark } from "lucide-react";
 import Link from "next/link";
 
 import { AuthImage } from "@/components/mypage/auth-image";
-import { RecollectPicker } from "@/components/recollect/recollect-picker";
+import { SpotSaveFooter } from "@/components/recollect/spot-save-footer";
 import { useRecollect } from "@/lib/recollect/use-recollect";
-import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   formatRatingChip,
@@ -65,27 +64,19 @@ function FriendSpotRow({ spot }: { spot: Spot }) {
           </p>
         </div>
       </div>
-      <div className="mt-3">
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          className="w-full"
-          disabled={recollect.busy}
-          aria-pressed={recollect.saved}
-          {...recollect.saveHandlers}
-        >
-          <Bookmark className="size-3.5" aria-hidden />
-          {recollect.saved ? "保存済み" : "保存"}
-        </Button>
-        {recollect.error ? (
-          <p className="mt-2 text-xs text-destructive" role="alert">
-            {recollect.error}
-          </p>
-        ) : null}
-      </div>
-
-      <RecollectPicker spotId={spot.id} recollect={recollect} />
+      <SpotSaveFooter spotId={spot.id} recollect={recollect}>
+        <div className="mt-3">
+          <SpotSaveFooter.SaveButton
+            label="保存"
+            icon={<Bookmark className="size-3.5" aria-hidden />}
+            variant="secondary"
+            size="sm"
+            className="w-full"
+          />
+          <SpotSaveFooter.Error className="mt-2" />
+        </div>
+        <SpotSaveFooter.Picker />
+      </SpotSaveFooter>
     </li>
   );
 }

@@ -6,13 +6,9 @@ import { GoogleMapsAttribution } from "@/components/places/google-maps-attributi
 import { PlacePhotoImage } from "@/components/places/place-photo-image";
 import { SpotPlaceName } from "@/components/places/spot-place-name";
 import { AuthImage } from "@/components/mypage/auth-image";
-import { RecollectPicker } from "@/components/recollect/recollect-picker";
+import { SpotSaveFooter } from "@/components/recollect/spot-save-footer";
 import { useRecollect } from "@/lib/recollect/use-recollect";
-import { Button } from "@/components/ui/button";
-import {
-  googleMapsPlaceUrl,
-  openNowLabel,
-} from "@/lib/agent/chat-helpers";
+import { openNowLabel } from "@/lib/agent/chat-helpers";
 import type { Recommendation, Spot } from "@/lib/agent/types";
 import { resolveSpotHeroPhoto } from "@/lib/places/resolve-spot-hero-photo";
 import { usePlace } from "@/lib/places/use-place";
@@ -34,34 +30,24 @@ function AlternativeSpotRow({ spot }: { spot: Spot }) {
 
   return (
     <li className="rounded-2xl bg-muted/40 p-3 shadow-sm">
-      <SpotSummary spot={spot} compact placeName={placeName} />
-      <div className="mt-2 flex flex-wrap gap-2">
-        <a
-          href={googleMapsPlaceUrl({
-            placeId: spot.placeId,
-            name: place?.name,
-            location: place?.location,
-          })}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex h-7 items-center justify-center rounded-[min(var(--radius-md),12px)] border border-border bg-background px-2.5 text-[0.8rem] font-medium hover:bg-muted hover:text-foreground"
-        >
-          地図で開く
-        </a>
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={recollect.busy}
-          aria-pressed={recollect.saved}
-          {...recollect.saveHandlers}
-        >
-          {recollect.saved ? "保存済み" : "リコレクション"}
-        </Button>
-      </div>
-      {recollect.error ? (
-        <p className="mt-2 text-xs text-destructive">{recollect.error}</p>
-      ) : null}
-      <RecollectPicker spotId={spot.id} recollect={recollect} />
+      <SpotSaveFooter spotId={spot.id} recollect={recollect}>
+        <SpotSummary spot={spot} compact placeName={placeName} />
+        <div className="mt-2 flex flex-wrap gap-2">
+          <SpotSaveFooter.MapLink
+            placeId={spot.placeId}
+            placeName={place?.name}
+            place={place}
+            size="sm"
+          />
+          <SpotSaveFooter.SaveButton
+            label="リコレクション"
+            variant="secondary"
+            size="sm"
+          />
+        </div>
+        <SpotSaveFooter.Error className="mt-2" />
+        <SpotSaveFooter.Picker />
+      </SpotSaveFooter>
     </li>
   );
 }
@@ -138,33 +124,23 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
         <p className="mt-2 text-xs font-medium text-primary">{openNowText}</p>
       ) : null}
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        <a
-          href={googleMapsPlaceUrl({
-            placeId: spot.placeId,
-            name: place?.name,
-            location: place?.location,
-          })}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex h-7 items-center justify-center rounded-[min(var(--radius-md),12px)] border border-border bg-background px-2.5 text-[0.8rem] font-medium hover:bg-muted hover:text-foreground"
-        >
-          地図で開く
-        </a>
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={recollect.busy}
-          aria-pressed={recollect.saved}
-          {...recollect.saveHandlers}
-        >
-          {recollect.saved ? "保存済み" : "リコレクション"}
-        </Button>
-      </div>
-
-      {recollect.error ? (
-        <p className="mt-2 text-xs text-destructive">{recollect.error}</p>
-      ) : null}
+      <SpotSaveFooter spotId={spot.id} recollect={recollect}>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <SpotSaveFooter.MapLink
+            placeId={spot.placeId}
+            placeName={place?.name}
+            place={place}
+            size="sm"
+          />
+          <SpotSaveFooter.SaveButton
+            label="リコレクション"
+            variant="secondary"
+            size="sm"
+          />
+        </div>
+        <SpotSaveFooter.Error className="mt-2" />
+        <SpotSaveFooter.Picker />
+      </SpotSaveFooter>
 
       {photoAttribution ? (
         <p className="mt-2 text-caption text-muted-foreground">
@@ -186,8 +162,6 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
           </ul>
         </details>
       ) : null}
-
-      <RecollectPicker spotId={spot.id} recollect={recollect} />
     </div>
   );
 }

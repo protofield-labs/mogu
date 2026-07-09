@@ -88,7 +88,7 @@ export function FeedItemActions({
           className={cn("size-9", touchRowClass)}
           disabled={busy}
           aria-pressed={saved}
-          aria-label={saved ? "保存済み" : "保存"}
+          aria-label="保存"
           {...saveHandlers}
         >
           <Bookmark

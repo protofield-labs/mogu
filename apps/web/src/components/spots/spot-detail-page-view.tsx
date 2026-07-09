@@ -7,12 +7,11 @@ import { useEffect, useState } from "react";
 import { GoogleMapsAttribution } from "@/components/places/google-maps-attribution";
 import { SpotDetailMedia } from "@/components/spots/spot-detail-media";
 import { CollectionDetailSkeleton } from "@/components/loading/skeletons";
-import { RecollectPicker } from "@/components/recollect/recollect-picker";
+import { SpotSaveFooter } from "@/components/recollect/spot-save-footer";
 import { FriendAccessGate } from "@/components/share/friend-access-gate";
 import { ShareButton } from "@/components/share/share-button";
 import { LoadErrorState } from "@/components/ui/load-error-state";
-import { Button } from "@/components/ui/button";
-import { googleMapsPlaceUrl, openNowLabel } from "@/lib/agent/chat-helpers";
+import { openNowLabel } from "@/lib/agent/chat-helpers";
 import { formatRatingChip, formatSpotTagChips } from "@/lib/home/feed-labels";
 import { usePlace } from "@/lib/places/use-place";
 import { useRecollect } from "@/lib/recollect/use-recollect";
@@ -182,43 +181,28 @@ export function SpotDetailPageView({ spotId }: SpotDetailPageViewProps) {
           ))}
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <a
-            href={googleMapsPlaceUrl({
-              placeId: spot.placeId,
-              name: placeName,
-              location: place?.location,
-            })}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex h-8 items-center justify-center rounded-[min(var(--radius-md),12px)] border border-border bg-background px-3 text-sm font-medium hover:bg-muted hover:text-foreground"
-          >
-            地図で開く
-          </a>
-          {!isOwner ? (
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              disabled={recollect.busy}
-              aria-pressed={recollect.saved}
-              {...recollect.saveHandlers}
-            >
-              {recollect.saved ? "保存済み" : "保存"}
-            </Button>
-          ) : null}
-        </div>
+        <SpotSaveFooter spotId={spot.id} recollect={recollect}>
+          <div className="flex flex-wrap gap-2">
+            <SpotSaveFooter.MapLink
+              placeId={spot.placeId}
+              placeName={placeName}
+              place={place}
+            />
+            {!isOwner ? (
+              <SpotSaveFooter.SaveButton
+                label="保存"
+                variant="secondary"
+                size="sm"
+              />
+            ) : null}
+          </div>
 
-        {recollect.error ? (
-          <p className="text-sm text-destructive" role="alert">
-            {recollect.error}
-          </p>
-        ) : null}
+          <SpotSaveFooter.Error className="text-sm" />
+          <SpotSaveFooter.Picker />
+        </SpotSaveFooter>
 
         <GoogleMapsAttribution className="text-[0.65rem] text-muted-foreground" />
       </section>
-
-      <RecollectPicker spotId={spot.id} recollect={recollect} />
     </div>
   );
 }

@@ -428,6 +428,7 @@ DBはRLS対象の制限ロールで接続する(superuser / BYPASSRLS 不可)。
 | | PATCH | `/spots/{id}` | 部分更新 | `Spot` |
 | | DELETE | `/spots/{id}` | — | `204` |
 | | POST | `/spots/{id}/recollect` | `{targetCollectionId}` | `Spot`(自分の新複製) |
+| | DELETE | `/spots/{id}/recollect` | — | `{savedCount}`（リコレクション解除・自分の複製を削除。`{id}` は参照元スポット。冪等） |
 | ホーム/フィード | GET | `/feed?cursor=` | — | `FeedPage`(時系列・非アルゴリズム) |
 | | GET | `/home/recommendation` | — | `Recommendation`(1枚) |
 | 検索(エージェント) | POST | `/agent/sessions` | — | `{sessionId}` |
