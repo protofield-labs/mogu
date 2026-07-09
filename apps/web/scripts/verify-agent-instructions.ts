@@ -1,5 +1,5 @@
 /**
- * Agent instruction language / routing / no-leak guards (#251/#263/#269).
+ * Agent instruction language / routing / taste-hint guards (#251/#263/#269/#270).
  * Run via: pnpm exec tsx scripts/verify-agent-instructions.ts
  */
 import { readFileSync } from "node:fs";
@@ -54,6 +54,12 @@ function main() {
       orchestrator.includes("不要な委譲をしない"),
     "orchestrator avoids unnecessary delegation for small talk",
   );
+  assert(
+    orchestrator.includes("味覚の手がかり") ||
+      orchestrator.includes("渋谷ワイワイ飲み") ||
+      orchestrator.includes("中目黒しずかデート"),
+    "orchestrator surfaces persona taste in final reply",
+  );
 
   const ken = readAgentSource("mogu/personas/ken.py");
   assertJapanesePersona(ken, "ken");
@@ -69,6 +75,10 @@ function main() {
   assert(
     ken.includes("推さない") || ken.includes("フォーマル"),
     "ken avoids quiet/formal date venues",
+  );
+  assert(
+    ken.includes("渋谷ワイワイ飲み") && ken.includes("参照:"),
+    "ken declares demo collection reference",
   );
 
   const aoi = readAgentSource("mogu/personas/aoi.py");
@@ -86,6 +96,10 @@ function main() {
     aoi.includes("推さない") || aoi.includes("ワイワイ"),
     "aoi avoids loud izakaya-style venues",
   );
+  assert(
+    aoi.includes("中目黒しずかデート") && aoi.includes("参照:"),
+    "aoi declares demo collection reference",
+  );
 
   const maps = readAgentSource("mogu_maps/agent.py");
   assert(
@@ -99,13 +113,15 @@ function main() {
   );
   assert(parser.includes("stripLeakedThinkingText"), "parser strips leaked thinking");
   assert(parser.includes("stripDelegationNarration"), "parser strips delegation narration");
+  assert(parser.includes("stripPersonaReferenceLines"), "parser strips persona reference lines");
+  assert(parser.includes("inferPersonaTasteEvidence"), "parser infers persona taste evidence");
   assert(parser.includes("PERSONA_AUTHORS"), "parser skips persona author text");
   assert(
     parser.includes("thinking\\s*process"),
     "parser matches thinking process label",
   );
 
-  console.log("PASS: agent instructions (#251/#263/#269)");
+  console.log("PASS: agent instructions (#251/#263/#269/#270)");
 }
 
 main();

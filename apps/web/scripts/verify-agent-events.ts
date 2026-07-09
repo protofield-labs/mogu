@@ -35,6 +35,42 @@ function main() {
     content: { parts: [{ function_call: { name: "ken" } }] },
   });
   assert(kenTool?.message === "Kenのコレクションを参照中…", "ken tool call thinking");
+  const aoiToolArgs = extractThinkingEvent({
+    content: {
+      parts: [{ function_call: { name: "agent_tool", args: { agent: "aoi" } } }],
+    },
+  });
+  assert(
+    aoiToolArgs?.message === "Aoiのコレクションを参照中…",
+    "aoi thinking from function_call payload",
+  );
+  const kenReference = extractThinkingEvent({
+    content: {
+      parts: [
+        {
+          text: "参照: Kenのコレクション『渋谷ワイワイ飲み』（居酒屋・コスパ・友人）",
+        },
+      ],
+    },
+  });
+  assert(
+    kenReference?.message === "Kenのコレクションを参照中…",
+    "ken thinking from reference line",
+  );
+  const mixedParts = extractThinkingEvent({
+    content: {
+      parts: [
+        { function_call: { name: "some_tool" } },
+        {
+          text: "参照: Aoiのコレクション『中目黒しずかデート』（デート・雰囲気・記念日）",
+        },
+      ],
+    },
+  });
+  assert(
+    mixedParts?.message === "Aoiのコレクションを参照中…",
+    "prefer reference-line persona over generic tool thinking",
+  );
 
   const thinking = createThinkingEvent("test");
   const sse = formatAgentEventSse(thinking, "1");
