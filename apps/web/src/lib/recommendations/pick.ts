@@ -72,15 +72,38 @@ const candidateSelect = {
  * Rule-based daily recommendation (#42 MVP batch).
  * Prefers a friend's newest "again" spot, then own "again", then any visible spot.
  * When preferAddedByUids is set (agent persona turns, #271), try those friends first.
+ * When anchorSpotId is set (agent follow-up, #264), keep that spot if still visible.
  */
 export async function pickDailyRecommendation(
   tx: PrismaTransaction,
   viewerUid: string,
-  options?: { preferAddedByUids?: string[] },
+  options?: { preferAddedByUids?: string[]; anchorSpotId?: string },
 ): Promise<GeneratedDailyRecommendation | null> {
   const preferredUids = (options?.preferAddedByUids ?? []).filter(
     (uid) => uid && uid !== viewerUid,
   );
+
+  if (options?.anchorSpotId) {
+    const anchored = await tx.spot.findFirst({
+      where: { id: options.anchorSpotId },
+      select: candidateSelect,
+    });
+    if (!anchored) {
+      // Do not fall through to a different spot while the caller may reuse
+      // the prior assertion text (#264).
+      return null;
+    }
+    const savedCount = await countSavedInCircle(tx, anchored.placeId);
+    return {
+      spotId: anchored.id,
+      assertion: buildAssertion(anchored),
+      evidence: buildEvidence(
+        anchored.addedByUser.displayName,
+        anchored.rating,
+        savedCount,
+      ),
+    };
+  }
 
   let preferredSpot: CandidateSpot | null = null;
   for (const addedBy of preferredUids) {

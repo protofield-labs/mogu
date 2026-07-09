@@ -80,6 +80,10 @@ function main() {
     ken.includes("中目黒サク飲み") && ken.includes("参照:"),
     "ken declares demo collection reference",
   );
+  assert(
+    ken.includes("ペルソナコレクション実データ") || ken.includes("place_id"),
+    "ken prefers prefetch collection data (#264)",
+  );
 
   const aoi = readAgentSource("mogu/personas/aoi.py");
   assertJapanesePersona(aoi, "aoi");
@@ -99,6 +103,10 @@ function main() {
   assert(
     aoi.includes("静かな二人時間") && aoi.includes("参照:"),
     "aoi declares demo collection reference",
+  );
+  assert(
+    aoi.includes("ペルソナコレクション実データ") || aoi.includes("place_id"),
+    "aoi prefers prefetch collection data (#264)",
   );
 
   const maps = readAgentSource("mogu_maps/agent.py");
@@ -121,7 +129,13 @@ function main() {
     "parser matches thinking process label",
   );
 
-  console.log("PASS: agent instructions (#251/#263/#269/#270)");
+  assert(
+    orchestrator.includes("フォローアップ") ||
+      orchestrator.includes("すり替えない"),
+    "orchestrator keeps same place on follow-up (#264)",
+  );
+
+  console.log("PASS: agent instructions (#251/#263/#269/#270/#264)");
 }
 
 main();
