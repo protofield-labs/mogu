@@ -62,3 +62,31 @@ export function extractCandidateSpotMarkers(
   // Never blank the bubble, and never leak raw marker syntax (#287).
   return { text: cleaned || CANDIDATE_ONLY_REPLY_TEXT, markers };
 }
+
+/**
+ * Merge marker lists mined from multiple stream authors (#313).
+ * The orchestrator often rewrites persona proposals and drops their marker
+ * lines, so callers pass the resolved reply first (priority), then persona /
+ * orchestrator raw texts. Dedupes by spot_id and caps at MAX_CANDIDATE_SPOTS.
+ */
+export function mergeCandidateSpotMarkers(
+  ...markerLists: CandidateSpotMarker[][]
+): CandidateSpotMarker[] {
+  const merged: CandidateSpotMarker[] = [];
+  const seenSpotIds = new Set<string>();
+
+  for (const markers of markerLists) {
+    for (const marker of markers) {
+      if (merged.length >= MAX_CANDIDATE_SPOTS) {
+        return merged;
+      }
+      if (seenSpotIds.has(marker.spotId)) {
+        continue;
+      }
+      seenSpotIds.add(marker.spotId);
+      merged.push(marker);
+    }
+  }
+
+  return merged;
+}
