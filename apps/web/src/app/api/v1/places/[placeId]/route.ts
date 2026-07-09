@@ -20,7 +20,7 @@ export async function GET(
 ): Promise<Response> {
   const { placeId } = await params;
   const normalized = placeId.trim();
-  if (!normalized) {
+  if (!normalized || normalized.length > 256) {
     return validationErrorResponse("Invalid place id");
   }
 

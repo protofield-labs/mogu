@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { fetchPlace } from "@/lib/agent/browser-api";
+import { fetchPlaceDeduped } from "@/lib/places/place-client-cache";
 import type { PlaceDTO } from "@/lib/agent/types";
 
 type UsePlaceResult = {
@@ -27,7 +27,7 @@ export function usePlace(placeId: string, enabled = true): UsePlaceResult {
     }
 
     let cancelled = false;
-    void fetchPlace(placeId).then((result) => {
+    void fetchPlaceDeduped(placeId).then((result) => {
       if (!cancelled) {
         setState({ placeId, place: result });
       }

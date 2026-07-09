@@ -2,6 +2,7 @@ import "server-only";
 
 import type { PlaceDTO, PlaceLocationDTO, PlacePhoto, PlaceSearchResult } from "./types";
 import { buildPlacePhotoProxyUrl } from "./place-photo-url";
+import { getCachedPlacesResponse } from "./places-response-cache";
 
 const PLACES_BASE = "https://places.googleapis.com/v1";
 const PLACES_LANGUAGE_CODE = "ja";
@@ -147,9 +148,15 @@ async function placesFetch<T>(
   return (await response.json()) as T;
 }
 
-/** Fetch place details at render time (guardrail 7 — no server-side cache). */
+/** Fetch place details at render time (guardrail 7 — no DB persistence; short TTL cache OK). */
 export async function fetchPlaceDetails(placeId: string): Promise<PlaceDTO | null> {
   const normalized = normalizePlaceId(placeId);
+  return getCachedPlacesResponse(`details:${normalized}`, () =>
+    fetchPlaceDetailsUncached(normalized),
+  );
+}
+
+async function fetchPlaceDetailsUncached(normalized: string): Promise<PlaceDTO | null> {
   const fieldMask =
     "id,displayName,formattedAddress,location,currentOpeningHours,photos";
 
@@ -206,7 +213,7 @@ export async function searchPlaces(query: string): Promise<PlaceSearchResult[]> 
 
 const PLACE_LOCATIONS_FIELD_MASK = "id,displayName,location";
 
-/** Resolve coordinates for map pins (guardrail 7 — no server-side cache). */
+/** Resolve coordinates for map pins (guardrail 7 — no DB persistence; short TTL cache OK). */
 export async function fetchPlaceLocations(
   placeIds: string[],
 ): Promise<PlaceLocationDTO[]> {
@@ -216,25 +223,31 @@ export async function fetchPlaceLocations(
   }
 
   const results = await Promise.all(
-    uniqueIds.map(async (placeId) => {
-      try {
-        const place = await placesFetch<GooglePlace>(
-          `/places/${encodeURIComponent(placeId)}`,
-          { method: "GET", fieldMask: PLACE_LOCATIONS_FIELD_MASK },
-        );
-        return mapPlaceLocation(place);
-      } catch (error) {
-        // One bad or transient place lookup must not drop every map pin;
-        // skip it and let the rest of the batch resolve.
-        if (error instanceof PlacesApiError) {
-          return null;
-        }
-        throw error;
-      }
-    }),
+    uniqueIds.map((placeId) =>
+      getCachedPlacesResponse(`location:${placeId}`, () =>
+        fetchPlaceLocationUncached(placeId),
+      ),
+    ),
   );
 
   return results.filter((item): item is PlaceLocationDTO => item !== null);
+}
+
+async function fetchPlaceLocationUncached(
+  placeId: string,
+): Promise<PlaceLocationDTO | null> {
+  try {
+    const place = await placesFetch<GooglePlace>(
+      `/places/${encodeURIComponent(placeId)}`,
+      { method: "GET", fieldMask: PLACE_LOCATIONS_FIELD_MASK },
+    );
+    return mapPlaceLocation(place);
+  } catch (error) {
+    if (error instanceof PlacesApiError) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 const PLACE_PHOTOS_FIELD_MASK = "photos";
@@ -249,9 +262,11 @@ export async function fetchPlacePhotoMedia(
   }
 
   const normalized = normalizePlaceId(placeId);
-  const place = await placesFetch<{ photos?: GooglePhoto[] }>(
-    `/places/${encodeURIComponent(normalized)}`,
-    { method: "GET", fieldMask: PLACE_PHOTOS_FIELD_MASK },
+  const place = await getCachedPlacesResponse(`photos:${normalized}`, () =>
+    placesFetch<{ photos?: GooglePhoto[] }>(
+      `/places/${encodeURIComponent(normalized)}`,
+      { method: "GET", fieldMask: PLACE_PHOTOS_FIELD_MASK },
+    ),
   );
   const photo = place.photos?.[index];
   const photoName = photo?.name?.trim();

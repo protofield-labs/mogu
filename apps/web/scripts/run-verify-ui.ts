@@ -34,6 +34,7 @@ const scripts = [
   "verify-design-refresh.ts",
   "verify-branding-ui.ts",
   "verify-places-photos.ts",
+  "verify-places-cache.ts",
   "verify-agent-recommendation.ts",
   "verify-recommendation-chat.ts",
   "verify-recollect.ts",

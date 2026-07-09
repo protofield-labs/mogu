@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { fetchPlace } from "@/lib/agent/browser-api";
+import { fetchPlaceDeduped } from "@/lib/places/place-client-cache";
 
 /** Batch-resolve place display names for a list of place IDs (deduped). */
 export function usePlaceNames(placeIds: string[]): Record<string, string | null> {
@@ -20,7 +20,7 @@ export function usePlaceNames(placeIds: string[]): Record<string, string | null>
     let cancelled = false;
     void Promise.all(
       uniqueIds.map(async (placeId) => {
-        const place = await fetchPlace(placeId);
+        const place = await fetchPlaceDeduped(placeId);
         return [placeId, place?.name ?? null] as const;
       }),
     ).then((entries) => {

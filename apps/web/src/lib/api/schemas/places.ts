@@ -24,5 +24,5 @@ export const placeLocationDtoSchema = z.object({
 export const placeLocationListSchema = z.array(placeLocationDtoSchema);
 
 export const placeLocationsRequestSchema = z.object({
-  placeIds: z.array(z.string().min(1)).min(1).max(50),
+  placeIds: z.array(z.string().min(1).max(256)).min(1).max(50),
 });
