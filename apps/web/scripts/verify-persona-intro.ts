@@ -55,11 +55,20 @@ assert(introCard.includes("PersonaIntroCard"), "intro card component");
 assert(introCard.includes("わかった"), "intro card dismiss control");
 
 const agentChat = readSource("components/search/agent-chat.tsx");
-assert(agentChat.includes("hasSeenPersonaIntro"), "agent chat gates intro");
-assert(agentChat.includes("useSyncExternalStore"), "intro uses sync external store");
-assert(!agentChat.includes("forceShowIntro"), "intro has no sticky force flag");
-assert(agentChat.includes("preferStart={showPersonaIntro}"), "auto-scroll keeps intro in view");
+assert(agentChat.includes("usePersonaIntro"), "agent chat uses persona intro hook");
 assert(agentChat.includes("onShowPersonaIntro"), "header can re-show intro");
+
+const personaIntroHook = readSource("lib/agent/use-persona-intro.ts");
+assert(
+  personaIntroHook.includes("useSyncExternalStore"),
+  "intro hook uses sync external store",
+);
+assert(
+  personaIntroHook.includes("hasSeenPersonaIntro"),
+  "intro hook gates on storage",
+);
+
+assert(agentChat.includes("preferStart={personaIntro.showPersonaIntro}"), "auto-scroll keeps intro in view");
 
 const autoScroll = readSource("components/search/agent-chat-auto-scroll.tsx");
 assert(autoScroll.includes("preferStart"), "auto-scroll accepts preferStart");
