@@ -32,7 +32,9 @@ assert(homeView.includes("MoguBrandIcon"), "home header uses brand icon");
 assert(homeView.includes("MoguWordmark"), "home header uses wordmark");
 
 const searchHeader = readSource("components/search/agent-chat-header.tsx");
-assert(searchHeader.includes('PageTitle>検索'), "search header uses page title");
+assert(searchHeader.includes("MoguBrandIcon"), "search header uses brand icon");
+assert(searchHeader.includes("MoguWordmark"), "search header uses wordmark");
+assert(!searchHeader.includes("PageTitle"), "search header no longer uses PageTitle");
 
 const mypageView = readSource("components/mypage/mypage-view.tsx");
 assert(mypageView.includes("MoguBrandIcon"), "mypage agent promo uses brand icon");

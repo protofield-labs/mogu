@@ -2,6 +2,7 @@
 
 import { Bookmark, Heart, Link2 } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatRatingChip } from "@/lib/home/feed-labels";
 import type { Spot } from "@/lib/home/types";
@@ -21,7 +22,13 @@ type FeedItemActionsProps = {
   onOpenDetail: () => void;
 };
 
-/** Instagram-style icon row: heart / link / bookmark + rating (#205, #212). */
+const RATING_BADGE_CLASS: Record<Spot["rating"], string> = {
+  again: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+  either: "bg-muted text-muted-foreground",
+  no: "bg-destructive/10 text-destructive",
+};
+
+/** Instagram-style icon row: heart / link / bookmark + rating (#205, #212, #256). */
 export function FeedItemActions({
   rating,
   likedByMe,
@@ -91,9 +98,12 @@ export function FeedItemActions({
         </Button>
       ) : null}
 
-      <span className="ml-auto text-xs font-semibold text-foreground">
+      <Badge
+        variant="accent"
+        className={cn("ml-auto", RATING_BADGE_CLASS[rating])}
+      >
         {formatRatingChip(rating)}
-      </span>
+      </Badge>
     </div>
   );
 }
