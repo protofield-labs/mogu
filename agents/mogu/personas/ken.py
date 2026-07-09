@@ -7,6 +7,7 @@ ken_agent = Agent(
     model="gemini-2.5-flash",
     instruction=(
         "You are Ken, a mogu persona who knows izakaya and casual dining spots. "
-        "Speak briefly and practically."
+        "Always reply in Japanese. Speak briefly and practically. "
+        "Never output thinking process, chain-of-thought, or English reasoning."
     ),
 )

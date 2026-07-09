@@ -19,6 +19,79 @@ const PERSONA_THINKING: Record<string, string> = {
   aoi: "Aoiのコレクションを参照中…",
 };
 
+/** Labels Gemini sometimes leaks into text parts (#251). */
+const LEAKED_THINKING_LABEL =
+  /^(?:thinking\s*process|chain\s*of\s*thought|internal\s*monologue)\s*:?\s*/i;
+
+const CJK_CHAR = /[\u3040-\u30ff\u3400-\u9fff\uff66-\uff9d]/;
+
+function isLeakedThinkingLine(line: string): boolean {
+  const trimmed = line.trim();
+  if (!trimmed) {
+    return true;
+  }
+  if (LEAKED_THINKING_LABEL.test(trimmed)) {
+    return true;
+  }
+  // Numbered / bold outline lines are only treated as thinking when they have
+  // no Japanese — real replies often use "1. 渋谷の…" style lists.
+  if (/^(?:\d+[\.\)]\s+|\*\*[^*]+\*\*:?\s*)/.test(trimmed) && !CJK_CHAR.test(trimmed)) {
+    return true;
+  }
+  return false;
+}
+
+function looksLikeUserFacingReply(line: string): boolean {
+  const trimmed = line.trim();
+  if (!trimmed || isLeakedThinkingLine(trimmed)) {
+    return false;
+  }
+  return CJK_CHAR.test(trimmed);
+}
+
+/**
+ * Strip leaked model reasoning from agent text before display/persist (#251).
+ * Drops leading thinking labels/blocks while keeping any real reply that follows
+ * on the same line, the next line, or after a blank line.
+ */
+export function stripLeakedThinkingText(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  const lines = trimmed.split(/\r?\n/);
+  const firstLine = lines[0] ?? "";
+  if (!LEAKED_THINKING_LABEL.test(firstLine)) {
+    return trimmed;
+  }
+
+  const afterLabel = firstLine.replace(LEAKED_THINKING_LABEL, "").trim();
+  if (looksLikeUserFacingReply(afterLabel)) {
+    // Same-line reply: "Thinking Process: 今夜はどんな気分？"
+    const rest = lines.slice(1).join("\n").trim();
+    return rest ? `${afterLabel}\n${rest}` : afterLabel;
+  }
+
+  // Drop consecutive English thinking / outline lines until a Japanese reply.
+  let index = 1;
+  while (index < lines.length) {
+    const line = lines[index] ?? "";
+    if (isLeakedThinkingLine(line)) {
+      index++;
+      continue;
+    }
+    if (!CJK_CHAR.test(line)) {
+      // English prose continuation of the thinking block
+      index++;
+      continue;
+    }
+    break;
+  }
+
+  return lines.slice(index).join("\n").trim();
+}
+
 function scanJsonObjects(
   raw: string,
 ): { events: StreamEvent[]; remainder: string } {
@@ -154,7 +227,7 @@ export function parseAgentStreamResponse(raw: string): AgentMessage {
     applyStreamEvent(event, textParts);
   }
 
-  const text = textParts.join("").trim();
+  const text = stripLeakedThinkingText(textParts.join(""));
   if (!text) {
     if (raw.trim() && events.length === 0) {
       throw new AgentSessionError(
