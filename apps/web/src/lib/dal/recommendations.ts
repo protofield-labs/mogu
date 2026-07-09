@@ -31,25 +31,41 @@ const spotSelect = {
   createdAt: true,
 } as const;
 
-/** GET /home/recommendation (#42): today's row for the authenticated user. */
+const recommendationRowSelect = {
+  assertion: true,
+  evidence: true,
+  spotId: true,
+} as const;
+
+/**
+ * GET /home/recommendation (#42 / #252).
+ * Prefer today's JST row; if the 4:00 JST batch has not run yet (0:00–3:59)
+ * or failed, fall back to the newest existing row for this user.
+ */
 export async function getHomeRecommendation(
   uid: string,
 ): Promise<RecommendationDto | null> {
   return withAuthRls(uid, async (tx) => {
     const validDate = jstTodayDate();
-    const row = await tx.dailyRecommendation.findUnique({
+    let row = await tx.dailyRecommendation.findUnique({
       where: {
         userId_validDate: {
           userId: uid,
           validDate,
         },
       },
-      select: {
-        assertion: true,
-        evidence: true,
-        spotId: true,
-      },
+      select: recommendationRowSelect,
     });
+
+    if (!row) {
+      // Overnight gap before the 4:00 JST batch, or a missed batch day (#252).
+      row = await tx.dailyRecommendation.findFirst({
+        where: { userId: uid },
+        orderBy: [{ validDate: "desc" }, { generatedAt: "desc" }],
+        select: recommendationRowSelect,
+      });
+    }
+
     if (!row) {
       return null;
     }

@@ -1,4 +1,5 @@
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * "Today" as a JST calendar date (#42: 一推しは1日1枚).
@@ -15,4 +16,11 @@ export function jstTodayDate(now: Date = new Date()): Date {
       shifted.getUTCDate(),
     ),
   );
+}
+
+/**
+ * Shift a JST calendar date (UTC-midnight Date from jstTodayDate) by whole days.
+ */
+export function addJstCalendarDays(date: Date, days: number): Date {
+  return new Date(date.getTime() + days * DAY_MS);
 }
