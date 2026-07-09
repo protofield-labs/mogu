@@ -1,7 +1,10 @@
 /**
- * Collection cover / spot filter verification (#121).
+ * Collection cover / spot filter verification (#121 / #254).
  * Run via: pnpm exec tsx scripts/verify-collection-ui.ts
  */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { assert } from "./test-helpers/assert";
 
 import {
@@ -71,6 +74,20 @@ function main() {
     filterCollectionSpots(spots, "バー", "all", { ChIJ1: "恵比寿バー" }).length ===
       1,
     "place name matches search",
+  );
+
+  const detailView = readFileSync(
+    join(process.cwd(), "src/components/mypage/collection-detail-view.tsx"),
+    "utf8",
+  );
+  assert(
+    detailView.includes("coverPhotoUrls.length === 0"),
+    "cover save disabled when no photo candidates (#254)",
+  );
+  assert(
+    detailView.includes("スポットに写真を追加すると") ||
+      detailView.includes("CollectionCoverPicker"),
+    "cover sheet still uses empty-state picker copy",
   );
 
   console.log("PASS: collection ui helpers");
