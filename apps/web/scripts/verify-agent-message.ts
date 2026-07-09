@@ -7,6 +7,7 @@ import { assert } from "./test-helpers/assert";
 import {
   buildAgentUserMessage,
   parseAgentStreamResponse,
+  stripLeakedThinkingText,
 } from "../src/lib/agent/stream-parser";
 import { isValidSessionId } from "../src/lib/agent/session-id";
 
@@ -25,6 +26,45 @@ function main() {
     "trim text without chips",
   );
 
+  assert(
+    stripLeakedThinkingText("今夜はどんな気分？") === "今夜はどんな気分？",
+    "keep normal Japanese reply",
+  );
+  assert(
+    stripLeakedThinkingText(
+      "Thinking Process: 1. **User's input:** hello\n2. Respond casually",
+    ) === "",
+    "drop thinking-only response",
+  );
+  assert(
+    stripLeakedThinkingText(
+      "Thinking Process: analyze mood\n\n今夜はどんな気分？",
+    ) === "今夜はどんな気分？",
+    "keep reply after thinking block",
+  );
+  assert(
+    stripLeakedThinkingText(
+      "Chain of Thought: step\n\nThinking Process: more",
+    ) === "",
+    "drop when remainder is still thinking",
+  );
+  assert(
+    stripLeakedThinkingText("Thinking Process: 今夜はどんな気分？") ===
+      "今夜はどんな気分？",
+    "keep same-line reply after label",
+  );
+  assert(
+    stripLeakedThinkingText("Thinking Process:\n今夜はどんな気分？") ===
+      "今夜はどんな気分？",
+    "keep next-line reply without blank line",
+  );
+  assert(
+    stripLeakedThinkingText(
+      "Thinking Process: reason\n\n1. 渋谷の居酒屋がおすすめ\n2. 予算は中くらい",
+    ) === "1. 渋谷の居酒屋がおすすめ\n2. 予算は中くらい",
+    "keep numbered Japanese reply list",
+  );
+
   const parsed = parseAgentStreamResponse(
     [
       '{"content":{"parts":[{"text":"こんにちは。"}]}}',
@@ -36,6 +76,11 @@ function main() {
     parsed.text === "こんにちは。エリアを教えてください。",
     "concat stream text parts",
   );
+
+  const stripped = parseAgentStreamResponse(
+    '{"content":{"parts":[{"text":"Thinking Process: reason\\n\\n渋谷あたりでどう？"}]}}',
+  );
+  assert(stripped.text === "渋谷あたりでどう？", "strip thinking in parseAgentStreamResponse");
 
   const concatenated = parseAgentStreamResponse(
     '{"content":{"parts":[{"text":"A"}]}}{"content":{"parts":[{"text":"B"}]}}',

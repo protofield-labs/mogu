@@ -13,6 +13,7 @@ import {
   createDoneEvent,
   drainJsonObjects,
   extractThinkingEvent,
+  stripLeakedThinkingText,
   type StreamEvent,
 } from "./stream-parser";
 import { buildRecommendationContextMessage } from "./recommendation-context-message";
@@ -78,7 +79,7 @@ async function consumeStreamQueryResponse(
 
   buffer = drainStreamBuffer(buffer + decoder.decode(), onEvent, textParts);
 
-  const text = textParts.join("").trim();
+  const text = stripLeakedThinkingText(textParts.join(""));
   if (!text) {
     throw new AgentSessionError("Vertex AI agent returned empty response");
   }
