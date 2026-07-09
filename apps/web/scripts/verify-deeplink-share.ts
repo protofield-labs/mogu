@@ -77,6 +77,16 @@ assert(collectionView.includes("ShareButton"), "collection detail has share");
 const feedSheet = readSource("components/home/feed-spot-detail-sheet.tsx");
 assert(feedSheet.includes("ShareButton"), "feed spot sheet has share");
 
+const feedItemActions = readSource("components/home/feed-item-actions.tsx");
+assert(
+  feedItemActions.includes("ShareButton"),
+  "feed item actions share spot (#286)",
+);
+assert(
+  feedItemActions.includes("spotShareUrl"),
+  "feed item actions use spotShareUrl (#286)",
+);
+
 const friendSpotList = readSource("components/users/friend-spot-list.tsx");
 assert(friendSpotList.includes("spotPath"), "friend spot list links to spot page");
 

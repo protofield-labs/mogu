@@ -161,6 +161,8 @@ export function FeedItemCard({
         </div>
 
         <FeedItemActions
+          spotId={item.spot.id}
+          shareTitle={placeName ?? titleFallback}
           rating={item.spot.rating}
           likedByMe={like.likedByMe}
           likeCount={like.likeCount}
@@ -170,7 +172,6 @@ export function FeedItemCard({
           busy={recollect.busy}
           showSaveActions={showSaveActions}
           saveHandlers={recollect.saveHandlers}
-          onOpenDetail={openDetail}
         />
 
         {like.error ? (

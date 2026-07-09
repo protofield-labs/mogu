@@ -205,6 +205,27 @@ function main() {
   const feedItemCard = readSource("components/home/feed-item-card.tsx");
   assert(feedItemCard.includes("canRecollectFeedItem"), "feed item hides save for own items");
   assert(feedItemCard.includes("FeedItemActions"), "feed item uses icon actions");
+  assert(
+    feedItemCard.includes("shareTitle={placeName ?? titleFallback}"),
+    "feed item passes share title to actions (#286)",
+  );
+  const feedItemActions = readSource("components/home/feed-item-actions.tsx");
+  assert(
+    feedItemActions.includes("ShareButton"),
+    "feed actions use ShareButton (#286)",
+  );
+  assert(
+    feedItemActions.includes("spotShareUrl"),
+    "feed actions share spot deeplink (#286)",
+  );
+  assert(
+    !feedItemActions.includes("Link2"),
+    "feed actions no longer use Link2 for detail (#286)",
+  );
+  assert(
+    !feedItemActions.includes("onOpenDetail"),
+    "feed actions no longer open detail via link icon (#286)",
+  );
   assert(feedItemCard.includes("FeedSavedSavers"), "feed item shows saved savers");
   const savedCountDal = readSource("lib/dal/saved-count.ts");
   const listSaversFn = savedCountDal.slice(

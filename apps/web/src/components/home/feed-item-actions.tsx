@@ -1,15 +1,19 @@
 "use client";
 
-import { Bookmark, Heart, Link2 } from "lucide-react";
+import { Bookmark, Heart } from "lucide-react";
 
+import { ShareButton } from "@/components/share/share-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatRatingChip } from "@/lib/home/feed-labels";
 import type { Spot } from "@/lib/home/types";
+import { spotShareUrl } from "@/lib/share/share-url";
 import { touchRowClass } from "@/lib/ui/touch-feedback";
 import { cn } from "@/lib/utils";
 
 type FeedItemActionsProps = {
+  spotId: string;
+  shareTitle?: string;
   rating: Spot["rating"];
   likedByMe: boolean;
   likeCount: number;
@@ -19,7 +23,6 @@ type FeedItemActionsProps = {
   busy: boolean;
   showSaveActions: boolean;
   saveHandlers: React.ComponentProps<"button">;
-  onOpenDetail: () => void;
 };
 
 const RATING_BADGE_CLASS: Record<Spot["rating"], string> = {
@@ -28,8 +31,10 @@ const RATING_BADGE_CLASS: Record<Spot["rating"], string> = {
   no: "bg-destructive/10 text-destructive",
 };
 
-/** Instagram-style icon row: heart / link / bookmark + rating (#205, #212, #256). */
+/** Instagram-style icon row: heart / share / bookmark + rating (#205, #212, #256, #286). */
 export function FeedItemActions({
+  spotId,
+  shareTitle,
   rating,
   likedByMe,
   likeCount,
@@ -39,7 +44,6 @@ export function FeedItemActions({
   busy,
   showSaveActions,
   saveHandlers,
-  onOpenDetail,
 }: FeedItemActionsProps) {
   return (
     <div className="flex items-center gap-1 px-mogu-screen-x pt-2.5">
@@ -69,16 +73,12 @@ export function FeedItemActions({
         ) : null}
       </div>
 
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        className={cn("size-9", touchRowClass)}
-        aria-label="スポット詳細を開く"
-        onClick={onOpenDetail}
-      >
-        <Link2 className="size-6" aria-hidden />
-      </Button>
+      <ShareButton
+        url={spotShareUrl(spotId)}
+        title={shareTitle}
+        label="スポットを共有"
+        className={cn("size-9 [&_svg]:size-6", touchRowClass)}
+      />
 
       {showSaveActions ? (
         <Button
