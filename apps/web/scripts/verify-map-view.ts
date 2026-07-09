@@ -65,5 +65,15 @@ assert(allMySpots.includes("dedupeSpotsForMap"), "all-my-spots dedupes map pins"
 const homeFeedMapView = readSource("components/home/home-feed-map-view.tsx");
 assert(homeFeedMapView.includes("CollectionSpotMapView"), "home feed map reuses map component");
 assert(homeFeedMapView.includes("showNearbyList={false}"), "home feed map skips nearby list");
+assert(
+  homeFeedMapView.includes('mapClassName="h-[min(55dvh,520px)] w-full"'),
+  "home feed map uses explicit height (not min-h only) for Maps JS tiles",
+);
+
+const mypageMapSizing = readSource("components/mypage/mypage-all-spots-map-view.tsx");
+assert(
+  mypageMapSizing.includes('mapClassName="h-[min(70dvh,640px)] w-full"'),
+  "mypage map uses explicit height (not min-h only) for Maps JS tiles",
+);
 
 console.log("PASS: map view UI verified");

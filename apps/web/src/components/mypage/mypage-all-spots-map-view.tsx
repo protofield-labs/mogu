@@ -124,7 +124,7 @@ export function MypageAllSpotsMapView() {
             onSelectSpot={(spot) => setSelectedSpotId(spot.id)}
             onClearSelection={() => setSelectedSpotId(null)}
             detailHrefForSpot={(spot) => spotPath(spot.id)}
-            mapClassName="min-h-[min(70dvh,640px)] w-full"
+            mapClassName="h-[min(70dvh,640px)] w-full"
             onMapsLoadErrorChange={setMapsLoadFailed}
           />
         )}

@@ -99,7 +99,7 @@ export function HomeFeedMapView({ items, viewerId }: HomeFeedMapViewProps) {
         }}
         onOpenDetail={handleSelectSpot}
         showNearbyList={false}
-        mapClassName="min-h-[min(55dvh,520px)] w-full"
+        mapClassName="h-[min(55dvh,520px)] w-full"
       />
 
       {selectedItem && detailOpen ? (

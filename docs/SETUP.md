@@ -374,6 +374,11 @@ unless you extend `allowed_referrers` in Terraform.
 **Load failure UX**: if the key is missing, invalid, or referrer/Billing fails,
 the map shows an `EmptyState` message instead of a blank grey box (#185).
 
+**Map container height (#258)**: `@vis.gl/react-google-maps` omits its default
+`height: 100%` when `className` is set. Use an explicit `h-[…]` (or
+`aspect-[…]`) on the map — `min-h-[…]` alone leaves the Maps JS div at height 0
+and triggers a false `tilesTimeout`.
+
 ## 8. Monitoring alerts (Slack)
 
 Cloud Monitoring alert policies (Cloud Run 5xx / latency / request spike,
