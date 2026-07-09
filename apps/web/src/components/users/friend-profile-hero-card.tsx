@@ -17,6 +17,7 @@ export function FriendProfileHeroCard({ profile }: FriendProfileHeroCardProps) {
           <Avatar
             displayName={profile.displayName}
             avatarColor={profile.avatarColor}
+            avatarUrl={profile.avatarUrl}
             size="hero"
           />
           <div className="min-w-0 text-center">

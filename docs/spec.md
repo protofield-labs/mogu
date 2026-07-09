@@ -68,6 +68,7 @@ export type User = {
   id: string              // firebase_uid
   displayName: string
   avatarColor: string
+  avatarUrl: string | null  // GCS photo avatar; null → color + initial (#259)
 }
 
 export type Spot = {
@@ -98,7 +99,7 @@ export type Collection = {
 
 export type FeedItem = {
   spot: Spot
-  actor: Pick<User, 'id' | 'displayName' | 'avatarColor'>
+  actor: Pick<User, 'id' | 'displayName' | 'avatarColor' | 'avatarUrl'>
   collectionName: string
   createdAt: string
 }

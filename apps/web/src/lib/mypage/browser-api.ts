@@ -28,7 +28,8 @@ export async function fetchMe(): Promise<MeProfile> {
 export async function updateMeProfile(body: {
   displayName: string;
   avatarColor: string;
-}): Promise<Pick<MeProfile, "id" | "displayName" | "avatarColor">> {
+  avatarUrl?: string | null;
+}): Promise<Pick<MeProfile, "id" | "displayName" | "avatarColor" | "avatarUrl">> {
   return apiJson("/api/v1/me", userSchema, "プロフィールを保存できませんでした", {
     init: {
       method: "PATCH",

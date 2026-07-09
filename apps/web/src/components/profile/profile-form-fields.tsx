@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 export type ProfileFormValues = {
   displayName: string;
   avatarColor: string;
+  avatarUrl?: string | null;
 };
 
 type ProfileFormFieldsProps = {
@@ -19,6 +20,8 @@ type ProfileFormFieldsProps = {
   colorLegend?: string;
   /** Hero card flip edit — fits inside a fixed-height card. */
   compact?: boolean;
+  /** Photo picker for account settings (#259). Hidden in compact/onboarding. */
+  photoField?: React.ReactNode;
 };
 
 export function ProfileFormFields({
@@ -27,6 +30,7 @@ export function ProfileFormFields({
   nameLabel = "名前",
   colorLegend = "アバターカラー",
   compact = false,
+  photoField,
 }: ProfileFormFieldsProps) {
   return (
     <>
@@ -45,6 +49,8 @@ export function ProfileFormFields({
           placeholder="例: Ken"
         />
       </Label>
+
+      {photoField}
 
       <fieldset className={compact ? "space-y-1.5" : "space-y-3"}>
         <legend

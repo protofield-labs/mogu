@@ -202,9 +202,9 @@ export async function updateSpot(
 }
 
 /**
- * Media proxy visibility (#35): a photo object is viewable when an
- * RLS-visible spot references it in photoUrls, or an RLS-visible
- * collection uses it as coverUrl.
+ * Media proxy visibility (#35 / #259): a photo object is viewable when an
+ * RLS-visible spot references it in photoUrls, an RLS-visible collection
+ * uses it as coverUrl, or any user has it as avatarUrl (public profile).
  */
 export async function canViewPhotoUrl(
   uid: string,
@@ -223,7 +223,15 @@ export async function canViewPhotoUrl(
       where: { coverUrl: objectUrl },
       select: { id: true },
     });
-    return collection !== null;
+    if (collection) {
+      return true;
+    }
+
+    const avatarOwner = await tx.user.findFirst({
+      where: { avatarUrl: objectUrl },
+      select: { firebaseUid: true },
+    });
+    return avatarOwner !== null;
   });
 }
 

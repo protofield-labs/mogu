@@ -3,9 +3,14 @@ import { Prisma } from "@prisma/client";
 import { parseJsonBody } from "@/lib/api/parse-json-body";
 import {
   notFoundResponse,
+  validationErrorResponse,
   withAuthRoute,
 } from "@/lib/auth/require-auth";
 import { updateUserProfile } from "@/lib/dal/users";
+import {
+  resolveBucketName,
+  validateOwnedPhotoUrl,
+} from "@/lib/storage/photo-url";
 import {
   normalizeAvatarColor,
   profileBodySchema,
@@ -18,11 +23,20 @@ export async function patchProfile(request: Request): Promise<Response> {
       return parsed.response;
     }
 
+    const { displayName, avatarColor, avatarUrl } = parsed.data;
+    if (
+      typeof avatarUrl === "string" &&
+      !validateOwnedPhotoUrl(avatarUrl, uid, resolveBucketName())
+    ) {
+      return validationErrorResponse("Invalid avatarUrl");
+    }
+
     try {
       const user = await updateUserProfile(
         uid,
-        parsed.data.displayName,
-        normalizeAvatarColor(parsed.data.avatarColor),
+        displayName,
+        normalizeAvatarColor(avatarColor),
+        avatarUrl,
       );
       return Response.json(user);
     } catch (error) {

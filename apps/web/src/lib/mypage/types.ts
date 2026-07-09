@@ -27,6 +27,7 @@ export type FriendUser = {
   id: string;
   displayName: string;
   avatarColor: string;
+  avatarUrl: string | null;
 };
 
 export type FriendListItem = FriendUser & {

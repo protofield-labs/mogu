@@ -83,6 +83,7 @@ export function FeedItemCard({ item, viewerId, enterIndex }: FeedItemCardProps) 
             <UserAvatar
               displayName={item.actor.displayName}
               avatarColor={item.actor.avatarColor}
+              avatarUrl={item.actor.avatarUrl}
               size="md"
             />
             <span className="truncate text-sm font-semibold leading-tight text-foreground">

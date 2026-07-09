@@ -134,6 +134,7 @@ CREATE TABLE users (
   id           text PRIMARY KEY,                 -- firebase_uid
   display_name text NOT NULL,
   avatar_color text NOT NULL DEFAULT '#888888',
+  avatar_url   text,                             -- GCS photo avatar (#259); null → color + initial
   created_at   timestamptz NOT NULL DEFAULT now()
 );
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
@@ -406,6 +407,7 @@ DBはRLS対象の制限ロールで接続する(superuser / BYPASSRLS 不可)。
 | 分類 | Method | Path | Req(主) | Res型 |
 | --- | --- | --- | --- | --- |
 | ユーザー | POST | `/users` | `{displayName, avatarColor}` | `User` |
+| ユーザー | PATCH | `/me` | `{displayName, avatarColor, avatarUrl?}` | `User` |
 | | GET | `/me` | — | `Me` |
 | | GET | `/me/badges` | — | `MeBadges` |
 | | GET | `/users/search?q=` | — | `User[]`(id/name/avatarのみ) |
@@ -453,8 +455,8 @@ export type MeBadges = {
 
 export type FriendRequest = {
   pairId: string              // friendships の正規化ペアキー
-  from: Pick<User, 'id' | 'displayName' | 'avatarColor'>
-  to: Pick<User, 'id' | 'displayName' | 'avatarColor'>
+  from: Pick<User, 'id' | 'displayName' | 'avatarColor' | 'avatarUrl'>
+  to: Pick<User, 'id' | 'displayName' | 'avatarColor' | 'avatarUrl'>
   status: 'pending' | 'accepted'
   createdAt: string
 }
