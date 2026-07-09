@@ -1,5 +1,5 @@
 /**
- * Agent instruction language / no-thinking / no-delegation-leak guards (#251/#263).
+ * Agent instruction language / routing / no-leak guards (#251/#263/#269).
  * Run via: pnpm exec tsx scripts/verify-agent-instructions.ts
  */
 import { readFileSync } from "node:fs";
@@ -33,16 +33,58 @@ function main() {
     orchestrator.includes("一人の mogu") || orchestrator.includes("一人の mogu 相談相手"),
     "orchestrator speaks as one mogu",
   );
-
-  assertJapanesePersona(readAgentSource("mogu/personas/ken.py"), "ken");
-  assertJapanesePersona(readAgentSource("mogu/personas/aoi.py"), "aoi");
   assert(
-    readAgentSource("mogu/personas/ken.py").includes("ユーザーに直接話しかけない"),
-    "ken does not address the user directly",
+    orchestrator.includes("振り分けルール") || orchestrator.includes("Ken ツールに委譲"),
+    "orchestrator has explicit routing rules",
   );
   assert(
-    readAgentSource("mogu/personas/aoi.py").includes("ユーザーに直接話しかけない"),
-    "aoi does not address the user directly",
+    orchestrator.includes("居酒屋") && orchestrator.includes("Ken"),
+    "orchestrator routes izakaya/casual to Ken",
+  );
+  assert(
+    orchestrator.includes("プロポーズ") && orchestrator.includes("Aoi"),
+    "orchestrator routes proposal/quiet to Aoi",
+  );
+  assert(
+    orchestrator.includes("聞き返す") || orchestrator.includes("曖昧"),
+    "orchestrator clarifies when intent is ambiguous",
+  );
+  assert(
+    orchestrator.includes("orchestrator 単独") ||
+      orchestrator.includes("不要な委譲をしない"),
+    "orchestrator avoids unnecessary delegation for small talk",
+  );
+
+  const ken = readAgentSource("mogu/personas/ken.py");
+  assertJapanesePersona(ken, "ken");
+  assert(ken.includes("ユーザーに直接話しかけない"), "ken does not address the user directly");
+  assert(
+    ken.includes("居酒屋") && (ken.includes("コスパ") || ken.includes("ワイワイ")),
+    "ken specializes in izakaya/casual/cost-performance",
+  );
+  assert(
+    ken.includes("口調") || ken.includes("カジュアル"),
+    "ken has an explicit casual tone",
+  );
+  assert(
+    ken.includes("推さない") || ken.includes("フォーマル"),
+    "ken avoids quiet/formal date venues",
+  );
+
+  const aoi = readAgentSource("mogu/personas/aoi.py");
+  assertJapanesePersona(aoi, "aoi");
+  assert(aoi.includes("ユーザーに直接話しかけない"), "aoi does not address the user directly");
+  assert(
+    aoi.includes("デート") && (aoi.includes("雰囲気") || aoi.includes("プロポーズ")),
+    "aoi specializes in date/atmosphere/special occasions",
+  );
+  assert(
+    aoi.includes("温かみ") || aoi.includes("落ち着い"),
+    "aoi has a warm/calm tone",
+  );
+  assert(
+    aoi.includes("推さない") || aoi.includes("ワイワイ"),
+    "aoi avoids loud izakaya-style venues",
   );
 
   const maps = readAgentSource("mogu_maps/agent.py");
@@ -63,7 +105,7 @@ function main() {
     "parser matches thinking process label",
   );
 
-  console.log("PASS: agent instructions (#251/#263)");
+  console.log("PASS: agent instructions (#251/#263/#269)");
 }
 
 main();
