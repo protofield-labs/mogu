@@ -68,6 +68,11 @@ assert(feedItemCard.includes("SpotThumbnail"), "feed item uses spot thumbnail fa
 assert(feedItemCard.includes("showMapsAttribution"), "feed item shows maps attribution on place photos");
 assert(feedItemCard.includes("placeLoading"), "feed item waits for place photos while loading");
 
+const spotList = readSource("components/mypage/spot-list.tsx");
+assert(spotList.includes("SpotThumbnail"), "collection spot list uses SpotThumbnail (#254)");
+assert(spotList.includes("showMapsAttribution"), "collection spot list attributes place photos");
+assert(spotList.includes("usePlace"), "collection spot list loads place photos when needed");
+
 assert(
   resolveSpotHeroPhoto({ photoUrls: ["gs://x/a.jpg"] }, { photos: [{ url: "/p/0", authorAttributions: [] }] })
     ?.source === "spot",

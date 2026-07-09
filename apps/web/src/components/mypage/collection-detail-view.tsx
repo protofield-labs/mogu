@@ -803,7 +803,7 @@ export function CollectionDetailView({
           <Button
             type="button"
             className="w-full"
-            disabled={coverSaving}
+            disabled={coverSaving || coverPhotoUrls.length === 0}
             onClick={() => void handleSaveCover()}
           >
             {coverSaving ? (
