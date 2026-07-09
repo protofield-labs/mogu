@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDownUp, MapPin, Plus } from "lucide-react";
+import { ArrowDownUp, ChevronRight, MapPin, Plus, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
@@ -8,6 +8,7 @@ import { MypageViewSkeleton } from "@/components/loading/skeletons";
 import {
   CollectionFormFields,
 } from "@/components/mypage/collection-form-fields";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SurfaceCard } from "@/components/ui/card";
 import { LoadErrorState } from "@/components/ui/load-error-state";
@@ -18,6 +19,7 @@ import { NavRow } from "@/components/ui/nav-row";
 import { ProfileHeroCard } from "@/components/mypage/profile-hero-card";
 import { listMyCollections } from "@/lib/collections/browser-api";
 import { useMe } from "@/lib/mypage/me-provider";
+import { shouldShowFriendRequestBadge } from "@/lib/mypage/stats-row";
 import { useMeBadges } from "@/lib/mypage/use-me-badges";
 import { useMypageCollections } from "@/lib/mypage/use-mypage-collections";
 
@@ -29,6 +31,7 @@ export function MypageView() {
   const [reloadToken, setReloadToken] = useState(0);
 
   const pendingFriendRequests = badges?.pendingFriendRequests ?? 0;
+  const showFriendBadge = shouldShowFriendRequestBadge(pendingFriendRequests);
 
   const { setCollections, ...collectionsState } = useMypageCollections({
     initialCollections: [],
@@ -98,6 +101,26 @@ export function MypageView() {
           updateMe((current) => (current ? { ...current, ...profile } : current))
         }
       />
+
+      <section className="px-mogu-screen-x">
+        <NavRow
+          icon={Users}
+          label="友達"
+          description="友達リスト・申請の管理"
+          href="/mypage/friends"
+          trailing={
+            showFriendBadge ? (
+              <span className="flex shrink-0 items-center gap-2">
+                <Badge variant="alert">NEW</Badge>
+                <ChevronRight
+                  className="size-4 text-muted-foreground"
+                  aria-hidden
+                />
+              </span>
+            ) : undefined
+          }
+        />
+      </section>
 
       {me.counts.spots > 0 ? (
         <section className="px-mogu-screen-x">
