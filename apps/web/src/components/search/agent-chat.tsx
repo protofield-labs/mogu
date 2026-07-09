@@ -11,12 +11,14 @@ import { AgentChatComposer } from "@/components/search/agent-chat-composer";
 import { AgentChatHeader } from "@/components/search/agent-chat-header";
 import { AgentChatTranscript } from "@/components/search/agent-chat-transcript";
 import type { AgentConsultationSummary } from "@/lib/agent/browser-api";
+import { usePersonaIntro } from "@/lib/agent/use-persona-intro";
 import { useAgentChat } from "@/lib/agent/use-agent-chat";
 import { useAuth } from "@/contexts/auth-context";
 
 export function AgentChat() {
   const { user, loading: authLoading } = useAuth();
   const chat = useAgentChat(user?.uid ?? null, authLoading);
+  const personaIntro = usePersonaIntro();
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -27,6 +29,7 @@ export function AgentChat() {
         resettingConsultation={chat.resettingConsultation}
         onOpenHistory={() => chat.setHistoryOpen(true)}
         onNewConsultation={() => void chat.handleNewConsultation()}
+        onShowPersonaIntro={personaIntro.showPersonaIntroAgain}
       />
 
       <div className="flex min-h-0 flex-1 flex-col">
@@ -40,6 +43,7 @@ export function AgentChat() {
                 consultationViewMode={chat.consultationViewMode}
                 showInitialSkeleton={chat.showInitialSkeleton}
                 showStructuredChips={chat.showStructuredChips}
+                showPersonaIntro={personaIntro.showPersonaIntro}
                 sending={chat.sending}
                 retryingSession={chat.retryingSession}
                 resettingConsultation={chat.resettingConsultation}
@@ -52,6 +56,7 @@ export function AgentChat() {
                 }}
                 onRetrySession={() => void chat.handleRetrySession()}
                 onNewConsultation={() => void chat.handleNewConsultation()}
+                onDismissPersonaIntro={personaIntro.dismissPersonaIntro}
               />
             </MessageScrollerViewport>
           </MessageScroller>
@@ -60,6 +65,7 @@ export function AgentChat() {
             sending={chat.sending}
             sessionId={chat.sessionId}
             consultationViewMode={chat.consultationViewMode}
+            preferStart={personaIntro.showPersonaIntro}
           />
           <AgentChatComposer
             input={chat.input}

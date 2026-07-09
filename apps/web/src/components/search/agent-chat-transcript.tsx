@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { LoaderCircleIcon } from "lucide-react";
 
 import {
@@ -20,8 +21,10 @@ import {
   UserBubble,
 } from "@/components/search/agent-chat-bubbles";
 import { AgentStructuredChips } from "@/components/search/agent-structured-chips";
+import { PersonaIntroCard } from "@/components/search/persona-intro-card";
 import { Button } from "@/components/ui/button";
 import type { ChatEntry } from "@/lib/agent/chat-helpers";
+import { personaImageForThinkingMessage } from "@/lib/agent/persona-intro";
 import type {
   ConsultationViewMode,
   SessionStatus,
@@ -34,6 +37,7 @@ type AgentChatTranscriptProps = {
   consultationViewMode: ConsultationViewMode;
   showInitialSkeleton: boolean;
   showStructuredChips: boolean;
+  showPersonaIntro: boolean;
   sending: boolean;
   retryingSession: boolean;
   resettingConsultation: boolean;
@@ -44,6 +48,7 @@ type AgentChatTranscriptProps = {
   onSendStructured: (text: string, chips?: string[]) => void;
   onRetrySession: () => void;
   onNewConsultation: () => void;
+  onDismissPersonaIntro: () => void;
 };
 
 export function AgentChatTranscript({
@@ -53,6 +58,7 @@ export function AgentChatTranscript({
   consultationViewMode,
   showInitialSkeleton,
   showStructuredChips,
+  showPersonaIntro,
   sending,
   retryingSession,
   resettingConsultation,
@@ -63,6 +69,7 @@ export function AgentChatTranscript({
   onSendStructured,
   onRetrySession,
   onNewConsultation,
+  onDismissPersonaIntro,
 }: AgentChatTranscriptProps) {
   return (
     <MessageScrollerContent>
@@ -89,6 +96,12 @@ export function AgentChatTranscript({
               新しい相談
             </Button>
           </div>
+        </MessageScrollerItem>
+      ) : null}
+
+      {showPersonaIntro && !showInitialSkeleton ? (
+        <MessageScrollerItem>
+          <PersonaIntroCard onDismiss={onDismissPersonaIntro} />
         </MessageScrollerItem>
       ) : null}
 
@@ -124,14 +137,27 @@ export function AgentChatTranscript({
       {thinkingMessages.length > 0 ? (
         <MessageScrollerItem scrollAnchor>
           <MessageGroup>
-            {thinkingMessages.map((message) => (
-              <Marker key={message} variant="separator">
-                <MarkerIcon>
-                  <LoaderCircleIcon className="size-4 animate-spin" />
-                </MarkerIcon>
-                <MarkerContent>{message}</MarkerContent>
-              </Marker>
-            ))}
+            {thinkingMessages.map((message) => {
+              const personaImage = personaImageForThinkingMessage(message);
+              return (
+                <Marker key={message} variant="separator">
+                  <MarkerIcon>
+                    {personaImage ? (
+                      <Image
+                        src={personaImage}
+                        alt=""
+                        width={16}
+                        height={16}
+                        className="size-4 rounded-full object-cover"
+                      />
+                    ) : (
+                      <LoaderCircleIcon className="size-4 animate-spin" />
+                    )}
+                  </MarkerIcon>
+                  <MarkerContent>{message}</MarkerContent>
+                </Marker>
+              );
+            })}
           </MessageGroup>
         </MessageScrollerItem>
       ) : null}
