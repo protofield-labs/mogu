@@ -1,5 +1,7 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
+
 import {
   MessageScroller,
   MessageScrollerProvider,
@@ -11,12 +13,47 @@ import { AgentChatComposer } from "@/components/search/agent-chat-composer";
 import { AgentChatHeader } from "@/components/search/agent-chat-header";
 import { AgentChatTranscript } from "@/components/search/agent-chat-transcript";
 import type { AgentConsultationSummary } from "@/lib/agent/browser-api";
+import {
+  hasSeenPersonaIntro,
+  markPersonaIntroSeen,
+  resetPersonaIntroSeen,
+} from "@/lib/agent/persona-intro";
 import { useAgentChat } from "@/lib/agent/use-agent-chat";
 import { useAuth } from "@/contexts/auth-context";
+
+const PERSONA_INTRO_CHANGE_EVENT = "mogu:persona-intro-change";
+
+function subscribePersonaIntro(onStoreChange: () => void) {
+  window.addEventListener(PERSONA_INTRO_CHANGE_EVENT, onStoreChange);
+  window.addEventListener("storage", onStoreChange);
+  return () => {
+    window.removeEventListener(PERSONA_INTRO_CHANGE_EVENT, onStoreChange);
+    window.removeEventListener("storage", onStoreChange);
+  };
+}
+
+function notifyPersonaIntroChange() {
+  window.dispatchEvent(new Event(PERSONA_INTRO_CHANGE_EVENT));
+}
 
 export function AgentChat() {
   const { user, loading: authLoading } = useAuth();
   const chat = useAgentChat(user?.uid ?? null, authLoading);
+  const showPersonaIntro = useSyncExternalStore(
+    subscribePersonaIntro,
+    () => !hasSeenPersonaIntro(),
+    () => false,
+  );
+
+  function dismissPersonaIntro() {
+    markPersonaIntroSeen();
+    notifyPersonaIntroChange();
+  }
+
+  function showPersonaIntroAgain() {
+    resetPersonaIntroSeen();
+    notifyPersonaIntroChange();
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -27,6 +64,7 @@ export function AgentChat() {
         resettingConsultation={chat.resettingConsultation}
         onOpenHistory={() => chat.setHistoryOpen(true)}
         onNewConsultation={() => void chat.handleNewConsultation()}
+        onShowPersonaIntro={showPersonaIntroAgain}
       />
 
       <div className="flex min-h-0 flex-1 flex-col">
@@ -40,6 +78,7 @@ export function AgentChat() {
                 consultationViewMode={chat.consultationViewMode}
                 showInitialSkeleton={chat.showInitialSkeleton}
                 showStructuredChips={chat.showStructuredChips}
+                showPersonaIntro={showPersonaIntro}
                 sending={chat.sending}
                 retryingSession={chat.retryingSession}
                 resettingConsultation={chat.resettingConsultation}
@@ -52,6 +91,7 @@ export function AgentChat() {
                 }}
                 onRetrySession={() => void chat.handleRetrySession()}
                 onNewConsultation={() => void chat.handleNewConsultation()}
+                onDismissPersonaIntro={dismissPersonaIntro}
               />
             </MessageScrollerViewport>
           </MessageScroller>
@@ -60,6 +100,7 @@ export function AgentChat() {
             sending={chat.sending}
             sessionId={chat.sessionId}
             consultationViewMode={chat.consultationViewMode}
+            preferStart={showPersonaIntro}
           />
           <AgentChatComposer
             input={chat.input}

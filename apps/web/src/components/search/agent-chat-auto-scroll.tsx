@@ -10,6 +10,8 @@ type AgentChatAutoScrollProps = {
   sending: boolean;
   sessionId: string | null;
   consultationViewMode: ConsultationViewMode;
+  /** Keep persona intro (#291) in view until the user starts chatting. */
+  preferStart?: boolean;
 };
 
 /** Scroll transcript to latest message on send / new entries (#128). */
@@ -18,12 +20,27 @@ export function AgentChatAutoScroll({
   sending,
   sessionId,
   consultationViewMode,
+  preferStart = false,
 }: AgentChatAutoScrollProps) {
-  const { scrollToEnd } = useMessageScroller();
+  const { scrollToEnd, scrollToStart } = useMessageScroller();
 
   useEffect(() => {
+    // Intro only: stay at top. Once the user sends (or history loads more
+    // than the welcome bubble), follow the conversation to the end (#291).
+    if (preferStart && !sending && entryCount <= 1) {
+      scrollToStart({ behavior: "auto" });
+      return;
+    }
     scrollToEnd({ behavior: sending ? "auto" : "smooth" });
-  }, [consultationViewMode, entryCount, scrollToEnd, sending, sessionId]);
+  }, [
+    consultationViewMode,
+    entryCount,
+    preferStart,
+    scrollToEnd,
+    scrollToStart,
+    sending,
+    sessionId,
+  ]);
 
   return null;
 }

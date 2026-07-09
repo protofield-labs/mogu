@@ -1,6 +1,11 @@
 "use client";
 
-import { HistoryIcon, LoaderCircleIcon, MessageSquarePlusIcon } from "lucide-react";
+import {
+  HistoryIcon,
+  LoaderCircleIcon,
+  MessageSquarePlusIcon,
+  UsersIcon,
+} from "lucide-react";
 
 import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
 import { MoguWordmark } from "@/components/brand/mogu-wordmark";
@@ -14,6 +19,7 @@ type AgentChatHeaderProps = {
   resettingConsultation: boolean;
   onOpenHistory: () => void;
   onNewConsultation: () => void;
+  onShowPersonaIntro: () => void;
 };
 
 export function AgentChatHeader({
@@ -23,6 +29,7 @@ export function AgentChatHeader({
   resettingConsultation,
   onOpenHistory,
   onNewConsultation,
+  onShowPersonaIntro,
 }: AgentChatHeaderProps) {
   return (
     <header className="flex shrink-0 items-center justify-between px-mogu-screen-x py-3">
@@ -32,6 +39,17 @@ export function AgentChatHeader({
       </div>
       {sessionStatus === "ready" ? (
         <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="味覚アドバイザーの紹介"
+            disabled={loadingConsultation || sending}
+            onClick={onShowPersonaIntro}
+            className="text-muted-foreground"
+          >
+            <UsersIcon className="size-4" aria-hidden />
+          </Button>
           <Button
             type="button"
             variant="ghost"

@@ -39,6 +39,7 @@ const scripts = [
   "verify-agent-recommendation.ts",
   "verify-agent-followup-context.ts",
   "verify-agent-scenarios.ts",
+  "verify-persona-intro.ts",
   "verify-recommendation-chat.ts",
   "verify-recollect.ts",
   "verify-component-splits.ts",
