@@ -1,4 +1,4 @@
-import type { AgentEvent, Recommendation } from "./types";
+import type { AgentEvent, Recommendation, Spot } from "./types";
 
 /** Agent opening copy (features 2-1, wireframe search-2b). */
 export const AGENT_OPENING_MESSAGE =
@@ -44,7 +44,14 @@ export function isAgentSessionUnavailableError(error: unknown): boolean {
 
 export type ChatEntry =
   | { id: string; kind: "user"; text: string; chips?: string[] }
-  | { id: string; kind: "agent"; text: string; recommendation?: Recommendation; quickReplies?: string[] };
+  | {
+      id: string;
+      kind: "agent";
+      text: string;
+      recommendation?: Recommendation;
+      candidateSpots?: Spot[];
+      quickReplies?: string[];
+    };
 
 export function createWelcomeEntry(): ChatEntry {
   return {
@@ -66,6 +73,7 @@ export function createUserEntry(text: string, chips?: string[]): ChatEntry {
 export function createAgentEntry(message: {
   text: string;
   recommendation?: Recommendation;
+  candidateSpots?: Spot[];
   quickReplies?: string[];
 }): ChatEntry {
   return {
@@ -73,6 +81,9 @@ export function createAgentEntry(message: {
     kind: "agent",
     text: message.text,
     ...(message.recommendation ? { recommendation: message.recommendation } : {}),
+    ...(message.candidateSpots?.length
+      ? { candidateSpots: message.candidateSpots }
+      : {}),
     ...(message.quickReplies?.length
       ? { quickReplies: message.quickReplies }
       : {}),

@@ -9,6 +9,7 @@ import {
   MessageAvatar,
   MessageContent,
 } from "@/components/chat";
+import { AgentCandidateSpotCards } from "@/components/search/agent-candidate-spot-cards";
 import { RecommendationCard } from "@/components/search/recommendation-card";
 import { filterPillClass } from "@/lib/ui/filter-pill";
 import {
@@ -96,6 +97,9 @@ export function AgentBubble({
         </BubbleGroup>
         {entry.recommendation ? (
           <RecommendationCard recommendation={entry.recommendation} />
+        ) : null}
+        {entry.candidateSpots?.length ? (
+          <AgentCandidateSpotCards spots={entry.candidateSpots} />
         ) : null}
       </MessageContent>
     </Message>

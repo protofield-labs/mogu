@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { recommendationSchema } from "@/lib/api/schemas/home";
+import { spotSchema } from "@/lib/api/schemas/spot";
 
 export const recommendationContextSchema = z.object({
   placeId: z.string().min(1).max(200),
@@ -35,6 +36,7 @@ export const agentMessageSchema = z.object({
   text: z.string(),
   thinking: z.array(z.string()).optional(),
   recommendation: recommendationSchema.optional(),
+  candidateSpots: z.array(spotSchema).optional(),
   quickReplies: z.array(z.string()).optional(),
 });
 

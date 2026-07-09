@@ -41,7 +41,10 @@ import {
   commitPendingCollectionConsult,
   resolvePendingCollectionConsult,
 } from "@/lib/mypage/pending-collection-consult";
-import type { CreateAgentSessionRequest } from "@/lib/agent/types";
+import type {
+  CandidateSpotRef,
+  CreateAgentSessionRequest,
+} from "@/lib/agent/types";
 
 export type SessionStatus = "loading" | "ready" | "error";
 export type ConsultationViewMode = "live" | "readonly" | null;
@@ -364,7 +367,11 @@ export function useAgentChat(userId: string | null, authLoading: boolean) {
   }
 
   const sendMessage = useCallback(
-    async (text: string, chips?: string[]) => {
+    async (
+      text: string,
+      chips?: string[],
+      options?: { candidateSpot?: CandidateSpotRef },
+    ) => {
       if (!sessionId || !userId || sendingRef.current) {
         return;
       }
@@ -392,6 +399,7 @@ export function useAgentChat(userId: string | null, authLoading: boolean) {
           sessionId,
           text: trimmed,
           chips,
+          candidateSpot: options?.candidateSpot,
           entriesBefore,
           userEntry,
           onThinking: (message) => {

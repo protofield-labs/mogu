@@ -94,6 +94,7 @@ export async function appendAgentConsultationTurn(
       createAgentEntry({
         text: agentMessage.text,
         recommendation: agentMessage.recommendation,
+        candidateSpots: agentMessage.candidateSpots,
         quickReplies: agentMessage.quickReplies,
       }),
     ];

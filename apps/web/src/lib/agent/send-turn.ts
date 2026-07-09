@@ -6,6 +6,7 @@ import {
   type ChatEntry,
 } from "@/lib/agent/chat-helpers";
 import { saveAgentChatSession, getAgentChatWriteEpoch } from "@/lib/agent/session-storage";
+import type { CandidateSpotRef } from "@/lib/agent/types";
 
 export type SendTurnSuccess = {
   ok: true;
@@ -86,6 +87,7 @@ async function executeSendTurn(params: {
   sessionId: string;
   text: string;
   chips?: string[];
+  candidateSpot?: CandidateSpotRef;
   entriesBefore: ChatEntry[];
   userEntry: Extract<ChatEntry, { kind: "user" }>;
   onThinking?: (message: string) => void;
@@ -96,6 +98,7 @@ async function executeSendTurn(params: {
     sessionId,
     text,
     chips,
+    candidateSpot,
     entriesBefore,
     userEntry,
     onThinking,
@@ -172,12 +175,17 @@ async function executeSendTurn(params: {
       throw new Error("イベントストリームを開けませんでした");
     }
 
-    const agentMessage = await sendAgentMessage(sessionId, { text, chips });
+    const agentMessage = await sendAgentMessage(sessionId, {
+      text,
+      chips,
+      ...(candidateSpot ? { candidateSpot } : {}),
+    });
     const entries: ChatEntry[] = [
       ...entriesWithUser,
       createAgentEntry({
         text: agentMessage.text,
         recommendation: agentMessage.recommendation,
+        candidateSpots: agentMessage.candidateSpots,
         quickReplies: agentMessage.quickReplies,
       }),
     ];
@@ -204,6 +212,7 @@ export function sendAgentTurn(params: {
   sessionId: string;
   text: string;
   chips?: string[];
+  candidateSpot?: CandidateSpotRef;
   entriesBefore: ChatEntry[];
   userEntry: Extract<ChatEntry, { kind: "user" }>;
   onThinking?: (message: string) => void;
