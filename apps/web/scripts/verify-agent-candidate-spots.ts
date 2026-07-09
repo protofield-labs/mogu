@@ -11,6 +11,7 @@ import {
   CANDIDATE_ONLY_REPLY_TEXT,
   MAX_CANDIDATE_SPOTS,
   extractCandidateSpotMarkers,
+  mergeCandidateSpotMarkers,
 } from "../src/lib/agent/candidate-spot-markers";
 import {
   buildCandidateFollowUpUserMessage,
@@ -93,6 +94,62 @@ assert(
   "marker syntax never reaches the bubble",
 );
 
+// --- persona-only markers survive orchestrator rewrites (#313) ----------
+
+// The orchestrator rewrote Aoi's proposal in its own words and dropped the
+// marker lines — markers must still be mined from the persona raw text.
+const orchestratorRewrite =
+  "中目黒なら、静かにワインを楽しめるイタリアンが2軒あります。どちらが気になりますか？";
+const personaRaw = [
+  "参照: Aoiのコレクション『静かな二人時間』",
+  "イル ヴァッフォと、トラットリア ヴィヴァはいかがでしょう。",
+  "[[候補 spot_id=aoi-s1 place_id=ChIJAoi01]]",
+  "[[候補 spot_id=aoi-s2 place_id=ChIJAoi02]]",
+].join("\n");
+
+const rewriteMarkers = mergeCandidateSpotMarkers(
+  extractCandidateSpotMarkers(orchestratorRewrite).markers,
+  extractCandidateSpotMarkers(personaRaw).markers,
+);
+assert(
+  rewriteMarkers.length === 2,
+  "persona-only markers survive orchestrator rewrite",
+);
+assert(
+  rewriteMarkers[0]?.spotId === "aoi-s1" &&
+    rewriteMarkers[1]?.placeId === "ChIJAoi02",
+  "persona markers keep order and ids",
+);
+
+// Resolved-text markers take priority; duplicates across sources dedupe.
+const mergedPriority = mergeCandidateSpotMarkers(
+  [{ spotId: "s1", placeId: "p1" }],
+  [
+    { spotId: "s1", placeId: "p1" },
+    { spotId: "s2", placeId: "p2" },
+  ],
+  [
+    { spotId: "s2", placeId: "p2" },
+    { spotId: "s3", placeId: "p3" },
+    { spotId: "s4", placeId: "p4" },
+  ],
+);
+assert(
+  mergedPriority.length === MAX_CANDIDATE_SPOTS,
+  "merge dedupes across sources and caps at 3",
+);
+assert(
+  mergedPriority[0]?.spotId === "s1" &&
+    mergedPriority[1]?.spotId === "s2" &&
+    mergedPriority[2]?.spotId === "s3",
+  "merge keeps resolved-text priority order",
+);
+
+assert(
+  mergeCandidateSpotMarkers([], [], []).length === 0,
+  "merge with no markers stays empty",
+);
+
 // --- candidate follow-up context ---------------------------------------
 
 const followUp = buildCandidateFollowUpUserMessage(CANDIDATE_FOLLOWUP_TEXT, {
@@ -173,9 +230,24 @@ assert(
 );
 assert(
   messageClient.includes(
-    "candidateMarkers.length === 0 && isAgentAssertionTurn(text)",
+    "resolvedTextMarkers.length === 0 && isAgentAssertionTurn(text)",
   ),
-  "candidate markers take precedence over the assertion-turn heuristic",
+  "resolved-text markers take precedence over the assertion-turn heuristic; " +
+    "mined-only markers must not block assertion recommendations (#313)",
+);
+assert(
+  messageClient.includes("mergeCandidateSpotMarkers"),
+  "message client merges markers across stream authors (#313)",
+);
+assert(
+  messageClient.includes("streamResult.personaText") &&
+    messageClient.includes("streamResult.orchestratorText"),
+  "message client mines markers from persona and orchestrator raw texts (#313)",
+);
+assert(
+  messageClient.includes("agent candidate markers dropped during DB resolution") &&
+    messageClient.includes("agent candidate spot resolution failed"),
+  "message client logs marker drop reasons for triage (#313)",
 );
 
 const candidateSpots = readSource("lib/agent/candidate-spots.ts");
@@ -240,6 +312,10 @@ assert(
 assert(
   orchestrator.includes("最大3件") || orchestrator.includes("最大 3 件"),
   "orchestrator caps candidates at 3",
+);
+assert(
+  orchestrator.includes("そのまま転記"),
+  "orchestrator is told to copy persona marker lines verbatim (#313)",
 );
 
 console.log("PASS: agent candidate spot cards (#287)");

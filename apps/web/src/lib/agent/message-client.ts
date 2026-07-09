@@ -6,7 +6,10 @@ import {
   buildAgentCandidateSpots,
   getCandidatePinContext,
 } from "./candidate-spots";
-import { extractCandidateSpotMarkers } from "./candidate-spot-markers";
+import {
+  extractCandidateSpotMarkers,
+  mergeCandidateSpotMarkers,
+} from "./candidate-spot-markers";
 import { publishAgentEvent } from "./event-bus";
 import {
   AgentSessionError,
@@ -51,6 +54,7 @@ import {
   appendAgentConsultationTurn,
   getLatestRecommendationForSession,
 } from "@/lib/dal/agent-consultations";
+import { logger } from "@/lib/logger";
 import { fetchPlaceDetails } from "@/lib/places/google-places-client";
 import {
   getAccessToken,
@@ -83,10 +87,19 @@ function drainStreamBuffer(
   return drained.remainder;
 }
 
+type StreamQueryResult = {
+  /** User-facing reply after orchestrator/persona resolution. */
+  text: string;
+  /** Raw orchestrator text — may hold markers the resolver dropped (#313). */
+  orchestratorText: string;
+  /** Raw persona text — may hold markers the orchestrator rewrote away (#313). */
+  personaText: string;
+};
+
 async function consumeStreamQueryResponse(
   response: Response,
   onEvent: (event: StreamEvent) => void,
-): Promise<string> {
+): Promise<StreamQueryResult> {
   if (!response.body) {
     throw new AgentSessionError("Vertex AI streamQuery returned empty body");
   }
@@ -118,12 +131,14 @@ async function consumeStreamQueryResponse(
     personaTextParts,
   );
 
-  const text = resolveAgentReplyText(textParts.join(""), personaTextParts.join(""));
+  const orchestratorText = textParts.join("");
+  const personaText = personaTextParts.join("");
+  const text = resolveAgentReplyText(orchestratorText, personaText);
   if (!text) {
     throw new AgentSessionError("Vertex AI agent returned empty response");
   }
 
-  return text;
+  return { text, orchestratorText, personaText };
 }
 
 /**
@@ -236,9 +251,9 @@ export async function sendAgentMessage(
     publishChain = publishChain.then(() => publishEventBestEffort(event));
   };
 
-  let rawText: string;
+  let streamResult: StreamQueryResult;
   try {
-    rawText = await consumeStreamQueryResponse(response, (streamEvent) => {
+    streamResult = await consumeStreamQueryResponse(response, (streamEvent) => {
       const thinking = extractThinkingEvent(streamEvent);
       if (thinking) {
         publishThinking(thinking);
@@ -252,19 +267,48 @@ export async function sendAgentMessage(
   }
 
   // Candidate markers become thumbnail cards; the visible text drops them (#287).
-  const { text, markers: candidateMarkers } =
-    extractCandidateSpotMarkers(rawText);
+  const { text, markers: resolvedTextMarkers } = extractCandidateSpotMarkers(
+    streamResult.text,
+  );
+  // The orchestrator often rewrites persona proposals in its own words and
+  // drops their `[[候補 …]]` lines. Mine markers from every raw author text so
+  // persona-only markers still become cards; the bubble keeps the resolved
+  // reply (#313).
+  const personaMarkers = extractCandidateSpotMarkers(
+    streamResult.personaText,
+  ).markers;
+  const orchestratorMarkers = extractCandidateSpotMarkers(
+    streamResult.orchestratorText,
+  ).markers;
+  const candidateMarkers = mergeCandidateSpotMarkers(
+    resolvedTextMarkers,
+    orchestratorMarkers,
+    personaMarkers,
+  );
+  if (candidateMarkers.length > 0) {
+    // Per-source counts make "persona-only markers" turns diagnosable (#313).
+    logger.info("agent candidate markers extracted", {
+      sessionId: input.sessionId,
+      resolvedTextMarkerCount: resolvedTextMarkers.length,
+      orchestratorMarkerCount: orchestratorMarkers.length,
+      personaMarkerCount: personaMarkers.length,
+      mergedMarkerCount: candidateMarkers.length,
+    });
+  }
 
   const personaKey = inferPersonaKey(text, thinkingMessages);
   const personaTasteHint = inferPersonaTasteEvidence(text, thinkingMessages);
   const anchorSpotId =
     candidatePin?.spotId ??
     (pinSamePlace ? activeRecommendation?.spot.id : undefined);
-  // Candidate markers are the machine-readable "not an assertion yet" signal
-  // (#287) — they win over the text heuristic so candidate turns whose prose
-  // happens to sound assertive still render cards instead of a recommendation.
+  // Markers in the resolved text are the machine-readable "not an assertion
+  // yet" signal (#287) — they win over the text heuristic so candidate turns
+  // whose prose happens to sound assertive still render cards. Markers mined
+  // only from raw author texts are weaker evidence: when the final reply
+  // asserts one place, the recommendation flow still wins and the mined
+  // markers are ignored (#313).
   const recommendation =
-    candidateMarkers.length === 0 && isAgentAssertionTurn(text)
+    resolvedTextMarkers.length === 0 && isAgentAssertionTurn(text)
       ? await buildAgentRecommendation(
           input.userId,
           pinSamePlace && activeRecommendation
@@ -284,8 +328,25 @@ export async function sendAgentMessage(
         candidateMarkers,
       );
       candidateSpots = spots.length > 0 ? spots : undefined;
-    } catch {
+      if (spots.length < candidateMarkers.length) {
+        // RLS-invisible spots and spot_id/place_id mismatches drop silently
+        // in buildAgentCandidateSpots — surface the gap for triage (#313).
+        logger.warn("agent candidate markers dropped during DB resolution", {
+          sessionId: input.sessionId,
+          markerCount: candidateMarkers.length,
+          resolvedCount: spots.length,
+        });
+      }
+    } catch (error) {
       // Candidate cards are best-effort; the text reply already succeeded.
+      logger.warn(
+        "agent candidate spot resolution failed",
+        {
+          sessionId: input.sessionId,
+          markerCount: candidateMarkers.length,
+        },
+        error,
+      );
     }
   }
 
