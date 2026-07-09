@@ -14,12 +14,31 @@ export type StreamEvent = {
   };
 };
 
-const PERSONA_THINKING: Record<string, string> = {
+export const PERSONA_THINKING: Record<string, string> = {
   ken: "Kenのコレクションを参照中…",
   aoi: "Aoiのコレクションを参照中…",
 };
 
+/** Demo-fixed collection labels for persona taste hints (#270 案1). */
+export const PERSONA_COLLECTION_HINTS: Record<
+  string,
+  { collection: string; evidence: string }
+> = {
+  ken: {
+    collection: "渋谷ワイワイ飲み",
+    evidence: "Kenの『渋谷ワイワイ飲み』寄り",
+  },
+  aoi: {
+    collection: "中目黒しずかデート",
+    evidence: "Aoiの『中目黒しずかデート』寄り",
+  },
+};
+
 const PERSONA_AUTHORS = new Set(Object.keys(PERSONA_THINKING));
+
+/** Internal persona "参照:" lines must not reach the user bubble (#270). */
+const PERSONA_REFERENCE_LINE =
+  /^\s*参照\s*[:：].*(?:コレクション|Ken|Aoi|ケン|アオイ|渋谷ワイワイ飲み|中目黒しずかデート)/i;
 
 /** Labels Gemini sometimes leaks into text parts (#251). */
 const LEAKED_THINKING_LABEL =
@@ -168,9 +187,101 @@ export function stripDelegationNarration(text: string): string {
     .trim();
 }
 
-/** Final cleanup before display/persist (#251 + #263). */
+/**
+ * Drop persona-internal "参照: …" labels before user-facing display (#270).
+ * Orchestrator should already rewrite these into natural prose; this is a guard.
+ * Same-line proposals after the label are kept.
+ */
+export function stripPersonaReferenceLines(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return "";
+  }
+  const kept: string[] = [];
+  for (const line of trimmed.split(/\r?\n/)) {
+    const value = line.trim();
+    if (!value) {
+      kept.push(line);
+      continue;
+    }
+    if (!PERSONA_REFERENCE_LINE.test(value) && !/^\s*参照\s*[:：]/.test(value)) {
+      kept.push(line);
+      continue;
+    }
+    // Drop the "参照: …" clause; keep any trailing proposal on the same line.
+    const withoutLabel = value
+      .replace(/^\s*参照\s*[:：][^\n。！？]*/u, "")
+      .replace(/^[。．\s]+/, "")
+      .trim();
+    if (withoutLabel) {
+      kept.push(withoutLabel);
+    }
+  }
+  return kept
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/** Final cleanup before display/persist (#251 + #263 + #270). */
 export function sanitizeAgentReplyText(text: string): string {
-  return stripDelegationNarration(stripLeakedThinkingText(text));
+  return stripPersonaReferenceLines(
+    stripDelegationNarration(stripLeakedThinkingText(text)),
+  );
+}
+
+/**
+ * Infer a persona taste evidence fragment from reply text or thinking labels (#270).
+ * Prefer the final reply text so mid-turn delegation thinking does not override
+ * the persona the orchestrator actually used in the user-facing answer.
+ */
+export function inferPersonaTasteEvidence(
+  text: string,
+  thinkingMessages: string[] = [],
+): string | null {
+  const kenHint = PERSONA_COLLECTION_HINTS.ken!;
+  const aoiHint = PERSONA_COLLECTION_HINTS.aoi!;
+  if (
+    text.includes(kenHint.collection) ||
+    /Kenの[『「].+?[』」]/.test(text) ||
+    /ケンの[『「].+?[』」]/.test(text)
+  ) {
+    return kenHint.evidence;
+  }
+  if (
+    text.includes(aoiHint.collection) ||
+    /Aoiの[『「].+?[』」]/.test(text) ||
+    /アオイの[『「].+?[』」]/.test(text)
+  ) {
+    return aoiHint.evidence;
+  }
+
+  // Fall back to the last persona thinking label in this turn.
+  for (let i = thinkingMessages.length - 1; i >= 0; i--) {
+    const message = thinkingMessages[i];
+    if (message === PERSONA_THINKING.ken) {
+      return kenHint.evidence;
+    }
+    if (message === PERSONA_THINKING.aoi) {
+      return aoiHint.evidence;
+    }
+  }
+  return null;
+}
+
+/** Prefixed evidence when a persona taste hint is available (#270). */
+export function withPersonaTasteEvidence(
+  evidence: string,
+  tasteHint: string | null,
+): string {
+  const trimmed = evidence.trim();
+  if (!tasteHint) {
+    return trimmed;
+  }
+  if (trimmed.includes(tasteHint) || trimmed.includes("コレクション")) {
+    return trimmed;
+  }
+  return trimmed ? `${tasteHint}・${trimmed}` : tasteHint;
 }
 
 /** Only treat pure acknowledgements as thin — keep clarifying questions. */
@@ -308,7 +419,56 @@ export function applyStreamEvent(
   }
 }
 
-/** Map Vertex stream event to OpenAPI AgentEvent thinking (#45). */
+function firstIndex(haystack: string, needle: string): number {
+  const idx = haystack.indexOf(needle);
+  return idx >= 0 ? idx : Number.POSITIVE_INFINITY;
+}
+
+function firstRegexIndex(haystack: string, pattern: RegExp): number {
+  const match = pattern.exec(haystack);
+  return match?.index ?? Number.POSITIVE_INFINITY;
+}
+
+function resolvePersonaKeyFromBlob(blob: string): "ken" | "aoi" | null {
+  const lower = blob.toLowerCase();
+  const kenIdx = Math.min(
+    firstRegexIndex(lower, /(?:^|[^a-z0-9_])ken(?:[^a-z0-9_]|$)/i),
+    firstIndex(blob, "渋谷ワイワイ飲み"),
+    firstRegexIndex(blob, /(?:^|[^\p{L}\p{N}])ケン(?:[^\p{L}\p{N}]|$)/u),
+  );
+  const aoiIdx = Math.min(
+    firstRegexIndex(lower, /(?:^|[^a-z0-9_])aoi(?:[^a-z0-9_]|$)/i),
+    firstIndex(blob, "中目黒しずかデート"),
+    firstRegexIndex(blob, /(?:^|[^\p{L}\p{N}])(?:アオイ|あおい)(?:[^\p{L}\p{N}]|$)/u),
+  );
+
+  if (!Number.isFinite(kenIdx) && !Number.isFinite(aoiIdx)) {
+    return null;
+  }
+  if (!Number.isFinite(aoiIdx) || kenIdx <= aoiIdx) {
+    return Number.isFinite(kenIdx) ? "ken" : "aoi";
+  }
+  return "aoi";
+}
+
+function resolvePersonaFromFunctionCall(functionCall: unknown): "ken" | "aoi" | null {
+  if (!functionCall || typeof functionCall !== "object") {
+    return null;
+  }
+  const name =
+    "name" in functionCall && typeof functionCall.name === "string"
+      ? functionCall.name.toLowerCase()
+      : "";
+  if (name.includes("ken")) {
+    return "ken";
+  }
+  if (name.includes("aoi")) {
+    return "aoi";
+  }
+  return resolvePersonaKeyFromBlob(JSON.stringify(functionCall));
+}
+
+/** Map Vertex stream event to OpenAPI AgentEvent thinking (#45 / #270). */
 export function extractThinkingEvent(event: StreamEvent): AgentEvent | null {
   const author = event.author?.trim().toLowerCase();
   const personaMessage = author ? PERSONA_THINKING[author] : undefined;
@@ -316,26 +476,29 @@ export function extractThinkingEvent(event: StreamEvent): AgentEvent | null {
     return createThinkingEvent(personaMessage);
   }
 
+  let genericToolThinking: AgentEvent | null = null;
   for (const part of event.content?.parts ?? []) {
     if (part.function_call) {
-      const name =
-        typeof part.function_call === "object" &&
-        part.function_call &&
-        "name" in part.function_call &&
-        typeof (part.function_call as { name?: unknown }).name === "string"
-          ? (part.function_call as { name: string }).name.toLowerCase()
-          : "";
-      if (name.includes("ken")) {
-        return createThinkingEvent(PERSONA_THINKING.ken!);
+      const persona = resolvePersonaFromFunctionCall(part.function_call);
+      if (persona) {
+        return createThinkingEvent(PERSONA_THINKING[persona]!);
       }
-      if (name.includes("aoi")) {
-        return createThinkingEvent(PERSONA_THINKING.aoi!);
+      genericToolThinking ??= createThinkingEvent(
+        "エージェントが情報を集めています…",
+      );
+      continue;
+    }
+    if (part.text) {
+      if (PERSONA_REFERENCE_LINE.test(part.text) || /参照\s*[:：]/.test(part.text)) {
+        const persona = resolvePersonaKeyFromBlob(part.text);
+        if (persona) {
+          return createThinkingEvent(PERSONA_THINKING[persona]!);
+        }
       }
-      return createThinkingEvent("エージェントが情報を集めています…");
     }
   }
 
-  return null;
+  return genericToolThinking;
 }
 
 export function createThinkingEvent(message: string): AgentEvent {
