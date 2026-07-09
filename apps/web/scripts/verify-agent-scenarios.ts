@@ -1,5 +1,5 @@
 /**
- * Demo scenario expectations for agent routing / evidence / follow-up (#264).
+ * Demo scenario expectations for agent routing / evidence / follow-up (#264/#288).
  * Static regression — not a live LLM eval.
  * Run via: pnpm exec tsx scripts/verify-agent-scenarios.ts
  */
@@ -26,18 +26,26 @@ assert(
   "scenario: ken taste prose → ken",
 );
 assert(
-  PERSONA_THINKING.ken.includes("Kenのコレクション"),
-  "scenario: ken thinking label",
+  PERSONA_THINKING.ken.includes("サク飲み担当 Ken"),
+  "scenario: ken thinking uses role+name (#288)",
+);
+assert(
+  PERSONA_THINKING.aoi.includes("大人デート担当 Aoi"),
+  "scenario: aoi thinking uses role+name (#288)",
 );
 
 /** Scenario: date night → Aoi */
 assert(
-  inferPersonaKey("", ["Aoiのコレクションを参照中…"]) === "aoi",
+  inferPersonaKey("", [PERSONA_THINKING.aoi!]) === "aoi",
   "scenario: aoi thinking → aoi",
 );
 assert(
   PERSONA_COLLECTION_HINTS.aoi?.collection === "静かな二人時間",
   "scenario: aoi collection label",
+);
+assert(
+  PERSONA_COLLECTION_HINTS.ken?.role === "サク飲み担当",
+  "scenario: ken role label (#288)",
 );
 
 /** Scenario: follow-up keeps place */
@@ -63,6 +71,11 @@ assert(
 assert(
   orchestrator.includes("enable_tracing=True"),
   "scenario: tracing enabled for cost/observability",
+);
+assert(
+  orchestrator.includes("サク飲み担当 Ken") &&
+    orchestrator.includes("大人デート担当 Aoi"),
+  "scenario: orchestrator evidence examples use role+name (#288)",
 );
 
 const ken = readAgent("mogu/personas/ken.py");

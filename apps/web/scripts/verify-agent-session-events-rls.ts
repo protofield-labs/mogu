@@ -4,7 +4,11 @@
  */
 import { PrismaClient } from "@prisma/client";
 
-import { createThinkingEvent, createDoneEvent } from "../src/lib/agent/stream-parser";
+import {
+  createDoneEvent,
+  createThinkingEvent,
+  PERSONA_THINKING,
+} from "../src/lib/agent/stream-parser";
 import { createRlsHarness, runVerifyScript } from "./test-helpers/rls-harness";
 
 const prisma = new PrismaClient();
@@ -20,7 +24,7 @@ async function verifyAgentSessionEventRls() {
     await upsertUser(tx, UID_OWNER, "Owner");
     await upsertUser(tx, UID_OTHER, "Other");
 
-    const thinking = createThinkingEvent("Kenのコレクションを参照中…");
+    const thinking = createThinkingEvent(PERSONA_THINKING.ken!);
     const done = createDoneEvent();
 
     await withRls(tx, UID_OWNER, (scoped) =>

@@ -14,25 +14,28 @@ export type StreamEvent = {
   };
 };
 
+/** Role + name thinking labels so first-time users get context (#288). */
 export const PERSONA_THINKING: Record<string, string> = {
-  ken: "Kenのコレクションを参照中…",
-  aoi: "Aoiのコレクションを参照中…",
+  ken: "サク飲み担当 Ken のコレクションを参照中…",
+  aoi: "大人デート担当 Aoi のコレクションを参照中…",
 };
 
-/** Demo-fixed collection labels aligned with seed DEMO_PERSONAS (#270/#271). */
+/** Demo-fixed collection labels aligned with seed DEMO_PERSONAS (#270/#271/#288). */
 export const PERSONA_COLLECTION_HINTS: Record<
   string,
-  { collection: string; evidence: string; demoUid: string }
+  { collection: string; evidence: string; demoUid: string; role: string }
 > = {
   ken: {
     collection: "中目黒サク飲み",
-    evidence: "Kenの『中目黒サク飲み』寄り",
+    evidence: "サク飲み担当 Kenの『中目黒サク飲み』寄り",
     demoUid: "demo-ken",
+    role: "サク飲み担当",
   },
   aoi: {
     collection: "静かな二人時間",
-    evidence: "Aoiの『静かな二人時間』寄り",
+    evidence: "大人デート担当 Aoiの『静かな二人時間』寄り",
     demoUid: "demo-aoi",
+    role: "大人デート担当",
   },
 };
 
