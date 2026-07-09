@@ -147,7 +147,6 @@ export function FriendProfileView({
         <CollectionGrid
           collections={collections ?? []}
           getCollectionHref={(collection) => collectionPath(collection.id)}
-          showUpsell={false}
           emptyMessage="まだコレクションがありません。"
         />
       </section>
