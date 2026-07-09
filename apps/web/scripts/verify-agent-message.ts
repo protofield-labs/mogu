@@ -8,6 +8,8 @@ import {
   buildAgentUserMessage,
   inferPersonaTasteEvidence,
   parseAgentStreamResponse,
+  PERSONA_COLLECTION_HINTS,
+  PERSONA_THINKING,
   stripDelegationNarration,
   stripLeakedThinkingText,
   stripPersonaReferenceLines,
@@ -145,27 +147,29 @@ function main() {
   assert(
     inferPersonaTasteEvidence(
       "Aoiの『静かな二人時間』の雰囲気だとこの店。",
-      ["Kenのコレクションを参照中…"],
-    ) === "Aoiの『静かな二人時間』寄り",
+      [PERSONA_THINKING.ken!],
+    ) === PERSONA_COLLECTION_HINTS.aoi!.evidence,
     "prefer reply text over earlier thinking",
   );
   assert(
     inferPersonaTasteEvidence("今夜はおすすめです", [
-      "Kenのコレクションを参照中…",
-      "Aoiのコレクションを参照中…",
-    ]) === "Aoiの『静かな二人時間』寄り",
+      PERSONA_THINKING.ken!,
+      PERSONA_THINKING.aoi!,
+    ]) === PERSONA_COLLECTION_HINTS.aoi!.evidence,
     "use last thinking label when reply has no taste prose",
   );
   assert(
-    withPersonaTasteEvidence("輪で4人が保存", "Kenの『中目黒サク飲み』寄り") ===
-      "Kenの『中目黒サク飲み』寄り・輪で4人が保存",
+    withPersonaTasteEvidence(
+      "輪で4人が保存",
+      PERSONA_COLLECTION_HINTS.ken!.evidence,
+    ) === `${PERSONA_COLLECTION_HINTS.ken!.evidence}・輪で4人が保存`,
     "prefix persona taste onto evidence",
   );
   assert(
     withPersonaTasteEvidence(
-      "Kenの『中目黒サク飲み』寄り・輪で4人が保存",
-      "Kenの『中目黒サク飲み』寄り",
-    ) === "Kenの『中目黒サク飲み』寄り・輪で4人が保存",
+      `${PERSONA_COLLECTION_HINTS.ken!.evidence}・輪で4人が保存`,
+      PERSONA_COLLECTION_HINTS.ken!.evidence,
+    ) === `${PERSONA_COLLECTION_HINTS.ken!.evidence}・輪で4人が保存`,
     "do not double-prefix evidence",
   );
 

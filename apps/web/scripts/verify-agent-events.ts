@@ -17,6 +17,7 @@ import {
   createDoneEvent,
   createThinkingEvent,
   extractThinkingEvent,
+  PERSONA_THINKING,
 } from "../src/lib/agent/stream-parser";
 
 function delivery(
@@ -28,20 +29,20 @@ function delivery(
 
 function main() {
   const kenEvent = extractThinkingEvent({ author: "ken" });
-  assert(kenEvent?.message === "Kenのコレクションを参照中…", "ken thinking");
+  assert(kenEvent?.message === PERSONA_THINKING.ken, "ken thinking");
   const aoiEvent = extractThinkingEvent({ author: "Aoi" });
-  assert(aoiEvent?.message === "Aoiのコレクションを参照中…", "aoi thinking case-insensitive");
+  assert(aoiEvent?.message === PERSONA_THINKING.aoi, "aoi thinking case-insensitive");
   const kenTool = extractThinkingEvent({
     content: { parts: [{ function_call: { name: "ken" } }] },
   });
-  assert(kenTool?.message === "Kenのコレクションを参照中…", "ken tool call thinking");
+  assert(kenTool?.message === PERSONA_THINKING.ken, "ken tool call thinking");
   const aoiToolArgs = extractThinkingEvent({
     content: {
       parts: [{ function_call: { name: "agent_tool", args: { agent: "aoi" } } }],
     },
   });
   assert(
-    aoiToolArgs?.message === "Aoiのコレクションを参照中…",
+    aoiToolArgs?.message === PERSONA_THINKING.aoi,
     "aoi thinking from function_call payload",
   );
   const kenReference = extractThinkingEvent({
@@ -54,7 +55,7 @@ function main() {
     },
   });
   assert(
-    kenReference?.message === "Kenのコレクションを参照中…",
+    kenReference?.message === PERSONA_THINKING.ken,
     "ken thinking from reference line",
   );
   const mixedParts = extractThinkingEvent({
@@ -68,7 +69,7 @@ function main() {
     },
   });
   assert(
-    mixedParts?.message === "Aoiのコレクションを参照中…",
+    mixedParts?.message === PERSONA_THINKING.aoi,
     "prefer reference-line persona over generic tool thinking",
   );
 

@@ -21,6 +21,7 @@ import {
   parseSseBuffer,
 } from "../src/lib/agent/chat-helpers";
 import { isAgentAssertionTurn } from "../src/lib/agent/assertion-turn";
+import { PERSONA_THINKING } from "../src/lib/agent/stream-parser";
 import {
   AGENT_CHAT_SESSION_TTL_MS,
   isAgentReplyPending,
@@ -91,7 +92,7 @@ function main() {
   assert(agent.quickReplies?.length === 3, "agent quick replies preserved");
 
   const sse = parseSseBuffer(
-    'data: {"type":"thinking","message":"Kenのコレクションを参照中…","timestamp":"t1"}\n\n: keepalive\n\ndata: {"type":"done","message":"ok","timestamp":"t2"}\n\n',
+    `data: {"type":"thinking","message":"${PERSONA_THINKING.ken}","timestamp":"t1"}\n\n: keepalive\n\ndata: {"type":"done","message":"ok","timestamp":"t2"}\n\n`,
   );
   assert(sse.events.length === 2, "parse two SSE data frames");
   assert(sse.events[0]?.type === "thinking", "first event type");

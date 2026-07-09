@@ -10,6 +10,8 @@ import { isAgentAssertionTurn } from "../src/lib/agent/assertion-turn";
 import {
   inferPersonaKey,
   inferPersonaTasteEvidence,
+  PERSONA_COLLECTION_HINTS,
+  PERSONA_THINKING,
   withPersonaTasteEvidence,
 } from "../src/lib/agent/stream-parser";
 import { buildEvidence } from "../src/lib/recommendations/pick";
@@ -37,7 +39,7 @@ function main() {
   );
 
   assert(
-    inferPersonaKey("", ["Kenのコレクションを参照中…"]) === "ken",
+    inferPersonaKey("", [PERSONA_THINKING.ken!]) === "ken",
     "infers ken persona key from thinking",
   );
   assert(
@@ -49,15 +51,15 @@ function main() {
   assert(
     withPersonaTasteEvidence(
       homeStyle,
-      inferPersonaTasteEvidence("", ["Kenのコレクションを参照中…"]),
+      inferPersonaTasteEvidence("", [PERSONA_THINKING.ken!]),
     ) === homeStyle,
     "keep home-style Ken evidence without double-prefix",
   );
   assert(
     withPersonaTasteEvidence(
       "Mikaが『すき』・グループで2人が保存",
-      "Aoiの『静かな二人時間』寄り",
-    ).startsWith("Aoiの『静かな二人時間』寄り・"),
+      PERSONA_COLLECTION_HINTS.aoi!.evidence,
+    ).startsWith(`${PERSONA_COLLECTION_HINTS.aoi!.evidence}・`),
     "prefix taste hint when friend name differs from persona",
   );
 
