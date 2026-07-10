@@ -8,7 +8,6 @@ import { PrismaClient, Rating } from "@prisma/client";
 import type { DemoUserDef } from "./demo-data";
 import {
   DEMO_COLLECTION_IDS,
-  DEMO_DAILY_RECO_ID,
   DEMO_PERSONAS,
   DEMO_SPOT_IDS,
   DEMO_VIEWER_DEFAULT,
@@ -195,7 +194,7 @@ async function resolveFriendshipPair(tx: SeedTx, a: string, b: string) {
 }
 
 async function seedDemoDailyRecommendation(
-  prisma: PrismaClient,
+  tx: SeedTx,
   viewerUid: string,
 ): Promise<void> {
   const today = new Date();
@@ -205,32 +204,15 @@ async function seedDemoDailyRecommendation(
   const validDateIso = validDate.toISOString().slice(0, 10);
   const evidence = buildEvidence("Ken", Rating.again, 3);
 
-  await prisma.$transaction(async (tx) => {
-    await enableDemoSeedFlags(tx);
-    await tx.$executeRaw`
-      DELETE FROM "daily_recommendations"
-      WHERE "user_id" = ${viewerUid}
-        AND "valid_date" = ${validDateIso}::date
-    `;
-    await tx.$executeRaw`
-      INSERT INTO "daily_recommendations" (
-        "id",
-        "user_id",
-        "spot_id",
-        "assertion",
-        "evidence",
-        "valid_date"
-      )
-      VALUES (
-        ${DEMO_DAILY_RECO_ID}::uuid,
-        ${viewerUid},
-        ${DEMO_SPOT_IDS.kenSharedIzakaya}::uuid,
-        ${"今夜は中目黒のこの店がおすすめ"},
-        ${evidence},
-        ${validDateIso}::date
-      )
-    `;
-  });
+  await tx.$executeRaw`
+    SELECT upsert_daily_recommendation(
+      ${viewerUid},
+      ${DEMO_SPOT_IDS.kenSharedIzakaya}::uuid,
+      ${"今夜は中目黒のこの店がおすすめ"},
+      ${evidence},
+      ${validDateIso}::date
+    )
+  `;
 }
 
 export async function seedDemo(prisma: PrismaClient): Promise<void> {
@@ -608,7 +590,13 @@ export async function seedDemo(prisma: PrismaClient): Promise<void> {
     );
   });
 
-  await seedDemoDailyRecommendation(prisma, viewerUid);
+  try {
+    await prisma.$transaction(async (tx) => {
+      await seedDemoDailyRecommendation(tx, viewerUid);
+    });
+  } catch (error) {
+    console.warn("WARN: demo daily recommendation seed failed:", error);
+  }
 
   console.log("PASS: demo seed completed");
   console.log(`  viewer: ${viewerUid}`);
