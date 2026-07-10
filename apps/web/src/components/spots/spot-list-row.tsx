@@ -25,6 +25,9 @@ export type SpotListRowProps = {
   /** Extra block below the main row (e.g. SpotSaveFooter). */
   footer?: React.ReactNode;
   showComment?: boolean;
+  /** Short CTA under meta when the row is a button (agent candidate cards #314). */
+  actionLabel?: string;
+  disabled?: boolean;
 };
 
 /** Shared spot list row: SpotThumbnail + SpotPlaceName + meta (#295). */
@@ -36,12 +39,12 @@ export function SpotListRow({
   href,
   footer,
   showComment = true,
+  actionLabel,
+  disabled = false,
 }: SpotListRowProps) {
   const needsPlacePhoto = spot.photoUrls.length === 0;
-  const { place, loading: placeLoading } = usePlace(
-    spot.placeId,
-    needsPlacePhoto,
-  );
+  const { place, placeName: fetchedPlaceName, loading: placeLoading } =
+    usePlace(spot.placeId);
 
   const metaLine = [
     formatRatingChip(spot.rating),
@@ -51,7 +54,7 @@ export function SpotListRow({
     .filter(Boolean)
     .join(" ・ ");
 
-  const resolvedPlaceName = placeName ?? place?.name ?? null;
+  const resolvedPlaceName = placeName ?? fetchedPlaceName ?? null;
   const showCommentLine =
     showComment &&
     Boolean(spot.comment?.trim()) &&
@@ -62,7 +65,8 @@ export function SpotListRow({
       <SpotPlaceName
         placeId={spot.placeId}
         fallback={spot.comment || "スポット"}
-        placeName={placeName}
+        placeName={resolvedPlaceName}
+        loading={!resolvedPlaceName && placeLoading}
       />
     </p>
   );
@@ -93,6 +97,9 @@ export function SpotListRow({
         {metaLine ? (
           <p className="mt-1 text-xs text-muted-foreground">{metaLine}</p>
         ) : null}
+        {actionLabel && onSelect ? (
+          <p className="mt-1 text-xs font-medium text-primary">{actionLabel}</p>
+        ) : null}
       </div>
     </div>
   );
@@ -102,8 +109,14 @@ export function SpotListRow({
       <>
         <button
           type="button"
+          disabled={disabled}
           onClick={() => onSelect(spot)}
-          className="w-full rounded-2xl bg-mogu-surface-elevated p-4 text-left shadow-mogu-card transition-colors hover:bg-muted/30"
+          aria-label={
+            actionLabel
+              ? `${resolvedPlaceName || spot.comment || "候補のお店"} — ${actionLabel}`
+              : undefined
+          }
+          className="w-full rounded-2xl bg-mogu-surface-elevated p-4 text-left shadow-mogu-card transition-colors hover:bg-muted/30 disabled:opacity-60"
         >
           {main}
         </button>
