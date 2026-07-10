@@ -30,8 +30,7 @@ export const DEMO_VIEWER_DEFAULT: DemoUserDef = {
   avatarColor: "#888888",
 };
 
-/** Shared place_id for savedCount demo (輪でn人が保存). */
-export const DEMO_SHARED_PLACE_ID = "ChIJseedSharedNakameguro01";
+export { DEMO_SHARED_PLACE_ID } from "./demo-place-ids";
 
 export const DEMO_COLLECTION_IDS = {
   kenIzakaya: "11111111-1111-4111-8111-111111111101",

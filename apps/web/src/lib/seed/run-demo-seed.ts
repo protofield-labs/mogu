@@ -10,10 +10,10 @@ import {
   DEMO_COLLECTION_IDS,
   DEMO_DAILY_RECO_ID,
   DEMO_PERSONAS,
-  DEMO_SHARED_PLACE_ID,
   DEMO_SPOT_IDS,
   DEMO_VIEWER_DEFAULT,
 } from "./demo-data";
+import { DEMO_PLACE_IDS, DEMO_SHARED_PLACE_ID } from "./demo-place-ids";
 import {
   disableDemoSeedFlags,
   enableDemoSeedFlags,
@@ -233,7 +233,7 @@ export async function seedDemo(prisma: PrismaClient): Promise<void> {
           },
           {
             id: DEMO_SPOT_IDS.kenNakaCounter,
-            placeId: "ChIJseedKenNakaCounter01",
+            placeId: DEMO_PLACE_IDS.kenNakaCounter,
             addedBy: DEMO_PERSONAS.ken.uid,
             collectionId: DEMO_COLLECTION_IDS.kenIzakaya,
             comment: "カウンターで一人でも入りやすい",
@@ -245,7 +245,7 @@ export async function seedDemo(prisma: PrismaClient): Promise<void> {
           },
           {
             id: DEMO_SPOT_IDS.kenEbisuStanding,
-            placeId: "ChIJseedKenEbisuStand01",
+            placeId: DEMO_PLACE_IDS.kenEbisuStanding,
             addedBy: DEMO_PERSONAS.ken.uid,
             collectionId: DEMO_COLLECTION_IDS.kenIzakaya,
             comment: "立ち飲みでサクッと",
@@ -257,7 +257,7 @@ export async function seedDemo(prisma: PrismaClient): Promise<void> {
           },
           {
             id: DEMO_SPOT_IDS.kenOfficeBistro,
-            placeId: "ChIJseedKenOfficeBistro1",
+            placeId: DEMO_PLACE_IDS.kenOfficeBistro,
             addedBy: DEMO_PERSONAS.ken.uid,
             collectionId: DEMO_COLLECTION_IDS.kenOffice,
             comment: "仕事終わりの一杯に",
@@ -289,7 +289,7 @@ export async function seedDemo(prisma: PrismaClient): Promise<void> {
           },
           {
             id: DEMO_SPOT_IDS.aoiNakaWine,
-            placeId: "ChIJseedAoiNakaWine001",
+            placeId: DEMO_PLACE_IDS.aoiNakaWine,
             addedBy: DEMO_PERSONAS.aoi.uid,
             collectionId: DEMO_COLLECTION_IDS.aoiQuiet,
             comment: "ワインが良くて落ち着く",
@@ -301,7 +301,7 @@ export async function seedDemo(prisma: PrismaClient): Promise<void> {
           },
           {
             id: DEMO_SPOT_IDS.aoiEbisuDate,
-            placeId: "ChIJseedAoiEbisuDate01",
+            placeId: DEMO_PLACE_IDS.aoiEbisuDate,
             addedBy: DEMO_PERSONAS.aoi.uid,
             collectionId: DEMO_COLLECTION_IDS.aoiQuiet,
             comment: "記念日前の下見に使った",
@@ -313,7 +313,7 @@ export async function seedDemo(prisma: PrismaClient): Promise<void> {
           },
           {
             id: DEMO_SPOT_IDS.aoiAnniversary,
-            placeId: "ChIJseedAoiAnniversary1",
+            placeId: DEMO_PLACE_IDS.aoiAnniversary,
             addedBy: DEMO_PERSONAS.aoi.uid,
             collectionId: DEMO_COLLECTION_IDS.aoiAnniversary,
             comment: "記念日に使いたい",
