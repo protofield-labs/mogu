@@ -11,7 +11,7 @@ import { SpotSaveFooter } from "@/components/recollect/spot-save-footer";
 import { FriendAccessGate } from "@/components/share/friend-access-gate";
 import { ShareButton } from "@/components/share/share-button";
 import { LoadErrorState } from "@/components/ui/load-error-state";
-import { openNowLabel } from "@/lib/agent/chat-helpers";
+import { openNowLabel } from "@/lib/places/maps-links";
 import { formatRatingChip, formatSpotTagChips } from "@/lib/home/feed-labels";
 import { usePlace } from "@/lib/places/use-place";
 import { useRecollect } from "@/lib/recollect/use-recollect";

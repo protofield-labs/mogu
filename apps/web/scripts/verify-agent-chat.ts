@@ -14,10 +14,8 @@ import {
   createWelcomeEntry,
   formatAgentUserError,
   formatUserBubbleText,
-  googleMapsPlaceUrl,
   isAgentSessionUnavailableError,
   isRecommendation,
-  openNowLabel,
   parseSseBuffer,
 } from "../src/lib/agent/chat-helpers";
 import { isAgentAssertionTurn } from "../src/lib/agent/assertion-turn";
@@ -101,20 +99,6 @@ function main() {
   const partial = parseSseBuffer('data: {"type":"thinking"');
   assert(partial.events.length === 0, "hold partial frame");
   assert(partial.remainder.startsWith("data:"), "partial remainder kept");
-
-  assert(
-    googleMapsPlaceUrl("ChIJ123").includes("destination_place_id=ChIJ123"),
-    "maps url uses destination place id",
-  );
-  assert(
-    googleMapsPlaceUrl({
-      placeId: "ChIJ123",
-      name: "テスト店",
-    }).includes("destination="),
-    "maps url includes destination label",
-  );
-  assert(openNowLabel(true) === "営業中", "open now label");
-  assert(openNowLabel(undefined) === null, "unknown open now");
 
   assert(
     isRecommendation({

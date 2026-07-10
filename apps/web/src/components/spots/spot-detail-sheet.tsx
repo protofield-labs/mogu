@@ -13,7 +13,7 @@ import {
   SheetFooter,
   SheetGrabber,
 } from "@/components/ui/sheet";
-import { openNowLabel } from "@/lib/agent/chat-helpers";
+import { openNowLabel } from "@/lib/places/maps-links";
 import type { PlaceDTO } from "@/lib/places/types";
 import { formatRatingChip, formatSpotTagChips } from "@/lib/home/feed-labels";
 import type { SpotDto } from "@/lib/spot/types";

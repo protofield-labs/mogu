@@ -36,6 +36,7 @@ const scripts = [
   "verify-branding-ui.ts",
   "verify-places-photos.ts",
   "verify-places-cache.ts",
+  "verify-maps-links.ts",
   "verify-agent-recommendation.ts",
   "verify-agent-followup-context.ts",
   "verify-agent-candidate-spots.ts",

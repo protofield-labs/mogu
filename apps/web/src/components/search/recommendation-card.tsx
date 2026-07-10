@@ -7,7 +7,7 @@ import { SpotPlaceName } from "@/components/places/spot-place-name";
 import { SpotThumbnail } from "@/components/places/spot-thumbnail";
 import { SpotSaveFooter } from "@/components/recollect/spot-save-footer";
 import { useRecollect } from "@/lib/recollect/use-recollect";
-import { openNowLabel } from "@/lib/agent/chat-helpers";
+import { openNowLabel } from "@/lib/places/maps-links";
 import type { Recommendation, Spot } from "@/lib/agent/types";
 import { resolveSpotHeroPhoto } from "@/lib/places/resolve-spot-hero-photo";
 import { usePlace } from "@/lib/places/use-place";
