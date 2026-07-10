@@ -7,6 +7,7 @@ import {
   getCandidatePinContext,
 } from "./candidate-spots";
 import {
+  CANDIDATE_RESOLUTION_FAILED_TEXT,
   extractCandidateSpotMarkers,
   mergeCandidateSpotMarkers,
 } from "./candidate-spot-markers";
@@ -301,19 +302,19 @@ export async function sendAgentMessage(
   const anchorSpotId =
     candidatePin?.spotId ??
     (pinSamePlace ? activeRecommendation?.spot.id : undefined);
-  // Markers in the resolved text are the machine-readable "not an assertion
-  // yet" signal (#287) — they win over the text heuristic so candidate turns
-  // whose prose happens to sound assertive still render cards. Markers mined
-  // only from raw author texts are weaker evidence: when the final reply
-  // asserts one place, the recommendation flow still wins and the mined
-  // markers are ignored (#313).
+  const hasCandidateMarkers = candidateMarkers.length > 0;
+  // Markers in the resolved reply always mean candidate cards (#287). Markers
+  // mined only from raw author texts are weaker: assertive final replies still
+  // use the DB-backed recommendation flow so hallucinated shop names in prose
+  // are replaced (#313), but non-assertive replies keep persona/orchestrator
+  // markers as cards.
+  const useCandidateCards =
+    resolvedTextMarkers.length > 0 ||
+    (hasCandidateMarkers && !isAgentAssertionTurn(text));
   const recommendation =
-    resolvedTextMarkers.length === 0 && isAgentAssertionTurn(text)
+    !useCandidateCards && isAgentAssertionTurn(text)
       ? await buildAgentRecommendation(
           input.userId,
-          pinSamePlace && activeRecommendation
-            ? activeRecommendation.assertion
-            : text,
           personaTasteHint,
           personaKey,
           anchorSpotId ? { anchorSpotId } : undefined,
@@ -321,13 +322,17 @@ export async function sendAgentMessage(
       : null;
 
   let candidateSpots: AgentMessage["candidateSpots"];
-  if (!recommendation && candidateMarkers.length > 0) {
+  let displayText = text;
+  if (!recommendation && useCandidateCards && hasCandidateMarkers) {
     try {
       const spots = await buildAgentCandidateSpots(
         input.userId,
         candidateMarkers,
       );
       candidateSpots = spots.length > 0 ? spots : undefined;
+      if (!candidateSpots) {
+        displayText = CANDIDATE_RESOLUTION_FAILED_TEXT;
+      }
       if (spots.length < candidateMarkers.length) {
         // RLS-invisible spots and spot_id/place_id mismatches drop silently
         // in buildAgentCandidateSpots — surface the gap for triage (#313).
@@ -338,6 +343,7 @@ export async function sendAgentMessage(
         });
       }
     } catch (error) {
+      displayText = CANDIDATE_RESOLUTION_FAILED_TEXT;
       // Candidate cards are best-effort; the text reply already succeeded.
       logger.warn(
         "agent candidate spot resolution failed",
@@ -350,9 +356,13 @@ export async function sendAgentMessage(
     }
   }
 
+  if (recommendation) {
+    displayText = recommendation.assertion;
+  }
+
   const agentMessage: AgentMessage = {
     role: "agent",
-    text,
+    text: displayText,
     ...(thinkingMessages.length > 0 ? { thinking: thinkingMessages } : {}),
     ...(recommendation ? { recommendation } : {}),
     ...(candidateSpots ? { candidateSpots } : {}),
