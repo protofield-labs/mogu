@@ -3,6 +3,11 @@ import "server-only";
 import type { CandidateSpotRef, Spot } from "./types";
 import type { CandidateSpotMarker } from "./candidate-spot-markers";
 import type { CandidatePinContext } from "./followup-context";
+import {
+  DEMO_PERSONA_VIEWER_UID,
+  isDemoPersonaSpotId,
+  isValidSpotUuid,
+} from "./demo-persona-spots";
 import { withAuthRls } from "@/lib/auth/with-auth-rls";
 import { countSavedInCircleByPlaceIds } from "@/lib/dal/saved-count";
 import { toSpotDto } from "@/lib/dal/spot-dto";
@@ -29,7 +34,7 @@ const spotSelect = {
  * RLS keeps this to spots the viewer can actually see; hallucinated
  * spot_id/place_id pairs are silently dropped.
  */
-export async function buildAgentCandidateSpots(
+async function resolveCandidateSpotRows(
   uid: string,
   markers: CandidateSpotMarker[],
 ): Promise<Spot[]> {
@@ -63,6 +68,30 @@ export async function buildAgentCandidateSpots(
   });
 }
 
+export async function buildAgentCandidateSpots(
+  uid: string,
+  markers: CandidateSpotMarker[],
+): Promise<Spot[]> {
+  const eligible = markers.filter((marker) => isValidSpotUuid(marker.spotId));
+  if (eligible.length === 0) {
+    return [];
+  }
+
+  const resolved = await resolveCandidateSpotRows(uid, eligible);
+  if (resolved.length > 0) {
+    return resolved;
+  }
+
+  const demoMarkers = eligible.filter((marker) =>
+    isDemoPersonaSpotId(marker.spotId),
+  );
+  if (demoMarkers.length === 0 || uid === DEMO_PERSONA_VIEWER_UID) {
+    return [];
+  }
+
+  return resolveCandidateSpotRows(DEMO_PERSONA_VIEWER_UID, demoMarkers);
+}
+
 /**
  * Validate a tapped candidate reference and load pin context for the
  * follow-up turn (#287). Returns null when the spot is not visible to the
@@ -73,30 +102,37 @@ export async function getCandidatePinContext(
   uid: string,
   ref: CandidateSpotRef,
 ): Promise<CandidatePinContext | null> {
-  return withAuthRls(uid, async (tx) => {
-    const row = await tx.spot.findFirst({
-      where: { id: ref.spotId },
-      select: {
-        id: true,
-        placeId: true,
-        tagArea: true,
-        tagGenre: true,
-        tagSituation: true,
-        comment: true,
-      },
-    });
-    if (!row || row.placeId !== ref.placeId) {
-      return null;
-    }
+  const load = async (viewerUid: string) =>
+    withAuthRls(viewerUid, async (tx) => {
+      const row = await tx.spot.findFirst({
+        where: { id: ref.spotId },
+        select: {
+          id: true,
+          placeId: true,
+          tagArea: true,
+          tagGenre: true,
+          tagSituation: true,
+          comment: true,
+        },
+      });
+      if (!row || row.placeId !== ref.placeId) {
+        return null;
+      }
 
-    const tagLine = [row.tagArea, row.tagGenre, row.tagSituation]
-      .filter(Boolean)
-      .join(" / ");
-    return {
-      spotId: row.id,
-      placeId: row.placeId,
-      tagLine: tagLine || null,
-      comment: row.comment || null,
-    };
-  });
+      const tagLine = [row.tagArea, row.tagGenre, row.tagSituation]
+        .filter(Boolean)
+        .join(" / ");
+      return {
+        spotId: row.id,
+        placeId: row.placeId,
+        tagLine: tagLine || null,
+        comment: row.comment || null,
+      };
+    });
+
+  const direct = await load(uid);
+  if (direct || !isDemoPersonaSpotId(ref.spotId) || uid === DEMO_PERSONA_VIEWER_UID) {
+    return direct;
+  }
+  return load(DEMO_PERSONA_VIEWER_UID);
 }

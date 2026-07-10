@@ -14,6 +14,10 @@ import {
   mergeCandidateSpotMarkers,
 } from "../src/lib/agent/candidate-spot-markers";
 import {
+  isDemoPersonaSpotId,
+  isValidSpotUuid,
+} from "../src/lib/agent/demo-persona-spots";
+import {
   buildCandidateFollowUpUserMessage,
   isSamePlaceFollowUp,
 } from "../src/lib/agent/followup-context";
@@ -64,6 +68,17 @@ assert(
 const noMarkers = extractCandidateSpotMarkers("今夜はどんな気分？");
 assert(noMarkers.markers.length === 0, "no markers on plain reply");
 assert(noMarkers.text === "今夜はどんな気分？", "plain reply unchanged");
+
+assert(
+  isValidSpotUuid("22222222-2222-4222-8222-222222222303"),
+  "accepts demo spot uuid",
+);
+assert(!isValidSpotUuid("aoi-s1"), "rejects hallucinated short spot ids");
+assert(!isValidSpotUuid("<spot_id>"), "rejects prompt placeholders");
+assert(
+  isDemoPersonaSpotId("22222222-2222-4222-8222-222222222303"),
+  "detects demo persona spot ids",
+);
 
 const dupes = extractCandidateSpotMarkers(
   [
@@ -282,9 +297,23 @@ assert(
   "candidate spots resolve under RLS",
 );
 assert(
+  candidateSpots.includes("isValidSpotUuid"),
+  "candidate spots filter invalid marker uuids before prisma",
+);
+assert(
+  candidateSpots.includes("DEMO_PERSONA_VIEWER_UID"),
+  "candidate spots fall back to demo-viewer for persona markers",
+);
+assert(
   candidateSpots.includes("row.placeId === marker.placeId") ||
     candidateSpots.includes("row.placeId === ref.placeId"),
   "candidate spots verify spot/place pairing",
+);
+
+const personaContext = readSource("lib/agent/persona-collection-context.ts");
+assert(
+  personaContext.includes("DEMO_PERSONA_VIEWER_UID"),
+  "persona prefetch falls back to demo-viewer when viewer lacks friendships",
 );
 
 const cards = readSource("components/search/agent-candidate-spot-cards.tsx");

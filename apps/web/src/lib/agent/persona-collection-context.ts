@@ -5,7 +5,9 @@ import {
   DEMO_COLLECTION_IDS,
   DEMO_PERSONAS,
 } from "@/lib/seed/demo-data";
+import { DEMO_PERSONA_VIEWER_UID } from "./demo-persona-spots";
 import type { PersonaCollectionBlock } from "./persona-collection-message";
+import { hasPersonaCollectionSpots } from "./persona-collection-message";
 
 const PERSONA_BLOCKS: Array<{
   personaKey: "ken" | "aoi";
@@ -33,11 +35,7 @@ const PERSONA_BLOCKS: Array<{
   },
 ];
 
-/**
- * Load Ken/Aoi demo collection spots visible to the viewer (RLS) (#264).
- * Returns empty blocks when seed data is absent — callers may skip seeding.
- */
-export async function loadPersonaCollectionBlocks(
+async function loadPersonaCollectionBlocksForUid(
   viewerUid: string,
 ): Promise<PersonaCollectionBlock[]> {
   return withAuthRls(viewerUid, async (tx) => {
@@ -81,4 +79,22 @@ export async function loadPersonaCollectionBlocks(
 
     return blocks;
   });
+}
+
+/**
+ * Load Ken/Aoi demo collection spots visible to the viewer (RLS) (#264).
+ * Falls back to demo-viewer friendships when the signed-in user is not linked
+ * to demo personas (typical on shared dev — #317).
+ */
+export async function loadPersonaCollectionBlocks(
+  viewerUid: string,
+): Promise<PersonaCollectionBlock[]> {
+  const viewerBlocks = await loadPersonaCollectionBlocksForUid(viewerUid);
+  if (hasPersonaCollectionSpots(viewerBlocks)) {
+    return viewerBlocks;
+  }
+  if (viewerUid === DEMO_PERSONA_VIEWER_UID) {
+    return viewerBlocks;
+  }
+  return loadPersonaCollectionBlocksForUid(DEMO_PERSONA_VIEWER_UID);
 }
