@@ -51,6 +51,10 @@ const spotListRow = readSource("components/spots/spot-list-row.tsx");
 assert(spotListRow.includes("SpotThumbnail"), "spot list row uses SpotThumbnail (#295)");
 assert(spotListRow.includes("SpotPlaceName"), "spot list row resolves place names (#295)");
 assert(spotListRow.includes("usePlace"), "spot list row loads place photos when needed");
+assert(
+  !spotListRow.includes("showMapsAttribution"),
+  "size-16 list rows omit maps overlay (#315)",
+);
 
 const spotList = readSource("components/mypage/spot-list.tsx");
 assert(spotList.includes("SpotListRow"), "collection spot list composes SpotListRow (#295)");
@@ -58,6 +62,12 @@ assert(spotList.includes("SpotListRow"), "collection spot list composes SpotList
 const friendSpotList = readSource("components/users/friend-spot-list.tsx");
 assert(friendSpotList.includes("SpotListRow"), "friend spot list composes SpotListRow (#295)");
 assert(!friendSpotList.includes("AuthImage"), "friend spot list no longer uses raw AuthImage (#295)");
+
+const spotDetailSheet = readSource("components/spots/spot-detail-sheet.tsx");
+assert(
+  spotDetailSheet.includes("GoogleMapsAttribution"),
+  "spot detail sheet keeps text attribution (guardrail 7)",
+);
 
 const compactRow = readSource("components/home/recommendation-compact-row.tsx");
 assert(
