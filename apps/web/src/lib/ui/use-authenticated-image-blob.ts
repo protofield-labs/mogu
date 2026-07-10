@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import type { ProgressiveImageStatus } from "@/components/ui/progressive-image-frame";
+import type { ProgressiveImageStatus } from "@/lib/ui/progressive-image-types";
 
 type ImageBlobState = {
   forKey: string;

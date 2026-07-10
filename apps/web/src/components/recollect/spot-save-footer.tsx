@@ -5,7 +5,7 @@ import type { VariantProps } from "class-variance-authority";
 
 import { RecollectPicker } from "@/components/recollect/recollect-picker";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { googleMapsPlaceUrl } from "@/lib/agent/chat-helpers";
+import { googleMapsPlaceUrl } from "@/lib/places/maps-links";
 import type { PlaceDTO } from "@/lib/places/types";
 import type { useRecollect } from "@/lib/recollect/use-recollect";
 import { cn } from "@/lib/utils";

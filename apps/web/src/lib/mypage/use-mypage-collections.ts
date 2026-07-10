@@ -10,7 +10,7 @@ import {
 import {
   emptyCollectionForm,
   type CollectionForm,
-} from "@/components/mypage/collection-form-fields";
+} from "@/lib/mypage/collection-form-types";
 import type { MeProfile } from "@/lib/mypage/types";
 
 type UseMypageCollectionsOptions = {

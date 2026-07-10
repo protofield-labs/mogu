@@ -28,11 +28,11 @@ import {
 import { CollectionDetailSkeleton } from "@/components/loading/skeletons";
 import { CollectionCoverPicker } from "@/components/mypage/collection-cover-picker";
 import { CollectionCover } from "@/components/mypage/collection-cover";
+import { CollectionFormFields } from "@/components/mypage/collection-form-fields";
 import {
-  CollectionFormFields,
   emptyCollectionForm,
   type CollectionForm,
-} from "@/components/mypage/collection-form-fields";
+} from "@/lib/mypage/collection-form-types";
 import { LoadErrorState } from "@/components/ui/load-error-state";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SpotForm, SpotList } from "@/components/mypage/spot-form";
@@ -60,7 +60,7 @@ import {
   type CollectionSpotRatingFilter,
 } from "@/lib/collections/spot-filter";
 import { pickAutoCoverUrls } from "@/lib/collections/cover";
-import { googleMapsPlaceUrl } from "@/lib/agent/chat-helpers";
+import { googleMapsPlaceUrl } from "@/lib/places/maps-links";
 import { formatRatingChip } from "@/lib/home/feed-labels";
 import { formatCollectionVisibility } from "@/lib/labels/collection-labels";
 import { useMe } from "@/lib/mypage/me-provider";

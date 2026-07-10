@@ -5,20 +5,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { CollectionVisibility } from "@/lib/collections/browser-api";
 import { formatCollectionVisibility } from "@/lib/labels/collection-labels";
+import type { CollectionForm } from "@/lib/mypage/collection-form-types";
 
-export type CollectionForm = {
-  name: string;
-  description: string;
-  visibility: CollectionVisibility;
-  theme: string;
-};
-
-export const emptyCollectionForm: CollectionForm = {
-  name: "",
-  description: "",
-  visibility: "friends",
-  theme: "",
-};
+export type { CollectionForm } from "@/lib/mypage/collection-form-types";
+export { emptyCollectionForm } from "@/lib/mypage/collection-form-types";
 
 type CollectionFormFieldsProps = {
   form: CollectionForm;

@@ -2,9 +2,10 @@
 
 import { ImageOff } from "lucide-react";
 
+import type { ProgressiveImageStatus } from "@/lib/ui/progressive-image-types";
 import { cn } from "@/lib/utils";
 
-export type ProgressiveImageStatus = "loading" | "loaded" | "error";
+export type { ProgressiveImageStatus } from "@/lib/ui/progressive-image-types";
 
 type ProgressiveImageFrameProps = {
   className?: string;
