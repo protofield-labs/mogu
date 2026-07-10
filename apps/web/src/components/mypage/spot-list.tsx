@@ -68,7 +68,6 @@ function SpotListRow({
             spot={spot}
             place={place}
             placeLoading={needsPlacePhoto && placeLoading}
-            showMapsAttribution
             className="size-16 shrink-0 rounded-xl object-cover"
             placeholder="label"
             placeholderLabel="写真なし"

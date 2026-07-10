@@ -70,8 +70,17 @@ assert(feedItemCard.includes("placeLoading"), "feed item waits for place photos 
 
 const spotList = readSource("components/mypage/spot-list.tsx");
 assert(spotList.includes("SpotThumbnail"), "collection spot list uses SpotThumbnail (#254)");
-assert(spotList.includes("showMapsAttribution"), "collection spot list attributes place photos");
+assert(
+  !spotList.includes("showMapsAttribution"),
+  "size-16 collection list rows omit maps overlay (#315)",
+);
 assert(spotList.includes("usePlace"), "collection spot list loads place photos when needed");
+
+const spotDetailSheet = readSource("components/spots/spot-detail-sheet.tsx");
+assert(
+  spotDetailSheet.includes("GoogleMapsAttribution"),
+  "spot detail sheet keeps text attribution (guardrail 7)",
+);
 
 assert(
   resolveSpotHeroPhoto({ photoUrls: ["gs://x/a.jpg"] }, { photos: [{ url: "/p/0", authorAttributions: [] }] })
