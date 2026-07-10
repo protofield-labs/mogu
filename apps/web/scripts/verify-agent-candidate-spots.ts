@@ -266,14 +266,18 @@ assert(
   cards.includes("export function AgentCandidateSpotCards"),
   "candidate cards component extracted",
 );
-assert(cards.includes("SpotThumbnail"), "candidate cards show thumbnails");
+assert(cards.includes("SpotListRow"), "candidate cards use list row layout (#314)");
 assert(
   cards.includes("sendCandidateFollowUp"),
   "candidate card tap sends follow-up via context",
 );
 assert(
-  cards.includes("snap-x") && cards.includes("overflow-x-auto"),
-  "candidate cards scroll horizontally",
+  cards.includes("flex-col") && cards.includes("gap-2"),
+  "candidate cards stack vertically (#314)",
+);
+assert(
+  !cards.includes("snap-x") && !cards.includes("overflow-x-auto"),
+  "candidate cards no longer scroll horizontally (#314)",
 );
 
 const bubbles = readSource("components/search/agent-chat-bubbles.tsx");

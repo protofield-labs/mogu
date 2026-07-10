@@ -1,66 +1,17 @@
 "use client";
 
-import { SpotThumbnail } from "@/components/places/spot-thumbnail";
-import { SpotPlaceName } from "@/components/places/spot-place-name";
 import { useAgentChatContext } from "@/components/search/agent-chat-context";
+import { SpotListRow } from "@/components/spots/spot-list-row";
 import type { Spot } from "@/lib/agent/types";
-import { usePlace } from "@/lib/places/use-place";
-import { touchCardClass } from "@/lib/ui/touch-feedback";
-import { cn } from "@/lib/utils";
 
-function CandidateSpotCard({
-  spot,
-  disabled,
-  onSelect,
-}: {
-  spot: Spot;
-  disabled: boolean;
-  onSelect: (spot: Spot) => void;
-}) {
-  const { place, placeName, loading } = usePlace(spot.placeId);
-  const tagLine = [spot.structuredTags.area, spot.structuredTags.genre]
+function candidateTagLine(spot: Spot): string | undefined {
+  const line = [spot.structuredTags.area, spot.structuredTags.genre]
     .filter(Boolean)
     .join(" / ");
-
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={() => onSelect(spot)}
-      className={cn(
-        "mogu-elevated w-40 shrink-0 snap-start rounded-2xl p-2 text-left transition-colors hover:bg-muted/40 disabled:opacity-60",
-        touchCardClass,
-      )}
-      aria-label={`${placeName || spot.comment || "候補のお店"}について詳しく聞く`}
-    >
-      <SpotThumbnail
-        spot={spot}
-        place={place}
-        placeLoading={loading}
-        showMapsAttribution
-        className="aspect-[4/3] w-full overflow-hidden rounded-xl object-cover"
-      />
-      <span className="mt-2 block truncate text-sm font-medium text-foreground">
-        <SpotPlaceName
-          placeId={spot.placeId}
-          fallback={spot.comment || "スポット"}
-          placeName={placeName}
-          loading={loading}
-        />
-      </span>
-      {tagLine ? (
-        <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-          {tagLine}
-        </span>
-      ) : null}
-      <span className="mt-1 block text-xs font-medium text-primary">
-        この店について詳しく
-      </span>
-    </button>
-  );
+  return line || undefined;
 }
 
-/** Candidate spot cards under a consult reply; tap pins the follow-up (#287). */
+/** Candidate spot rows under a consult reply; tap pins the follow-up (#287 / #314). */
 export function AgentCandidateSpotCards({ spots }: { spots: Spot[] }) {
   const { state, actions } = useAgentChatContext();
 
@@ -69,19 +20,23 @@ export function AgentCandidateSpotCards({ spots }: { spots: Spot[] }) {
   }
 
   return (
-    <div
+    <ul
       role="group"
       aria-label="候補のお店"
-      className="mt-2 flex w-full max-w-full snap-x snap-mandatory gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="mt-2 flex w-full max-w-full flex-col gap-2"
     >
       {spots.map((spot) => (
-        <CandidateSpotCard
-          key={spot.id}
-          spot={spot}
-          disabled={state.inputDisabled}
-          onSelect={actions.sendCandidateFollowUp}
-        />
+        <li key={spot.id}>
+          <SpotListRow
+            spot={spot}
+            disabled={state.inputDisabled}
+            onSelect={() => actions.sendCandidateFollowUp(spot)}
+            distanceLabel={candidateTagLine(spot)}
+            showComment={false}
+            actionLabel="この店について詳しく"
+          />
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }
