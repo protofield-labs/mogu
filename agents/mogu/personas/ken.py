@@ -39,6 +39,7 @@ ken_agent = Agent(
         "『[ペルソナコレクション実データ]』に列挙された spot_id / place_id を使い、"
         "提案1件につき末尾に1行、次の形式のマーカーを最大3件付ける。\n"
         "[[候補 spot_id=<spot_id> place_id=<place_id>]]\n"
+        "spot_id は prefetch の UUID をそのままコピーする。短い仮名は使わない。\n"
         "prefetch に無い ID や店名を捏造しない。"
         "マーカーを付けられない店名は本文にも書かない。"
     ),
