@@ -7,9 +7,11 @@ import {
   getCandidatePinContext,
 } from "./candidate-spots";
 import {
+  CANDIDATE_ONLY_REPLY_TEXT,
   CANDIDATE_RESOLUTION_FAILED_TEXT,
   extractCandidateSpotMarkers,
   mergeCandidateSpotMarkers,
+  RECOMMENDATION_RESOLUTION_FAILED_TEXT,
 } from "./candidate-spot-markers";
 import { publishAgentEvent } from "./event-bus";
 import {
@@ -303,13 +305,17 @@ export async function sendAgentMessage(
     candidatePin?.spotId ??
     (pinSamePlace ? activeRecommendation?.spot.id : undefined);
   const hasCandidateMarkers = candidateMarkers.length > 0;
-  // Markers in the resolved reply always mean candidate cards (#287). Markers
-  // mined only from raw author texts are weaker: assertive final replies still
-  // use the DB-backed recommendation flow so hallucinated shop names in prose
-  // are replaced (#313), but non-assertive replies keep persona/orchestrator
-  // markers as cards.
+  const hasMinedOnlyMarkers =
+    resolvedTextMarkers.length === 0 &&
+    hasCandidateMarkers &&
+    (personaMarkers.length > 0 || orchestratorMarkers.length > 0);
+  // Markers in the resolved reply always mean candidate cards (#287).
+  // Persona/orchestrator-only markers stay on the card path even when the
+  // orchestrator prose sounds assertive (#313 / #317). Otherwise assertive
+  // replies without markers use the DB-backed single recommendation flow.
   const useCandidateCards =
     resolvedTextMarkers.length > 0 ||
+    hasMinedOnlyMarkers ||
     (hasCandidateMarkers && !isAgentAssertionTurn(text));
   const recommendation =
     !useCandidateCards && isAgentAssertionTurn(text)
@@ -330,7 +336,10 @@ export async function sendAgentMessage(
         candidateMarkers,
       );
       candidateSpots = spots.length > 0 ? spots : undefined;
-      if (!candidateSpots) {
+      if (candidateSpots) {
+        // Cards are DB-backed; never show model prose that may name wrong shops.
+        displayText = CANDIDATE_ONLY_REPLY_TEXT;
+      } else {
         displayText = CANDIDATE_RESOLUTION_FAILED_TEXT;
       }
       if (spots.length < candidateMarkers.length) {
@@ -354,10 +363,10 @@ export async function sendAgentMessage(
         error,
       );
     }
-  }
-
-  if (recommendation) {
+  } else if (recommendation) {
     displayText = recommendation.assertion;
+  } else if (!useCandidateCards && isAgentAssertionTurn(text)) {
+    displayText = RECOMMENDATION_RESOLUTION_FAILED_TEXT;
   }
 
   const agentMessage: AgentMessage = {

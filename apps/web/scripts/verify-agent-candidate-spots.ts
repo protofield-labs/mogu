@@ -234,16 +234,28 @@ assert(
   "resolved-text markers always route to candidate cards",
 );
 assert(
+  messageClient.includes("hasMinedOnlyMarkers"),
+  "persona/orchestrator-only markers keep candidate card routing (#317)",
+);
+assert(
   messageClient.includes("hasCandidateMarkers && !isAgentAssertionTurn(text)"),
   "mined-only markers become cards on non-assertive turns (#313)",
 );
 assert(
   messageClient.includes("!useCandidateCards && isAgentAssertionTurn(text)"),
-  "assertive turns with mined-only markers use DB-backed recommendations",
+  "assertive turns without candidate markers use DB-backed recommendations",
 );
 assert(
   messageClient.includes("CANDIDATE_RESOLUTION_FAILED_TEXT"),
   "message client replaces prose when no candidate markers resolve",
+);
+assert(
+  messageClient.includes("CANDIDATE_ONLY_REPLY_TEXT"),
+  "candidate card turns use generic reply text, not model shop names",
+);
+assert(
+  messageClient.includes("RECOMMENDATION_RESOLUTION_FAILED_TEXT"),
+  "assertion turns without DB pick use safe fallback text",
 );
 assert(
   messageClient.includes("displayText = recommendation.assertion"),

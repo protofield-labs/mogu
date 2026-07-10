@@ -87,13 +87,30 @@ function buildDemoPlaceRefreshTargets(viewerUid: string) {
   ] as const;
 }
 
-/** Update place_id on existing demo spots (RLS-safe; no wipe). */
+/** Update place_id and shared-spot tags on existing demo rows (RLS-safe). */
 async function refreshDemoPlaceIds(tx: SeedTx, viewerUid: string) {
   for (const target of buildDemoPlaceRefreshTargets(viewerUid)) {
     await withSeedRls(tx, target.actorUid, (scoped) =>
       scoped.spot.updateMany({
         where: { id: target.spotId },
         data: { placeId: target.placeId },
+      }),
+    );
+  }
+
+  // Shared SAKEBAR place_id must not keep イタリアン tags from older seeds (#317).
+  const sharedIzakayaTags = {
+    tagArea: "中目黒",
+    tagGenre: "居酒屋",
+  } as const;
+  for (const target of [
+    { spotId: DEMO_SPOT_IDS.aoiSharedQuiet, actorUid: DEMO_PERSONAS.aoi.uid },
+    { spotId: DEMO_SPOT_IDS.mikaRecoFromAoi, actorUid: DEMO_PERSONAS.mika.uid },
+  ] as const) {
+    await withSeedRls(tx, target.actorUid, (scoped) =>
+      scoped.spot.updateMany({
+        where: { id: target.spotId, placeId: DEMO_SHARED_PLACE_ID },
+        data: sharedIzakayaTags,
       }),
     );
   }
@@ -225,12 +242,13 @@ export async function seedDemo(prisma: PrismaClient): Promise<void> {
 
   await prisma.$transaction(async (tx) => {
     await refreshDemoPlaceIds(tx, viewerUid);
-  });
 
-  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SAVEPOINT demo_seed_wipe`;
     try {
       await wipeDemoRows(tx, viewerUid);
+      await tx.$executeRaw`RELEASE SAVEPOINT demo_seed_wipe`;
     } catch (error) {
+      await tx.$executeRaw`ROLLBACK TO SAVEPOINT demo_seed_wipe`;
       console.warn(
         "WARN: demo wipe partial failure (continuing with upsert):",
         error,
@@ -449,7 +467,7 @@ export async function seedDemo(prisma: PrismaClient): Promise<void> {
             comment: "静かで会話が続く",
             rating: Rating.again,
             tagArea: "中目黒",
-            tagGenre: "イタリアン",
+            tagGenre: "居酒屋",
             tagSituation: "デート",
             freeTags: ["静か", "2人"],
           },
@@ -563,7 +581,7 @@ export async function seedDemo(prisma: PrismaClient): Promise<void> {
             comment: "Aoiのおすすめを保存",
             rating: Rating.either,
             tagArea: "中目黒",
-            tagGenre: "イタリアン",
+            tagGenre: "居酒屋",
             tagSituation: "デート",
             originUserId: DEMO_PERSONAS.aoi.uid,
             depth: 1,
@@ -590,14 +608,7 @@ export async function seedDemo(prisma: PrismaClient): Promise<void> {
     );
   });
 
-  try {
-    await seedDemoDailyRecommendation(prisma, viewerUid);
-  } catch (error) {
-    console.warn(
-      "WARN: demo daily recommendation seed skipped (existing row retained):",
-      error,
-    );
-  }
+  await seedDemoDailyRecommendation(prisma, viewerUid);
 
   console.log("PASS: demo seed completed");
   console.log(`  viewer: ${viewerUid}`);
