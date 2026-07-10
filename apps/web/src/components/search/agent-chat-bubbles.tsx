@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
 import {
   Bubble,
@@ -11,15 +13,44 @@ import {
 } from "@/components/chat";
 import { AgentCandidateSpotCards } from "@/components/search/agent-candidate-spot-cards";
 import { RecommendationCard } from "@/components/search/recommendation-card";
+import {
+  personaImageForPersonaKey,
+  type PersonaIntroKey,
+} from "@/lib/agent/persona-intro";
 import { filterPillClass } from "@/lib/ui/filter-pill";
 import {
   formatUserBubbleText,
   type ChatEntry,
 } from "@/lib/agent/chat-helpers";
 
-export function AgentAvatar() {
+const PERSONA_AVATAR_LABEL: Record<PersonaIntroKey, string> = {
+  ken: "サク飲み担当 Ken",
+  aoi: "大人デート担当 Aoi",
+};
+
+export function AgentAvatar({ personaKey }: { personaKey?: PersonaIntroKey }) {
+  if (personaKey) {
+    return (
+      <MessageAvatar
+        className="size-8 overflow-hidden bg-mogu-surface-elevated text-foreground"
+        aria-label={PERSONA_AVATAR_LABEL[personaKey]}
+      >
+        <Image
+          src={personaImageForPersonaKey(personaKey)}
+          alt=""
+          width={32}
+          height={32}
+          className="size-full object-cover"
+        />
+      </MessageAvatar>
+    );
+  }
+
   return (
-    <MessageAvatar className="size-8 bg-mogu-surface-elevated text-foreground">
+    <MessageAvatar
+      className="size-8 bg-mogu-surface-elevated text-foreground"
+      aria-label="mogu"
+    >
       <MoguBrandIcon className="size-4" />
     </MessageAvatar>
   );
@@ -71,7 +102,7 @@ export function AgentBubble({
 }) {
   return (
     <Message align="start">
-      <AgentAvatar />
+      <AgentAvatar personaKey={entry.personaKey} />
       <MessageContent>
         <BubbleGroup>
           <Bubble variant="outline" align="start">

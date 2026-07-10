@@ -96,6 +96,7 @@ export async function appendAgentConsultationTurn(
         recommendation: agentMessage.recommendation,
         candidateSpots: agentMessage.candidateSpots,
         quickReplies: agentMessage.quickReplies,
+        personaKey: agentMessage.personaKey,
       }),
     ];
 

@@ -1,4 +1,5 @@
 import type { AgentEvent, Recommendation, Spot } from "./types";
+import type { PersonaIntroKey } from "@/lib/agent/persona-intro";
 
 /** Agent opening copy (features 2-1, wireframe search-2b). */
 export const AGENT_OPENING_MESSAGE =
@@ -51,6 +52,7 @@ export type ChatEntry =
       recommendation?: Recommendation;
       candidateSpots?: Spot[];
       quickReplies?: string[];
+      personaKey?: PersonaIntroKey;
     };
 
 export function createWelcomeEntry(): ChatEntry {
@@ -75,6 +77,7 @@ export function createAgentEntry(message: {
   recommendation?: Recommendation;
   candidateSpots?: Spot[];
   quickReplies?: string[];
+  personaKey?: PersonaIntroKey;
 }): ChatEntry {
   return {
     id: `agent-${Date.now()}`,
@@ -87,6 +90,7 @@ export function createAgentEntry(message: {
     ...(message.quickReplies?.length
       ? { quickReplies: message.quickReplies }
       : {}),
+    ...(message.personaKey ? { personaKey: message.personaKey } : {}),
   };
 }
 

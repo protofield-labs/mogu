@@ -187,6 +187,7 @@ async function executeSendTurn(params: {
         recommendation: agentMessage.recommendation,
         candidateSpots: agentMessage.candidateSpots,
         quickReplies: agentMessage.quickReplies,
+        personaKey: agentMessage.personaKey,
       }),
     ];
     saveAgentChatSession(userId, sessionId, entries, { writeEpoch });

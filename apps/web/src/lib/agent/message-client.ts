@@ -356,6 +356,7 @@ export async function sendAgentMessage(
     ...(thinkingMessages.length > 0 ? { thinking: thinkingMessages } : {}),
     ...(recommendation ? { recommendation } : {}),
     ...(candidateSpots ? { candidateSpots } : {}),
+    ...(personaKey ? { personaKey } : {}),
   };
 
   if (!input.skipConsultationPersist) {
