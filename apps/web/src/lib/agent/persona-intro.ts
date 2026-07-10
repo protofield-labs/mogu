@@ -79,3 +79,11 @@ export function personaImageForThinkingMessage(
   }
   return null;
 }
+
+/** Persona avatar image for agent bubbles (#312). */
+export function personaImageForPersonaKey(key: PersonaIntroKey): string {
+  return (
+    PERSONA_INTRO_PROFILES.find((profile) => profile.key === key)?.imageSrc ??
+    `/personas/${key}.png`
+  );
+}

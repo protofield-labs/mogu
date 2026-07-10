@@ -38,6 +38,7 @@ export const agentMessageSchema = z.object({
   recommendation: recommendationSchema.optional(),
   candidateSpots: z.array(spotSchema).optional(),
   quickReplies: z.array(z.string()).optional(),
+  personaKey: z.enum(["ken", "aoi"]).optional(),
 });
 
 export const placeDtoSchema = z.object({

@@ -1,4 +1,5 @@
 import type { SpotDto } from "@/lib/spot/types";
+import type { PersonaIntroKey } from "@/lib/agent/persona-intro";
 
 /** OpenAPI Spot (subset used by agent UI). */
 export type Spot = SpotDto;
@@ -20,6 +21,8 @@ export type AgentMessage = {
   recommendation?: Recommendation;
   candidateSpots?: Spot[];
   quickReplies?: string[];
+  /** Ken/Aoi when this turn leaned on a persona advisor (#312). */
+  personaKey?: PersonaIntroKey;
 };
 
 /** Tapped candidate card reference sent with a follow-up turn (#287). */

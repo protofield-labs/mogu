@@ -10,6 +10,7 @@ import {
   PERSONA_INTRO_LEAD,
   PERSONA_INTRO_PROFILES,
   PERSONA_INTRO_SEEN_KEY,
+  personaImageForPersonaKey,
   personaImageForThinkingMessage,
 } from "../src/lib/agent/persona-intro";
 import { PERSONA_THINKING } from "../src/lib/agent/stream-parser";
@@ -39,6 +40,24 @@ assert(
 assert(
   personaImageForThinkingMessage(PERSONA_THINKING.aoi!) === "/personas/aoi.png",
   "thinking maps aoi image",
+);
+assert(
+  personaImageForPersonaKey("ken") === "/personas/ken.png",
+  "persona key maps ken avatar (#312)",
+);
+assert(
+  personaImageForPersonaKey("aoi") === "/personas/aoi.png",
+  "persona key maps aoi avatar (#312)",
+);
+
+const bubbles = readSource("components/search/agent-chat-bubbles.tsx");
+assert(
+  bubbles.includes("personaImageForPersonaKey"),
+  "agent avatar uses persona images (#312)",
+);
+assert(
+  bubbles.includes("personaKey={entry.personaKey}"),
+  "agent bubble passes persona key to avatar (#312)",
 );
 
 assert(
