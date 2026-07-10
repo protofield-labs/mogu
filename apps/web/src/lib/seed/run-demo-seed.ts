@@ -204,8 +204,21 @@ async function seedDemoDailyRecommendation(
   const validDateIso = validDate.toISOString().slice(0, 10);
   const evidence = buildEvidence("Ken", Rating.again, 3);
 
+  await enableDemoSeedFlags(tx);
   await tx.$executeRaw`
-    SELECT upsert_daily_recommendation(
+    DELETE FROM "daily_recommendations"
+    WHERE "user_id" = ${viewerUid}
+      AND "valid_date" = ${validDateIso}::date
+  `;
+  await tx.$executeRaw`
+    INSERT INTO "daily_recommendations" (
+      "user_id",
+      "spot_id",
+      "assertion",
+      "evidence",
+      "valid_date"
+    )
+    VALUES (
       ${viewerUid},
       ${DEMO_SPOT_IDS.kenSharedIzakaya}::uuid,
       ${"今夜は中目黒のこの店がおすすめ"},
