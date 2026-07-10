@@ -30,23 +30,16 @@ const spotSelect = {
 
 /**
  * Build a Recommendation card payload for agent assertion turns (#161 / #270 / #271).
- * Uses the same spot-picking rules as the daily batch, with the agent text as assertion.
- * When a persona is known, prefer that demo friend's spots and keep evidence in the
- * home-style "Nameが『すき』・グループでn人が保存" format, optionally prefixed with
- * a collection taste hint when the friend name is not already present.
+ * Uses the same spot-picking rules as the daily batch; assertion text comes from
+ * the picked spot (tag-based), not the model reply, so hallucinated shop names
+ * never appear on the card.
  */
 export async function buildAgentRecommendation(
   uid: string,
-  assertionText: string,
   personaTasteHint: string | null = null,
   personaKey: "ken" | "aoi" | null = null,
   options?: { anchorSpotId?: string },
 ): Promise<Recommendation | null> {
-  const trimmedAssertion = assertionText.trim();
-  if (trimmedAssertion.length === 0) {
-    return null;
-  }
-
   const preferAddedByUids = personaKey
     ? [PERSONA_COLLECTION_HINTS[personaKey]!.demoUid]
     : [];
@@ -88,7 +81,7 @@ export async function buildAgentRecommendation(
 
     return {
       spot: toSpotDto(spot, savedCounts.get(spot.placeId) ?? 0),
-      assertion: trimmedAssertion,
+      assertion: picked.assertion,
       evidence: withPersonaTasteEvidence(picked.evidence, personaTasteHint),
       alternatives: alternatives.map((alt) =>
         toSpotDto(alt, savedCounts.get(alt.placeId) ?? 0),

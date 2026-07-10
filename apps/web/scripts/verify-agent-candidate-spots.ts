@@ -229,11 +229,37 @@ assert(
   "candidate taps never fall back to the #264 recommendation pin",
 );
 assert(
-  messageClient.includes(
-    "resolvedTextMarkers.length === 0 && isAgentAssertionTurn(text)",
-  ),
-  "resolved-text markers take precedence over the assertion-turn heuristic; " +
-    "mined-only markers must not block assertion recommendations (#313)",
+  messageClient.includes("useCandidateCards") &&
+    messageClient.includes("resolvedTextMarkers.length > 0"),
+  "resolved-text markers always route to candidate cards",
+);
+assert(
+  messageClient.includes("hasMinedOnlyMarkers"),
+  "persona/orchestrator-only markers keep candidate card routing (#317)",
+);
+assert(
+  messageClient.includes("hasCandidateMarkers && !isAgentAssertionTurn(text)"),
+  "mined-only markers become cards on non-assertive turns (#313)",
+);
+assert(
+  messageClient.includes("!useCandidateCards && isAgentAssertionTurn(text)"),
+  "assertive turns without candidate markers use DB-backed recommendations",
+);
+assert(
+  messageClient.includes("CANDIDATE_RESOLUTION_FAILED_TEXT"),
+  "message client replaces prose when no candidate markers resolve",
+);
+assert(
+  messageClient.includes("CANDIDATE_ONLY_REPLY_TEXT"),
+  "candidate card turns use generic reply text, not model shop names",
+);
+assert(
+  messageClient.includes("RECOMMENDATION_RESOLUTION_FAILED_TEXT"),
+  "assertion turns without DB pick use safe fallback text",
+);
+assert(
+  messageClient.includes("displayText = recommendation.assertion"),
+  "assertion turns show DB-backed assertion text, not model shop names",
 );
 assert(
   messageClient.includes("mergeCandidateSpotMarkers"),
@@ -321,5 +347,31 @@ assert(
   orchestrator.includes("そのまま転記"),
   "orchestrator is told to copy persona marker lines verbatim (#313)",
 );
+assert(
+  orchestrator.includes("マーカー行を付けられない店名は本文にも書かない"),
+  "orchestrator must not name shops without markers",
+);
+
+const kenPersona = readFileSync(
+  join(process.cwd(), "..", "..", "agents", "mogu", "personas", "ken.py"),
+  "utf8",
+);
+const aoiPersona = readFileSync(
+  join(process.cwd(), "..", "..", "agents", "mogu", "personas", "aoi.py"),
+  "utf8",
+);
+for (const [name, source] of [
+  ["ken", kenPersona],
+  ["aoi", aoiPersona],
+] as const) {
+  assert(
+    source.includes("[[候補 spot_id=") && source.includes("place_id="),
+    `${name} persona emits candidate markers`,
+  );
+  assert(
+    !source.includes("デモ固定名"),
+    `${name} persona no longer falls back to demo shop names`,
+  );
+}
 
 console.log("PASS: agent candidate spot cards (#287)");

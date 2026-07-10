@@ -19,6 +19,14 @@ export const CANDIDATE_FOLLOWUP_TEXT = "この店について詳しく教えて"
 export const CANDIDATE_ONLY_REPLY_TEXT =
   "こちらの候補はいかがでしょう。気になるお店をタップすると詳しくお話しします。";
 
+/** Shown when markers were present but none resolved to a visible spot. */
+export const CANDIDATE_RESOLUTION_FAILED_TEXT =
+  "候補のお店を確認できませんでした。条件を変えてもう一度お試しください。";
+
+/** Shown when an assertion turn could not load a DB-backed recommendation. */
+export const RECOMMENDATION_RESOLUTION_FAILED_TEXT =
+  "おすすめのお店を確認できませんでした。条件を変えてもう一度お試しください。";
+
 // ID charsets are intentionally loose (`[^\s\]]`): Google does not guarantee
 // a place_id alphabet, and a single unexpected character must not drop the
 // whole card row. Hallucinated values are filtered later against the DB.

@@ -8,6 +8,10 @@ import { assert } from "./test-helpers/assert";
 
 import { isAgentAssertionTurn } from "../src/lib/agent/assertion-turn";
 import {
+  CANDIDATE_ONLY_REPLY_TEXT,
+  RECOMMENDATION_RESOLUTION_FAILED_TEXT,
+} from "../src/lib/agent/candidate-spot-markers";
+import {
   inferPersonaKey,
   inferPersonaTasteEvidence,
   PERSONA_COLLECTION_HINTS,
@@ -61,6 +65,15 @@ function main() {
       PERSONA_COLLECTION_HINTS.aoi!.evidence,
     ).startsWith(`${PERSONA_COLLECTION_HINTS.aoi!.evidence}・`),
     "prefix taste hint when friend name differs from persona",
+  );
+
+  assert(
+    CANDIDATE_ONLY_REPLY_TEXT.length > 0,
+    "candidate-only reply text is defined",
+  );
+  assert(
+    RECOMMENDATION_RESOLUTION_FAILED_TEXT.length > 0,
+    "recommendation resolution fallback text is defined",
   );
 
   console.log("PASS: agent recommendation helpers verified");
