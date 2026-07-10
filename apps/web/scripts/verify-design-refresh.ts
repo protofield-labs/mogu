@@ -17,7 +17,7 @@ const secondaryCardFiles = [
   "components/mypage/friends-outgoing-section.tsx",
   "components/mypage/friends-search-section.tsx",
   "components/notifications/notifications-view.tsx",
-  "components/users/friend-spot-list.tsx",
+  "components/spots/spot-list-row.tsx",
   "components/search/agent-chat-transcript.tsx",
   "components/ui/load-error-state.tsx",
   "components/loading/skeletons.tsx",

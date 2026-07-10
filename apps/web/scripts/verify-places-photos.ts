@@ -43,9 +43,21 @@ assert(
   "recommendation card resolves hero photo",
 );
 assert(
-  recommendationCard.includes("PlacePhotoImage"),
-  "recommendation card uses place photo fallback",
+  recommendationCard.includes("SpotThumbnail"),
+  "recommendation card uses SpotThumbnail for hero (#295)",
 );
+
+const spotListRow = readSource("components/spots/spot-list-row.tsx");
+assert(spotListRow.includes("SpotThumbnail"), "spot list row uses SpotThumbnail (#295)");
+assert(spotListRow.includes("SpotPlaceName"), "spot list row resolves place names (#295)");
+assert(spotListRow.includes("usePlace"), "spot list row loads place photos when needed");
+
+const spotList = readSource("components/mypage/spot-list.tsx");
+assert(spotList.includes("SpotListRow"), "collection spot list composes SpotListRow (#295)");
+
+const friendSpotList = readSource("components/users/friend-spot-list.tsx");
+assert(friendSpotList.includes("SpotListRow"), "friend spot list composes SpotListRow (#295)");
+assert(!friendSpotList.includes("AuthImage"), "friend spot list no longer uses raw AuthImage (#295)");
 
 const compactRow = readSource("components/home/recommendation-compact-row.tsx");
 assert(
@@ -67,11 +79,6 @@ const feedItemCard = readSource("components/home/feed-item-card.tsx");
 assert(feedItemCard.includes("SpotThumbnail"), "feed item uses spot thumbnail fallback");
 assert(feedItemCard.includes("showMapsAttribution"), "feed item shows maps attribution on place photos");
 assert(feedItemCard.includes("placeLoading"), "feed item waits for place photos while loading");
-
-const spotList = readSource("components/mypage/spot-list.tsx");
-assert(spotList.includes("SpotThumbnail"), "collection spot list uses SpotThumbnail (#254)");
-assert(spotList.includes("showMapsAttribution"), "collection spot list attributes place photos");
-assert(spotList.includes("usePlace"), "collection spot list loads place photos when needed");
 
 assert(
   resolveSpotHeroPhoto({ photoUrls: ["gs://x/a.jpg"] }, { photos: [{ url: "/p/0", authorAttributions: [] }] })
