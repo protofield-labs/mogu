@@ -3,9 +3,8 @@
 import { ChevronDownIcon } from "lucide-react";
 
 import { GoogleMapsAttribution } from "@/components/places/google-maps-attribution";
-import { PlacePhotoImage } from "@/components/places/place-photo-image";
 import { SpotPlaceName } from "@/components/places/spot-place-name";
-import { AuthImage } from "@/components/mypage/auth-image";
+import { SpotThumbnail } from "@/components/places/spot-thumbnail";
 import { SpotSaveFooter } from "@/components/recollect/spot-save-footer";
 import { useRecollect } from "@/lib/recollect/use-recollect";
 import { openNowLabel } from "@/lib/agent/chat-helpers";
@@ -97,15 +96,10 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
 
   return (
     <div className="mogu-elevated mt-2 w-full max-w-full overflow-hidden rounded-2xl p-mogu-screen-x py-3">
-      {heroPhoto?.source === "spot" ? (
-        <AuthImage
-          objectUrl={heroPhoto.url}
-          alt=""
-          className="-mx-mogu-screen-x -mt-3 mb-3 aspect-[16/10] w-[calc(100%+2*var(--mogu-spacing-screen-x))] object-cover"
-        />
-      ) : heroPhoto?.source === "place" ? (
-        <PlacePhotoImage
-          url={heroPhoto.url}
+      {heroPhoto ? (
+        <SpotThumbnail
+          spot={spot}
+          place={place}
           alt=""
           className="-mx-mogu-screen-x -mt-3 mb-3 aspect-[16/10] w-[calc(100%+2*var(--mogu-spacing-screen-x))] object-cover"
         />
