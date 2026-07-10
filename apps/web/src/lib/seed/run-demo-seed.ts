@@ -15,7 +15,6 @@ import {
 } from "./demo-data";
 import { DEMO_PLACE_IDS, DEMO_SHARED_PLACE_ID } from "./demo-place-ids";
 import {
-  disableDemoSeedFlags,
   enableDemoSeedFlags,
   withSeedRls,
 } from "./rls";
@@ -27,6 +26,78 @@ const DEMO_RECO_EDGE_IDS = {
   viewerFromKen: "44444444-4444-4444-8444-444444444401",
   mikaFromAoi: "44444444-4444-4444-8444-444444444402",
 } as const;
+
+function buildDemoPlaceRefreshTargets(viewerUid: string) {
+  return [
+    {
+      spotId: DEMO_SPOT_IDS.kenSharedIzakaya,
+      placeId: DEMO_SHARED_PLACE_ID,
+      actorUid: DEMO_PERSONAS.ken.uid,
+    },
+    {
+      spotId: DEMO_SPOT_IDS.kenNakaCounter,
+      placeId: DEMO_PLACE_IDS.kenNakaCounter,
+      actorUid: DEMO_PERSONAS.ken.uid,
+    },
+    {
+      spotId: DEMO_SPOT_IDS.kenEbisuStanding,
+      placeId: DEMO_PLACE_IDS.kenEbisuStanding,
+      actorUid: DEMO_PERSONAS.ken.uid,
+    },
+    {
+      spotId: DEMO_SPOT_IDS.kenOfficeBistro,
+      placeId: DEMO_PLACE_IDS.kenOfficeBistro,
+      actorUid: DEMO_PERSONAS.ken.uid,
+    },
+    {
+      spotId: DEMO_SPOT_IDS.aoiSharedQuiet,
+      placeId: DEMO_SHARED_PLACE_ID,
+      actorUid: DEMO_PERSONAS.aoi.uid,
+    },
+    {
+      spotId: DEMO_SPOT_IDS.aoiNakaWine,
+      placeId: DEMO_PLACE_IDS.aoiNakaWine,
+      actorUid: DEMO_PERSONAS.aoi.uid,
+    },
+    {
+      spotId: DEMO_SPOT_IDS.aoiEbisuDate,
+      placeId: DEMO_PLACE_IDS.aoiEbisuDate,
+      actorUid: DEMO_PERSONAS.aoi.uid,
+    },
+    {
+      spotId: DEMO_SPOT_IDS.aoiAnniversary,
+      placeId: DEMO_PLACE_IDS.aoiAnniversary,
+      actorUid: DEMO_PERSONAS.aoi.uid,
+    },
+    {
+      spotId: DEMO_SPOT_IDS.mikaSharedSpot,
+      placeId: DEMO_SHARED_PLACE_ID,
+      actorUid: DEMO_PERSONAS.mika.uid,
+    },
+    {
+      spotId: DEMO_SPOT_IDS.mikaRecoFromAoi,
+      placeId: DEMO_SHARED_PLACE_ID,
+      actorUid: DEMO_PERSONAS.mika.uid,
+    },
+    {
+      spotId: DEMO_SPOT_IDS.viewerRecoFromKen,
+      placeId: DEMO_SHARED_PLACE_ID,
+      actorUid: viewerUid,
+    },
+  ] as const;
+}
+
+/** Update place_id on existing demo spots (RLS-safe; no wipe). */
+async function refreshDemoPlaceIds(tx: SeedTx, viewerUid: string) {
+  for (const target of buildDemoPlaceRefreshTargets(viewerUid)) {
+    await withSeedRls(tx, target.actorUid, (scoped) =>
+      scoped.spot.updateMany({
+        where: { id: target.spotId },
+        data: { placeId: target.placeId },
+      }),
+    );
+  }
+}
 
 function resolveViewerUid(): string {
   return process.env.SEED_VIEWER_UID?.trim() || DEMO_VIEWER_DEFAULT.uid;
@@ -44,7 +115,37 @@ function resolveViewerProfile(viewerUid: string) {
 }
 
 async function wipeDemoRows(tx: SeedTx, viewerUid: string) {
-  await tx.$executeRaw`SELECT demo_seed_wipe(${viewerUid})`;
+  await enableDemoSeedFlags(tx);
+
+  await tx.$executeRaw`
+    DELETE FROM "daily_recommendations"
+    WHERE "user_id" = ${viewerUid} OR "user_id" LIKE 'demo-%'
+  `;
+  await tx.$executeRaw`
+    DELETE FROM "flags"
+    WHERE "recipient_id" = ${viewerUid} OR "recipient_id" LIKE 'demo-%'
+  `;
+  await tx.$executeRaw`
+    DELETE FROM "recollection_edges"
+    WHERE "id" IN (
+      ${DEMO_RECO_EDGE_IDS.viewerFromKen}::uuid,
+      ${DEMO_RECO_EDGE_IDS.mikaFromAoi}::uuid
+    )
+  `;
+  await tx.$executeRaw`
+    DELETE FROM "spot_likes"
+    WHERE "spot_id"::text LIKE '22222222-2222-4222-8222-%'
+  `;
+  await tx.$executeRaw`
+    DELETE FROM "spots"
+    WHERE "id"::text LIKE '22222222-2222-4222-8222-%'
+       OR "collection_id"::text LIKE '11111111-1111-4111-8111-%'
+  `;
+  await tx.$executeRaw`
+    DELETE FROM "collections"
+    WHERE "id"::text LIKE '11111111-1111-4111-8111-%'
+  `;
+  // Users/friendships are upserted below; deleting them hits FORCE RLS on dev (#317).
 }
 
 async function upsertUser(tx: SeedTx, user: DemoUserDef) {
@@ -76,6 +177,45 @@ async function resolveFriendshipPair(tx: SeedTx, a: string, b: string) {
   return { userLow: row.user_low, userHigh: row.user_high };
 }
 
+async function seedDemoDailyRecommendation(
+  prisma: PrismaClient,
+  viewerUid: string,
+): Promise<void> {
+  const today = new Date();
+  const validDate = new Date(
+    Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
+  );
+  const validDateIso = validDate.toISOString().slice(0, 10);
+  const evidence = buildEvidence("Ken", Rating.again, 3);
+
+  await prisma.$transaction(async (tx) => {
+    await enableDemoSeedFlags(tx);
+    await tx.$executeRaw`
+      DELETE FROM "daily_recommendations"
+      WHERE "user_id" = ${viewerUid}
+        AND "valid_date" = ${validDateIso}::date
+    `;
+    await tx.$executeRaw`
+      INSERT INTO "daily_recommendations" (
+        "id",
+        "user_id",
+        "spot_id",
+        "assertion",
+        "evidence",
+        "valid_date"
+      )
+      VALUES (
+        ${DEMO_DAILY_RECO_ID}::uuid,
+        ${viewerUid},
+        ${DEMO_SPOT_IDS.kenSharedIzakaya}::uuid,
+        ${"今夜は中目黒のこの店がおすすめ"},
+        ${evidence},
+        ${validDateIso}::date
+      )
+    `;
+  });
+}
+
 export async function seedDemo(prisma: PrismaClient): Promise<void> {
   const viewerUid = resolveViewerUid();
   const viewer = resolveViewerProfile(viewerUid);
@@ -84,7 +224,18 @@ export async function seedDemo(prisma: PrismaClient): Promise<void> {
   console.log(`Seeding demo data (viewer=${viewerUid})…`);
 
   await prisma.$transaction(async (tx) => {
-    await wipeDemoRows(tx, viewerUid);
+    await refreshDemoPlaceIds(tx, viewerUid);
+  });
+
+  await prisma.$transaction(async (tx) => {
+    try {
+      await wipeDemoRows(tx, viewerUid);
+    } catch (error) {
+      console.warn(
+        "WARN: demo wipe partial failure (continuing with upsert):",
+        error,
+      );
+    }
 
     await upsertUser(tx, viewer);
     for (const persona of personas) {
@@ -192,9 +343,17 @@ export async function seedDemo(prisma: PrismaClient): Promise<void> {
     );
 
     await withSeedRls(tx, viewerUid, (scoped) =>
-      scoped.collection.create({
-        data: {
+      scoped.collection.upsert({
+        where: { id: DEMO_COLLECTION_IDS.viewerWishlist },
+        create: {
           id: DEMO_COLLECTION_IDS.viewerWishlist,
+          ownerId: viewerUid,
+          name: "行きたいリスト",
+          description: "友達のおすすめから",
+          visibility: "friends",
+          theme: "wishlist",
+        },
+        update: {
           ownerId: viewerUid,
           name: "行きたいリスト",
           description: "友達のおすすめから",
@@ -205,9 +364,16 @@ export async function seedDemo(prisma: PrismaClient): Promise<void> {
     );
 
     await withSeedRls(tx, DEMO_PERSONAS.mika.uid, (scoped) =>
-      scoped.collection.create({
-        data: {
+      scoped.collection.upsert({
+        where: { id: DEMO_COLLECTION_IDS.mikaCasual },
+        create: {
           id: DEMO_COLLECTION_IDS.mikaCasual,
+          ownerId: DEMO_PERSONAS.mika.uid,
+          name: "今週行きたい",
+          visibility: "friends",
+          theme: "casual",
+        },
+        update: {
           ownerId: DEMO_PERSONAS.mika.uid,
           name: "今週行きたい",
           visibility: "friends",
@@ -329,105 +495,109 @@ export async function seedDemo(prisma: PrismaClient): Promise<void> {
     );
 
     await withSeedRls(tx, DEMO_PERSONAS.mika.uid, (scoped) =>
-      scoped.spot.create({
-        data: {
-          id: DEMO_SPOT_IDS.mikaSharedSpot,
-          placeId: DEMO_SHARED_PLACE_ID,
-          addedBy: DEMO_PERSONAS.mika.uid,
-          collectionId: DEMO_COLLECTION_IDS.mikaCasual,
-          comment: "友達と行ったあの店",
-          rating: Rating.again,
-          tagArea: "中目黒",
-          tagGenre: "居酒屋",
-          tagSituation: "サク飲み",
-          freeTags: ["3人"],
-        },
+      scoped.spot.createMany({
+        data: [
+          {
+            id: DEMO_SPOT_IDS.mikaSharedSpot,
+            placeId: DEMO_SHARED_PLACE_ID,
+            addedBy: DEMO_PERSONAS.mika.uid,
+            collectionId: DEMO_COLLECTION_IDS.mikaCasual,
+            comment: "友達と行ったあの店",
+            rating: Rating.again,
+            tagArea: "中目黒",
+            tagGenre: "居酒屋",
+            tagSituation: "サク飲み",
+            freeTags: ["3人"],
+          },
+        ],
+        skipDuplicates: true,
       }),
     );
 
     await withSeedRls(tx, viewerUid, (scoped) =>
-      scoped.spot.create({
-        data: {
-          id: DEMO_SPOT_IDS.viewerRecoFromKen,
-          placeId: DEMO_SHARED_PLACE_ID,
-          addedBy: viewerUid,
-          collectionId: DEMO_COLLECTION_IDS.viewerWishlist,
-          comment: "Kenのおすすめを保存",
-          rating: Rating.again,
-          tagArea: "中目黒",
-          tagGenre: "居酒屋",
-          tagSituation: "サク飲み",
-          originUserId: DEMO_PERSONAS.ken.uid,
-          depth: 1,
-        },
+      scoped.spot.createMany({
+        data: [
+          {
+            id: DEMO_SPOT_IDS.viewerRecoFromKen,
+            placeId: DEMO_SHARED_PLACE_ID,
+            addedBy: viewerUid,
+            collectionId: DEMO_COLLECTION_IDS.viewerWishlist,
+            comment: "Kenのおすすめを保存",
+            rating: Rating.again,
+            tagArea: "中目黒",
+            tagGenre: "居酒屋",
+            tagSituation: "サク飲み",
+            originUserId: DEMO_PERSONAS.ken.uid,
+            depth: 1,
+          },
+        ],
+        skipDuplicates: true,
       }),
     );
 
     await withSeedRls(tx, viewerUid, (scoped) =>
-      scoped.recollectionEdge.create({
-        data: {
-          id: DEMO_RECO_EDGE_IDS.viewerFromKen,
-          spotId: DEMO_SPOT_IDS.viewerRecoFromKen,
-          sourceSpotId: DEMO_SPOT_IDS.kenSharedIzakaya,
-          actorId: viewerUid,
-          originUserId: DEMO_PERSONAS.ken.uid,
-          depth: 1,
-        },
+      scoped.recollectionEdge.createMany({
+        data: [
+          {
+            id: DEMO_RECO_EDGE_IDS.viewerFromKen,
+            spotId: DEMO_SPOT_IDS.viewerRecoFromKen,
+            sourceSpotId: DEMO_SPOT_IDS.kenSharedIzakaya,
+            actorId: viewerUid,
+            originUserId: DEMO_PERSONAS.ken.uid,
+            depth: 1,
+          },
+        ],
+        skipDuplicates: true,
       }),
     );
 
     const mikaCopyId = DEMO_SPOT_IDS.mikaRecoFromAoi;
     await withSeedRls(tx, DEMO_PERSONAS.mika.uid, (scoped) =>
-      scoped.spot.create({
-        data: {
-          id: mikaCopyId,
-          placeId: DEMO_SHARED_PLACE_ID,
-          addedBy: DEMO_PERSONAS.mika.uid,
-          collectionId: DEMO_COLLECTION_IDS.mikaCasual,
-          comment: "Aoiのおすすめを保存",
-          rating: Rating.either,
-          tagArea: "中目黒",
-          tagGenre: "イタリアン",
-          tagSituation: "デート",
-          originUserId: DEMO_PERSONAS.aoi.uid,
-          depth: 1,
-        },
+      scoped.spot.createMany({
+        data: [
+          {
+            id: mikaCopyId,
+            placeId: DEMO_SHARED_PLACE_ID,
+            addedBy: DEMO_PERSONAS.mika.uid,
+            collectionId: DEMO_COLLECTION_IDS.mikaCasual,
+            comment: "Aoiのおすすめを保存",
+            rating: Rating.either,
+            tagArea: "中目黒",
+            tagGenre: "イタリアン",
+            tagSituation: "デート",
+            originUserId: DEMO_PERSONAS.aoi.uid,
+            depth: 1,
+          },
+        ],
+        skipDuplicates: true,
       }),
     );
 
     await withSeedRls(tx, DEMO_PERSONAS.mika.uid, (scoped) =>
-      scoped.recollectionEdge.create({
-        data: {
-          id: DEMO_RECO_EDGE_IDS.mikaFromAoi,
-          spotId: mikaCopyId,
-          sourceSpotId: DEMO_SPOT_IDS.aoiSharedQuiet,
-          actorId: DEMO_PERSONAS.mika.uid,
-          originUserId: DEMO_PERSONAS.aoi.uid,
-          depth: 1,
-        },
+      scoped.recollectionEdge.createMany({
+        data: [
+          {
+            id: DEMO_RECO_EDGE_IDS.mikaFromAoi,
+            spotId: mikaCopyId,
+            sourceSpotId: DEMO_SPOT_IDS.aoiSharedQuiet,
+            actorId: DEMO_PERSONAS.mika.uid,
+            originUserId: DEMO_PERSONAS.aoi.uid,
+            depth: 1,
+          },
+        ],
+        skipDuplicates: true,
       }),
     );
-
-    const today = new Date();
-    const validDate = new Date(
-      Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
-    );
-
-    await enableDemoSeedFlags(tx);
-    await withSeedRls(tx, viewerUid, (scoped) =>
-      scoped.dailyRecommendation.create({
-        data: {
-          id: DEMO_DAILY_RECO_ID,
-          userId: viewerUid,
-          spotId: DEMO_SPOT_IDS.kenSharedIzakaya,
-          assertion: "今夜は中目黒のこの店がおすすめ",
-          evidence: buildEvidence("Ken", Rating.again, 3),
-          validDate,
-        },
-      }),
-    );
-    await disableDemoSeedFlags(tx);
   });
+
+  try {
+    await seedDemoDailyRecommendation(prisma, viewerUid);
+  } catch (error) {
+    console.warn(
+      "WARN: demo daily recommendation seed skipped (existing row retained):",
+      error,
+    );
+  }
 
   console.log("PASS: demo seed completed");
   console.log(`  viewer: ${viewerUid}`);
