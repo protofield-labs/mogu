@@ -8,6 +8,7 @@ import {
   getLikedSpotIds,
 } from "@/lib/dal/spot-likes";
 import { toSpotDto, type SpotDto } from "@/lib/dal/spot-dto";
+import { spotFeedSelect } from "@/lib/dal/spot-select";
 import { toUserDto, type UserDto } from "@/lib/dal/users";
 import { decodeFeedCursor, encodeFeedCursor } from "@/lib/feed/cursor";
 
@@ -57,32 +58,6 @@ function buildFeedWhere(
   return ownFilter ?? cursorFilter;
 }
 
-const spotSelect = {
-  id: true,
-  placeId: true,
-  addedBy: true,
-  collectionId: true,
-  photoUrls: true,
-  comment: true,
-  rating: true,
-  tagArea: true,
-  tagGenre: true,
-  tagSituation: true,
-  freeTags: true,
-  originUserId: true,
-  depth: true,
-  createdAt: true,
-  collection: { select: { name: true } },
-  addedByUser: {
-    select: {
-      firebaseUid: true,
-      displayName: true,
-      avatarColor: true,
-      avatarUrl: true,
-    },
-  },
-} as const;
-
 /**
  * Chronological feed (#39 / guardrail 3: created_at DESC only, no scoring).
  * RLS limits rows to the viewer's circle-visible spots.
@@ -113,7 +88,7 @@ export async function listFeed(
       where: buildFeedWhere(uid, excludeOwnSpots, cursor),
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: FEED_PAGE_SIZE + 1,
-      select: spotSelect,
+      select: spotFeedSelect,
     });
 
     const page = rows.slice(0, FEED_PAGE_SIZE);

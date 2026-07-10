@@ -4,10 +4,10 @@ import { useRouter } from "next/navigation";
 import {
   createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useState,
+  use,
   type ReactNode,
 } from "react";
 import {
@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 export function useAuth(): AuthContextValue {
-  const context = useContext(AuthContext);
+  const context = use(AuthContext);
   if (!context) {
     throw new Error("useAuth must be used within AuthProvider");
   }

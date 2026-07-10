@@ -3,9 +3,9 @@
 import {
   createContext,
   useCallback,
-  useContext,
   useEffect,
   useState,
+  use,
   type ReactNode,
 } from "react";
 
@@ -112,7 +112,7 @@ export function MeProvider({ children }: { children: ReactNode }) {
 }
 
 export function useMe(): MeContextValue {
-  const context = useContext(MeContext);
+  const context = use(MeContext);
   if (!context) {
     throw new Error("useMe must be used within MeProvider");
   }

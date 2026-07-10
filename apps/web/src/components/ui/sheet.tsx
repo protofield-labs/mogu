@@ -3,12 +3,12 @@
 import {
   createContext,
   useCallback,
-  useContext,
   useEffect,
   useId,
   useLayoutEffect,
   useRef,
   useState,
+  use,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
@@ -42,7 +42,7 @@ type SheetContextValue = {
 const SheetContext = createContext<SheetContextValue | null>(null);
 
 function useSheetContext() {
-  const context = useContext(SheetContext);
+  const context = use(SheetContext);
   if (!context) {
     throw new Error("Sheet subcomponents must be used within Sheet");
   }

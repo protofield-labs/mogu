@@ -9,6 +9,7 @@ const scripts = [
   "verify-design-tokens.ts",
   "verify-pwa-manifest.ts",
   "verify-spot-dto.ts",
+  "verify-spot-select.ts",
   "verify-browser-client.ts",
   "verify-api-routes.ts",
   "verify-dead-code.ts",

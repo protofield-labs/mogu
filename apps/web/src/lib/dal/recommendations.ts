@@ -4,6 +4,7 @@ import { withAuthRls } from "@/lib/auth/with-auth-rls";
 import { countSavedInCircleByPlaceIds } from "@/lib/dal/saved-count";
 import { hasRecollectedSourceSpot } from "@/lib/dal/recollect-state";
 import { toSpotDto, type SpotDto } from "@/lib/dal/spot-dto";
+import { spotCoreSelect } from "@/lib/dal/spot-select";
 import { jstTodayDate } from "@/lib/recommendations/valid-date";
 
 export type RecommendationDto = {
@@ -13,23 +14,6 @@ export type RecommendationDto = {
   alternatives: SpotDto[];
   savedByMe: boolean;
 };
-
-const spotSelect = {
-  id: true,
-  placeId: true,
-  addedBy: true,
-  collectionId: true,
-  photoUrls: true,
-  comment: true,
-  rating: true,
-  tagArea: true,
-  tagGenre: true,
-  tagSituation: true,
-  freeTags: true,
-  originUserId: true,
-  depth: true,
-  createdAt: true,
-} as const;
 
 const recommendationRowSelect = {
   assertion: true,
@@ -74,7 +58,7 @@ export async function getHomeRecommendation(
     // invisible since the batch ran (unfriended / collection made secret).
     const spot = await tx.spot.findUnique({
       where: { id: row.spotId },
-      select: spotSelect,
+      select: spotCoreSelect,
     });
     if (!spot) {
       return null;
@@ -87,7 +71,7 @@ export async function getHomeRecommendation(
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 2,
-      select: spotSelect,
+      select: spotCoreSelect,
     });
 
     const placeIds = [
