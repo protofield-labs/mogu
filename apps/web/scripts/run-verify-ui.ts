@@ -49,6 +49,7 @@ const scripts = [
   "verify-photo-url.ts",
   "verify-avatar-url.ts",
   "verify-feed-helpers.ts",
+  "verify-feed-a11y.ts",
   "verify-home-ui.ts",
   "verify-touch-feedback.ts",
   "verify-collection-actions.ts",

@@ -79,6 +79,7 @@ assert(defaultCollection.includes("saveSpotToDefaultCollection"), "default colle
 // Unsave path (#283): tapping the saved toggle removes the recollection.
 const useRecollect = readSource("lib/recollect/use-recollect.ts");
 assert(useRecollect.includes("performUnsave"), "use-recollect has unsave path");
+assert(useRecollect.includes("SAVE_PICKER_HINT"), "use-recollect exports picker hint (#290)");
 assert(!useRecollect.includes("if (saved) {\n      return;"), "saved tap no longer early-returns");
 assert(saveSpot.includes("export async function unsaveSpot"), "unsave helper exported");
 assert(spotsApi.includes("export async function unrecollectSpot"), "unrecollect browser api exists");
@@ -93,6 +94,8 @@ assert(saveFooter.includes("SpotSaveFooterContext"), "save footer uses shared co
 assert(saveFooter.includes("SaveButton"), "save footer exposes SaveButton");
 assert(saveFooter.includes("MapLink"), "save footer exposes MapLink");
 assert(saveFooter.includes("aria-pressed"), "save footer button exposes pressed state");
+assert(saveFooter.includes("aria-describedby"), "save footer documents picker hint (#290)");
+assert(saveFooter.includes("saveButtonA11yProps"), "save footer exposes picker popup (#290)");
 for (const consumer of [
   "components/home/feed-spot-detail-sheet.tsx",
   "components/home/feed-item-card.tsx",

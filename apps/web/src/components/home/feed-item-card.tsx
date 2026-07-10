@@ -13,6 +13,7 @@ import { AuthImage } from "@/components/mypage/auth-image";
 import { SpotSaveFooter } from "@/components/recollect/spot-save-footer";
 import { useFeedSpotSave } from "@/lib/recollect/use-feed-spot-save";
 import { canRecollectFeedItem } from "@/lib/home/feed-item";
+import { FEED_PHOTO_CAROUSEL_LABEL } from "@/lib/home/feed-actions-a11y";
 import type { FeedItem } from "@/lib/home/types";
 import { actorProfilePath } from "@/lib/friends/paths";
 import { usePlace } from "@/lib/places/use-place";
@@ -106,7 +107,7 @@ export function FeedItemCard({
               <div
                 role="group"
                 tabIndex={0}
-                aria-label="写真"
+                aria-label={FEED_PHOTO_CAROUSEL_LABEL}
                 onClick={handlePhotoActivate}
                 onKeyDown={(event) =>
                   handleHorizontalCarouselKeyDown(event, {

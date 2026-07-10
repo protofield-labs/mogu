@@ -5,8 +5,16 @@ import { Bookmark, Heart } from "lucide-react";
 import { ShareButton } from "@/components/share/share-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  likeButtonAriaLabel,
+  likeCountLiveText,
+} from "@/lib/home/feed-actions-a11y";
 import { formatRatingChip } from "@/lib/home/feed-labels";
 import type { Spot } from "@/lib/home/types";
+import {
+  saveButtonA11yProps,
+  saveIconButtonAriaLabel,
+} from "@/lib/recollect/save-button-a11y";
 import { spotShareUrl } from "@/lib/share/share-url";
 import { touchRowClass } from "@/lib/ui/touch-feedback";
 import { cn } from "@/lib/utils";
@@ -55,7 +63,7 @@ export function FeedItemActions({
           className={cn("size-9", touchRowClass)}
           disabled={likeBusy}
           aria-pressed={likedByMe}
-          aria-label={likedByMe ? "いいね済み" : "いいね"}
+          aria-label={likeButtonAriaLabel(likedByMe, likeCount)}
           onClick={() => void onToggleLike()}
         >
           <Heart
@@ -66,8 +74,18 @@ export function FeedItemActions({
             aria-hidden
           />
         </Button>
+        <span
+          className="sr-only"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          {likeCountLiveText(likeCount)}
+        </span>
         {likeCount > 0 ? (
-          <span className="min-w-4 text-xs font-semibold tabular-nums text-foreground">
+          <span
+            className="min-w-4 text-xs font-semibold tabular-nums text-foreground"
+            aria-hidden
+          >
             {likeCount}
           </span>
         ) : null}
@@ -88,7 +106,8 @@ export function FeedItemActions({
           className={cn("size-9", touchRowClass)}
           disabled={busy}
           aria-pressed={saved}
-          aria-label="保存"
+          aria-label={saveIconButtonAriaLabel(saved)}
+          {...saveButtonA11yProps}
           {...saveHandlers}
         >
           <Bookmark

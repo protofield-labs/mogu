@@ -1,12 +1,13 @@
 "use client";
 
-import { createContext, use, type ReactNode } from "react";
+import { createContext, use, useId, type ReactNode } from "react";
 import type { VariantProps } from "class-variance-authority";
 
 import { RecollectPicker } from "@/components/recollect/recollect-picker";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { googleMapsPlaceUrl } from "@/lib/places/maps-links";
 import type { PlaceDTO } from "@/lib/places/types";
+import { saveButtonA11yProps } from "@/lib/recollect/save-button-a11y";
 import type { useRecollect } from "@/lib/recollect/use-recollect";
 import { cn } from "@/lib/utils";
 
@@ -59,20 +60,28 @@ type SaveButtonProps = {
 /** Save/unsave toggle: tap toggles, long press / Shift+Enter opens the picker. */
 function SpotSaveButton({ label = "保存する", icon, variant, size, className }: SaveButtonProps) {
   const { recollect } = useSpotSaveFooterContext();
+  const hintId = useId();
 
   return (
-    <Button
-      type="button"
-      variant={variant}
-      size={size}
-      className={className}
-      disabled={recollect.busy}
-      aria-pressed={recollect.saved}
-      {...recollect.saveHandlers}
-    >
-      {icon}
-      {recollect.saved ? "保存済み" : label}
-    </Button>
+    <>
+      <span id={hintId} className="sr-only">
+        {recollect.savePickerHint}
+      </span>
+      <Button
+        type="button"
+        variant={variant}
+        size={size}
+        className={className}
+        disabled={recollect.busy}
+        aria-pressed={recollect.saved}
+        aria-describedby={hintId}
+        {...saveButtonA11yProps}
+        {...recollect.saveHandlers}
+      >
+        {icon}
+        {recollect.saved ? "保存済み" : label}
+      </Button>
+    </>
   );
 }
 

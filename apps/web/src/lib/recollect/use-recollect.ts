@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import { getLastRecollectTarget } from "@/lib/recollect/last-target";
+import { SAVE_PICKER_HINT } from "@/lib/recollect/save-button-a11y";
 import { saveSpotToCollection, unsaveSpot } from "@/lib/recollect/save-spot";
 import { useLongPress } from "@/lib/recollect/use-long-press";
 import {
@@ -179,6 +180,7 @@ export function useRecollect(spotId: string, options: UseRecollectOptions = {}) 
 
   const saveHandlers = {
     ...longPressHandlers,
+    // Keyboard alternative to long-press (#290): Shift+Enter opens the picker.
     onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
@@ -200,6 +202,7 @@ export function useRecollect(spotId: string, options: UseRecollectOptions = {}) 
     closePicker,
     handlePickerSaved,
     saveHandlers,
+    savePickerHint: SAVE_PICKER_HINT,
     setSaved,
   };
 }
