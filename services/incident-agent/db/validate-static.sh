@@ -36,6 +36,11 @@ grep -q 'ops_ingest' migrations/003_ops_roles.sql
 grep -q 'ops_slack_ingress' migrations/003_ops_roles.sql
 grep -q 'ops_worker' migrations/003_ops_roles.sql
 grep -q 'ops_dispatcher' migrations/003_ops_roles.sql
+grep -q 'Required Terraform-managed database roles do not exist' migrations/003_ops_roles.sql
+if grep -Eq 'CREATE ROLE ops_(ingest|slack_ingress|worker|dispatcher)' migrations/003_ops_roles.sql; then
+  echo "runtime LOGIN roles must be created by Terraform, not migrations"
+  exit 1
+fi
 grep -q 'rca_reviewed' seeds/001_sample_incidents.sql
 
 echo "PASS: static SQL structure checks"

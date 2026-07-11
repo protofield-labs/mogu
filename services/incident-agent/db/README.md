@@ -15,6 +15,11 @@ Cloud SQL 上の `ops` スキーマ定義。仕様の正本は `docs/incident-ag
 
 ## 適用順
 
+先に I0 Terraform を apply し、パスワード付き LOGIN ユーザー
+`ops_ingest` / `ops_slack_ingress` / `ops_worker` / `ops_dispatcher` を作成する。
+`003_ops_roles.sql` は Terraform と所有権が競合しないようロールを作成せず、
+必要な4ユーザーが存在しない場合は fail-closed で停止する。
+
 ```bash
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/001_ops_schema.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/002_budget_primitives.sql

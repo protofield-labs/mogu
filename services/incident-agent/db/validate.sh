@@ -35,33 +35,63 @@ run_sql() {
 
 run_sql "$ROOT/migrations/001_ops_schema.sql"
 run_sql "$ROOT/migrations/002_budget_primitives.sql"
+
+# Production creates these LOGIN users through Terraform I0 before applying
+# role grants. Reproduce that prerequisite in the disposable database.
+docker exec "$CONTAINER" psql -v ON_ERROR_STOP=1 -U postgres -d mogu_ops_validate <<'SQL'
+CREATE ROLE ops_ingest LOGIN;
+CREATE ROLE ops_slack_ingress LOGIN;
+CREATE ROLE ops_worker LOGIN;
+CREATE ROLE ops_dispatcher LOGIN;
+SQL
+
 run_sql "$ROOT/migrations/003_ops_roles.sql"
 run_sql "$ROOT/migrations/004_incident_review_gate.sql"
 run_sql "$ROOT/seeds/001_sample_incidents.sql"
 
 echo "==> Structural checks"
 docker exec "$CONTAINER" psql -v ON_ERROR_STOP=1 -U postgres -d mogu_ops_validate <<'SQL'
--- Tables
-SELECT COUNT(*) AS table_count
-  FROM information_schema.tables
- WHERE table_schema = 'ops'
-   AND table_name IN ('incidents', 'alert_deliveries', 'slack_events', 'outbox', 'budget_usage');
+DO $$
+BEGIN
+  IF (
+    SELECT COUNT(*)
+      FROM information_schema.tables
+     WHERE table_schema = 'ops'
+       AND table_name IN (
+         'incidents',
+         'alert_deliveries',
+         'slack_events',
+         'outbox',
+         'budget_usage'
+       )
+  ) <> 5 THEN
+    RAISE EXCEPTION 'expected all five ops tables';
+  END IF;
 
--- pgvector extension
-SELECT extname FROM pg_extension WHERE extname = 'vector';
+  IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector') THEN
+    RAISE EXCEPTION 'pgvector extension is missing';
+  END IF;
 
--- Partial unique indexes exist
-SELECT indexname
-  FROM pg_indexes
- WHERE schemaname = 'ops'
-   AND tablename = 'incidents'
-   AND indexname LIKE 'incidents_open_%';
+  IF (
+    SELECT COUNT(*)
+      FROM pg_indexes
+     WHERE schemaname = 'ops'
+       AND tablename = 'incidents'
+       AND indexname LIKE 'incidents_open_%'
+  ) <> 4 THEN
+    RAISE EXCEPTION 'expected four open-incident partial indexes';
+  END IF;
 
--- outbox depends_on self-FK
-SELECT conname
-  FROM pg_constraint
- WHERE conrelid = 'ops.outbox'::regclass
-   AND confrelid = 'ops.outbox'::regclass;
+  IF NOT EXISTS (
+    SELECT 1
+      FROM pg_constraint
+     WHERE conrelid = 'ops.outbox'::regclass
+       AND confrelid = 'ops.outbox'::regclass
+  ) THEN
+    RAISE EXCEPTION 'outbox depends_on self foreign key is missing';
+  END IF;
+END
+$$;
 SQL
 
 echo "==> CHECK: github_comment requires depends_on"
@@ -85,45 +115,69 @@ fi
 docker exec "$CONTAINER" psql -v ON_ERROR_STOP=1 -U postgres -d mogu_ops_validate <<'SQL'
 -- Budget reservation primitive
 BEGIN;
-SELECT ops.reserve_embedding_budget(100) AS reserved_embedding;
-SELECT ops.reserve_investigation_budget(50) AS reserved_investigation;
-SELECT embedding_count, investigation_count FROM ops.budget_usage;
+DO $$
+BEGIN
+  IF NOT ops.reserve_embedding_budget(100) THEN
+    RAISE EXCEPTION 'embedding budget reservation unexpectedly failed';
+  END IF;
+  IF NOT ops.reserve_investigation_budget(50) THEN
+    RAISE EXCEPTION 'investigation budget reservation unexpectedly failed';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1
+      FROM ops.budget_usage
+     WHERE embedding_count = 1
+       AND investigation_count = 1
+  ) THEN
+    RAISE EXCEPTION 'budget counters were not incremented atomically';
+  END IF;
+END
+$$;
 ROLLBACK;
 
--- Seed incidents eligible for search_similar_incidents
-SELECT COUNT(*) AS reviewed_resolved_with_embedding
-  FROM ops.incidents
- WHERE status = 'resolved'
-   AND rca_reviewed = true
-   AND rca_hypothesis IS NOT NULL
-   AND embedding IS NOT NULL;
+DO $$
+DECLARE
+  nearest_other uuid;
+BEGIN
+  IF (
+    SELECT COUNT(*)
+      FROM ops.incidents
+     WHERE status = 'resolved'
+       AND rca_reviewed = true
+       AND rca_hypothesis IS NOT NULL
+       AND embedding IS NOT NULL
+  ) <> 3 THEN
+    RAISE EXCEPTION 'expected three reviewed seed incidents';
+  END IF;
 
--- Vector similarity: latency seeds should rank above SQL incident
-WITH query AS (
-  SELECT embedding FROM ops.incidents
-   WHERE id = 'a1000000-0000-4000-8000-000000000002'
-)
-SELECT i.id,
-       1 - (i.embedding <=> q.embedding) AS cosine_similarity
-  FROM ops.incidents i, query q
- WHERE i.status = 'resolved'
-   AND i.rca_reviewed = true
-   AND i.rca_hypothesis IS NOT NULL
-   AND i.embedding IS NOT NULL
- ORDER BY i.embedding <=> q.embedding
- LIMIT 3;
+  SELECT candidate.id
+    INTO nearest_other
+    FROM ops.incidents AS candidate
+    JOIN ops.incidents AS query
+      ON query.id = 'a1000000-0000-4000-8000-000000000002'
+   WHERE candidate.id <> query.id
+   ORDER BY candidate.embedding <=> query.embedding
+   LIMIT 1;
 
--- Role grants: dispatcher SELECT-only on outbox
-SELECT has_table_privilege('ops_dispatcher', 'ops.outbox', 'SELECT') AS dispatcher_select,
-       has_table_privilege('ops_dispatcher', 'ops.outbox', 'INSERT') AS dispatcher_insert,
-       has_table_privilege('ops_dispatcher', 'ops.incidents', 'SELECT') AS dispatcher_incidents;
+  IF nearest_other <> 'a1000000-0000-4000-8000-000000000001'::uuid THEN
+    RAISE EXCEPTION 'latency seed did not rank as nearest similar incident';
+  END IF;
 
--- Cross-role deny samples
-SELECT has_table_privilege('ops_ingest', 'ops.slack_events', 'SELECT') AS ingest_slack_events,
-       has_table_privilege('ops_slack_ingress', 'ops.incidents', 'SELECT') AS slack_incidents,
-       has_table_privilege('ops_worker', 'ops.alert_deliveries', 'INSERT') AS worker_alert_insert,
-       has_table_privilege('ops_worker', 'ops.outbox', 'INSERT') AS worker_outbox_insert,
-       has_table_privilege('ops_ingest', 'ops.budget_usage', 'UPDATE') AS ingest_budget_update;
+  IF NOT has_table_privilege('ops_dispatcher', 'ops.outbox', 'SELECT')
+     OR has_table_privilege('ops_dispatcher', 'ops.outbox', 'INSERT')
+     OR has_table_privilege('ops_dispatcher', 'ops.incidents', 'SELECT') THEN
+    RAISE EXCEPTION 'dispatcher privileges are not SELECT-only on outbox';
+  END IF;
+
+  IF has_table_privilege('ops_ingest', 'ops.slack_events', 'SELECT')
+     OR has_table_privilege('ops_slack_ingress', 'ops.incidents', 'SELECT')
+     OR has_table_privilege('ops_worker', 'ops.alert_deliveries', 'INSERT')
+     OR NOT has_table_privilege('ops_worker', 'ops.outbox', 'INSERT')
+     OR has_table_privilege('ops_ingest', 'ops.budget_usage', 'UPDATE') THEN
+    RAISE EXCEPTION 'component role permission matrix is incorrect';
+  END IF;
+END
+$$;
 SQL
 
 echo "==> Validation passed"

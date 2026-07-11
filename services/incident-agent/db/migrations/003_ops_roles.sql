@@ -1,5 +1,32 @@
 -- I1: component-scoped DB roles (§7-11, §14, §15 I1)
 -- Minimal grants per service; cross-table escalation is denied by omission.
+-- Terraform I0 owns creation and passwords for these LOGIN roles. Keeping
+-- role creation out of SQL avoids duplicate ownership between Terraform and
+-- the migration.
+
+DO $$
+DECLARE
+  missing_roles text;
+BEGIN
+  SELECT string_agg(required_role, ', ' ORDER BY required_role)
+    INTO missing_roles
+    FROM unnest(ARRAY[
+      'ops_ingest',
+      'ops_slack_ingress',
+      'ops_worker',
+      'ops_dispatcher'
+    ]) AS roles(required_role)
+   WHERE NOT EXISTS (
+     SELECT 1 FROM pg_roles WHERE rolname = required_role
+   );
+
+  IF missing_roles IS NOT NULL THEN
+    RAISE EXCEPTION
+      'Required Terraform-managed database roles do not exist: %',
+      missing_roles;
+  END IF;
+END
+$$;
 
 REVOKE ALL ON SCHEMA ops FROM PUBLIC;
 REVOKE ALL ON ALL TABLES IN SCHEMA ops FROM PUBLIC;
@@ -9,14 +36,6 @@ REVOKE ALL ON ALL FUNCTIONS IN SCHEMA ops FROM PUBLIC;
 -- ---------------------------------------------------------------------------
 -- ops_ingest — Pub/Sub ingest (I2)
 -- ---------------------------------------------------------------------------
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ops_ingest') THEN
-    CREATE ROLE ops_ingest NOLOGIN;
-  END IF;
-END
-$$;
-
 GRANT USAGE ON SCHEMA ops TO ops_ingest;
 
 GRANT SELECT, INSERT, UPDATE ON ops.incidents TO ops_ingest;
@@ -35,14 +54,6 @@ REVOKE ALL ON TABLE ops.slack_events FROM ops_ingest;
 -- ---------------------------------------------------------------------------
 -- ops_slack_ingress — Slack Events ingress (I6)
 -- ---------------------------------------------------------------------------
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ops_slack_ingress') THEN
-    CREATE ROLE ops_slack_ingress NOLOGIN;
-  END IF;
-END
-$$;
-
 GRANT USAGE ON SCHEMA ops TO ops_slack_ingress;
 
 GRANT SELECT, INSERT, UPDATE ON ops.slack_events TO ops_slack_ingress;
@@ -55,14 +66,6 @@ REVOKE ALL ON TABLE ops.budget_usage FROM ops_slack_ingress;
 -- ---------------------------------------------------------------------------
 -- ops_worker — Cloud Tasks worker (I4, I6)
 -- ---------------------------------------------------------------------------
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ops_worker') THEN
-    CREATE ROLE ops_worker NOLOGIN;
-  END IF;
-END
-$$;
-
 GRANT USAGE ON SCHEMA ops TO ops_worker;
 
 GRANT SELECT, UPDATE ON ops.incidents TO ops_worker;
@@ -81,14 +84,6 @@ REVOKE ALL ON TABLE ops.alert_deliveries FROM ops_worker;
 -- ops_dispatcher — outbox dispatcher Job (I4)
 -- Eligible-row SELECT only; no DML, no budget/incident access.
 -- ---------------------------------------------------------------------------
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ops_dispatcher') THEN
-    CREATE ROLE ops_dispatcher NOLOGIN;
-  END IF;
-END
-$$;
-
 GRANT USAGE ON SCHEMA ops TO ops_dispatcher;
 
 GRANT SELECT ON ops.outbox TO ops_dispatcher;
