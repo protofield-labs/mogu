@@ -5,6 +5,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { matchesCandidateMarkerLine } from "../src/lib/agent/candidate-spot-markers";
+
 import { assert } from "./test-helpers/assert";
 
 const agentsRoot = join(process.cwd(), "..", "..", "agents");
@@ -135,7 +137,26 @@ function main() {
     "orchestrator keeps same place on follow-up (#264)",
   );
 
-  console.log("PASS: agent instructions (#251/#263/#269/#270/#264)");
+  const markerContract = "[[候補 spot_id=";
+  for (const [label, source] of [
+    ["orchestrator", orchestrator],
+    ["ken", ken],
+    ["aoi", aoi],
+  ] as const) {
+    assert(
+      source.includes(markerContract),
+      `${label} documents candidate marker format (#333)`,
+    );
+  }
+
+  const sampleMarker =
+    "[[候補 spot_id=22222222-2222-4222-8222-222222222303 place_id=ChIJN1t_tDeuEmsRUsoyG83frY4]]";
+  assert(
+    matchesCandidateMarkerLine(sampleMarker),
+    "TS candidate marker pattern matches canonical sample line (#333)",
+  );
+
+  console.log("PASS: agent instructions (#251/#263/#269/#270/#264/#333)");
 }
 
 main();

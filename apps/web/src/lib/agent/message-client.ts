@@ -221,8 +221,13 @@ export async function sendAgentMessage(
     if (response.status === 404) {
       throw new AgentSessionNotFoundError();
     }
+    logger.error("Vertex AI streamQuery failed", {
+      status: response.status,
+      sessionId: input.sessionId,
+      bodyPreview: raw.trim().slice(0, 500) || null,
+    });
     throw new AgentSessionError(
-      raw.trim() || `Vertex AI streamQuery failed (${response.status})`,
+      "Agent Engine request failed. Please try again shortly.",
     );
   }
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { checkDbConnection } from "@/lib/db/pool";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,11 @@ export async function GET() {
     });
   }
 
+  logger.warn("health/db connection check failed", {
+    configured: result.configured,
+    error: result.error,
+  });
+
   const status = result.configured ? 500 : 503;
 
   return NextResponse.json(
@@ -22,7 +28,6 @@ export async function GET() {
       status: "error",
       database: "disconnected",
       configured: result.configured,
-      error: result.error,
     },
     { status },
   );

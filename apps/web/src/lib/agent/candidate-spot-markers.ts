@@ -33,6 +33,13 @@ export const RECOMMENDATION_RESOLUTION_FAILED_TEXT =
 const CANDIDATE_MARKER_PATTERN =
   /\[\[\s*候補\s+spot_id=([^\s\]]+)\s+place_id=([^\s\]]+)\s*\]\]/g;
 
+/** Contract check for verify-agent-instructions (#333). */
+export function matchesCandidateMarkerLine(line: string): boolean {
+  return /\[\[\s*候補\s+spot_id=([^\s\]]+)\s+place_id=([^\s\]]+)\s*\]\]/.test(
+    line,
+  );
+}
+
 export type ExtractedCandidateMarkers = {
   /** Reply text with marker lines removed (original text if it would become empty). */
   text: string;

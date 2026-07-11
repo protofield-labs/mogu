@@ -14,7 +14,7 @@ import {
 } from "./demo-data";
 import { DEMO_PLACE_IDS, DEMO_SHARED_PLACE_ID } from "./demo-place-ids";
 import {
-  enableDemoSeedFlags,
+  enableDemoSeedContext,
   withSeedRls,
 } from "./rls";
 import { buildEvidence } from "@/lib/recommendations/pick";
@@ -131,7 +131,7 @@ function resolveViewerProfile(viewerUid: string) {
 }
 
 async function wipeDemoRows(tx: SeedTx, viewerUid: string) {
-  await enableDemoSeedFlags(tx);
+  await enableDemoSeedContext(tx, viewerUid);
 
   await tx.$executeRaw`
     DELETE FROM "daily_recommendations"
@@ -204,7 +204,7 @@ async function seedDemoDailyRecommendation(
   const validDateIso = validDate.toISOString().slice(0, 10);
   const evidence = buildEvidence("Ken", Rating.again, 3);
 
-  await enableDemoSeedFlags(tx);
+  await enableDemoSeedContext(tx, viewerUid);
   await tx.$executeRaw`
     DELETE FROM "daily_recommendations"
     WHERE "user_id" = ${viewerUid}
@@ -228,7 +228,22 @@ async function seedDemoDailyRecommendation(
   `;
 }
 
+function assertDemoSeedAllowed(): void {
+  const appEnv = process.env.APP_ENV?.trim().toLowerCase();
+  const nodeEnv = process.env.NODE_ENV?.trim().toLowerCase();
+  const isProduction =
+    appEnv === "production" || appEnv === "prod" || nodeEnv === "production";
+
+  if (isProduction && process.env.ALLOW_PROD_SEED !== "1") {
+    throw new Error(
+      "Refusing to run demo seed against production. Set ALLOW_PROD_SEED=1 to override.",
+    );
+  }
+}
+
 export async function seedDemo(prisma: PrismaClient): Promise<void> {
+  assertDemoSeedAllowed();
+
   const viewerUid = resolveViewerUid();
   const viewer = resolveViewerProfile(viewerUid);
   const personas = Object.values(DEMO_PERSONAS);

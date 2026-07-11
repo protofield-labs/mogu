@@ -16,6 +16,7 @@ const scripts = [
   "verify-friends-rls.ts",
   "verify-agent-consultations-rls.ts",
   "verify-agent-session-events-rls.ts",
+  "verify-demo-seed-policy.ts",
 ];
 
 for (const script of scripts) {
