@@ -25,10 +25,11 @@ Cloud Monitoring アラートポリシー発火
   │  (通知チャネル: Pub/Sub topic "incident-alerts")
   ▼
 Pub/Sub ──OIDC push──▶ Cloud Run service「incident-agent-ingest」(非公開)
-                     │ 1. 多層ノイズ制御(§9 L1〜L4。既存インシデントへの集約 or ストーム集約)
-                     │ 2. 自己監視除外(対象が自分なら即終了)
-                     │ 3. コストサーキットブレーカー(実行前チェック)
-                     │ 4. ops.incidentsにinvestigating行を確保(調査オーナーを1つに固定)
+                     │ 1. 認証・自己監視除外
+                     │ 2. 無料のL1/L2/L3(ストームは専用分岐で収束)
+                     │ 3. embedding予算を原子的予約 → L4
+                     │ 4. 新規調査予算を原子的予約
+                     │ 5. embedding入りinvestigating行を確保
                      ▼
                   ADK LoopAgent(最大3反復・確信度で早期終了)
                      ├─ playbook注入(アラート種別に対応する1枚のみ)
@@ -129,6 +130,7 @@ CREATE INDEX ON ops.slack_events (received_at);
 
 CREATE TABLE ops.budget_usage (
   usage_date          date PRIMARY KEY,
+  embedding_count     int NOT NULL DEFAULT 0 CHECK (embedding_count >= 0),
   investigation_count int NOT NULL DEFAULT 0 CHECK (investigation_count >= 0),
   token_cost          numeric NOT NULL DEFAULT 0 CHECK (token_cost >= 0)
 );
@@ -223,7 +225,7 @@ playbooks/
 1. **読み取り専用をIAMで強制**: AgentのSAには `roles/monitoring.viewer` / `roles/logging.viewer` / `roles/cloudtrace.agent`(Trace送出のみ) / `roles/aiplatform.user`(LoopAgent・embedding・Vertex AI Sessions実行)とopsスキーマDBロール+Slack webhookを付与する。GitHub fine-grained tokenは対象リポジトリ1つに限定し、`Issues: Read and write`(Issue作成+コメント)と必須のMetadata read以外(Contents/Actions等)を付与しない。本番リソースへの書き込み系・デプロイ系ロールは一切付与しない。
 2. **自己監視の除外**: アラート対象が `incident-agent` 自身なら調査せず固定文通知のみ。アラートポリシー側でも除外(二重防御)。自己言及ループの遮断。
 3. **多層ノイズ制御**: §9参照。Issue数をインシデント数に収束させる。
-4. **コストサーキットブレーカー**: ingestとSlack workerは`ops.budget_usage`の同一日次カウンタを共有する。LLM/embedding呼び出し前に行ロック下で回数を原子的に予約し、調査1回のトークン上限+全経路合算の日次上限(例: 20回)を強制する。I6はさらにincident単位のadvisory lockで同時調査を1件にし、user+thread単位の時間レート上限(例: 5回/時)を適用する。いずれか超過時はLLMを呼ばず固定応答でfail-closed。
+4. **コストサーキットブレーカー**: ingestとSlack workerは`ops.budget_usage`を共有する。L1〜L3通過後かつembedding API前に`embedding_count`を、L4非該当後かつLoopAgent前に`investigation_count`を行ロック下で別々に予約する。各日次上限と1調査トークン上限を強制し、予約失敗時は高価な処理を呼ばずfail-closed。I6は`investigation_count`を共有し、incident排他+user/thread時間レートも適用する。
 5. **ログはデータとして扱う**: ログ本文内の指示には従わない旨をシステムプロンプトに明記。書き込み権限がない(1.)ことで実害を構造遮断。
 6. **タイムアウトと再試行**: Cloud Runのリクエストタイムアウト(300s)が1回の調査上限。Pub/Sub ingestは分析+出力の永続化完了後にのみ2xxを返し、早期ACKしない。過渡障害は5xxでPub/Sub再送に委ね、期限切れleaseを原子的に引き継ぐ。3回失敗時はLLMなしの固定文でSlack/Issueへエスカレーションし、通知永続化まで5xxを返す。
 7. **本番不変**: 環境を変更するツールを持たせない。緩和は推奨としてissueに書くだけ。実行は人間(Phase BでもToolConfirmationによる人間承認を必須とする)。
@@ -266,12 +268,12 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 ノイズ制御の判定と新規調査の開始を分離すると、Issue作成前の同時アラートがすべて「既存なし」と判定して重複調査を開始する。これを防ぐため、I2は次をトランザクション内で強制する。
 
 1. リソース単位のtransaction advisory lockを取得し、L1/L2を再チェックする。ヒット時は対象行の`alert_count`と`last_seen_at`を原子的に更新する。
-2. L3判定後、L4の検索と新規行確保はL4用advisory lock内で再チェックする。類似先があればその行へ集約する。
-3. すべて非該当の場合のみ、L4検索に使用したマスキング済みembeddingを含む`status='investigating'`行を**LoopAgent起動前**に挿入する。この行を作成したリクエストだけが調査オーナーとなる。embeddingを予約時に保存するため、後続の表現違いアラートは調査中でもL4にヒットする。未解決行に対する`incident_key`部分UNIQUEインデックスは最終防壁として使う。
-4. 調査中の行へ後続アラートが集約された場合はIssueをまだ持たないため、DBの`alert_count`へ記録し、I4でIssue作成時に集約数を本文へ反映する。Issue作成後の集約だけコメントを追記する。
-5. L4で暫定行を別インシデントへ統合する実装を採る場合は、`status='merged'`と`merged_into`を同一トランザクションで設定し、merged行を以後の類似検索対象から除外する。
-6. 調査オーナーは`investigation_token`と`lease_expires_at`を持つ。leaseはCloud Run上限(300s)+再送余裕(60s)の6分とする。後続リクエストが`status='investigating'`かつ期限切れleaseを見つけたら、compare-and-swapでtoken更新・lease延長・`attempt_count + 1`し、成功した1件だけが再調査を引き継ぐ。**lease有効中の同一アラート再送は2xxで握りつぶさず5xxを返し、Pub/Sub再送をlease期限後まで維持する。** 元オーナーが完了すれば次回再送は集約済みとして2xx、クラッシュしていれば期限後に引き継ぐ。古いtokenの完了書き込みは拒否する。
-7. `attempt_count=3`で再失敗した場合は、LoopAgentを再実行せず「自動調査失敗」の固定文Issue/Slack通知を作成して`status='escalated'`へ遷移する。これによりinvestigating行を永久に残さない。
+2. L3閾値に達したら通常フローから**排他的にストーム分岐**する。時間bucket+共通属性の`storm_key`でadvisory lockを取得し、同bucketのストーム行があれば集約して終了する。なければ1件だけがembedding/調査予算を予約してストーム用`investigating`行を作り、共通調査を開始する。L3ヒット後はL4検索・個別行作成へ進まない。
+3. L1〜L3がすべて非該当の場合だけ、`embedding_count`を原子的に予約してembeddingを生成する。L4の検索と新規行確保はL4用advisory lock内で再チェックし、類似先があれば集約して終了する。
+4. L4も非該当の場合だけ`investigation_count`を原子的に予約し、embeddingを含む`status='investigating'`行を**LoopAgent起動前**に挿入する。この行を作成したリクエストだけが調査オーナーとなる。embeddingを予約時に保存するため、後続の表現違いアラートは調査中でもL4にヒットする。未解決行に対する`incident_key`部分UNIQUEインデックスは最終防壁として使う。
+5. 調査中の行へ後続アラートが集約された場合はDBの`alert_count`へ記録し、Issue作成時に集約数を本文へ反映する。
+6. 調査オーナーはtoken+leaseを持つ。期限切れ時はCASで1件だけがattemptを増やして引き継ぐ。lease有効中の再送は5xxで維持し、古いtokenの完了書き込みを拒否する。
+7. 3回失敗時は固定文Issue/Slack通知を作成して`escalated`へ遷移する。
 
 ## 10. Issue起票のタイミングとライフサイクル
 
@@ -334,8 +336,8 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 
 | # | issue | 依存 | ファイル境界 | 受け入れ条件シード |
 | --- | --- | --- | --- | --- |
-| I1 | opsスキーマ+incidents/slack_events/budget_usageテーブル+シード事例 | なし | `services/incident-agent/db/**` | 調査lease、RCA review状態、Slack event/task/主体、共有日次予算を含むDDL。部分UNIQUE/制約/シード/権限分離 |
-| I2 | 受け口(Pub/Sub push受信+L1〜L4ノイズ制御+自己除外+コストブレーカー) | I1, §14 | `services/incident-agent/app/**` | investigatingのL1再送はlease中5xx/期限後CAS。完了行のみ2xx。共有budget_usage予約、3回失敗fallback、L1〜L4/認証/秘匿化 |
+| I1 | opsスキーマ+incidents/slack_events/budget_usageテーブル+シード事例 | なし | `services/incident-agent/db/**` | 調査lease、RCA review、Slack task/主体、embedding_count+investigation_count共有日次予算を含むDDL |
+| I2 | 受け口(Pub/Sub push受信+L1〜L4ノイズ制御+自己除外+コストブレーカー) | I1, §14 | `services/incident-agent/app/**` | L1〜L3→embedding予算→L4→調査予算の順。L3はstorm専用分岐から戻らない。lease中5xx/期限後CAS、fallback、認証/秘匿化 |
 | I3 | LoopAgent+3ツール+プレイブック注入 | I2 | `services/incident-agent/agent/**`, `playbooks/**` | 過去事例はresolved+rca_reviewedのみ。resource固定、playbook固定map+containment。LLM/受信値による対象拡大を拒否 |
 | I4 | 出力(Slack通知+GitHub Issue起票+ops保存)+RCAレビューCLI | I3 | `services/incident-agent/app/**`, `services/incident-agent/scripts/**` | 安全なSlack/Issue出力、予約行をanalyzedへ遷移。review_incident CLIのみが人間確認後にresolved+rca_reviewedへ更新 |
 | I5 | otel_to_cloud+圧縮率メトリクス(受信アラート→インシデント→Issue) | I4 | `services/incident-agent/**`(設定のみ) | Cloud Traceにマスキング済み要約/メタデータのみ送出(生ログ・ツール結果・プロンプト禁止)。圧縮率がダッシュボードで見える |
