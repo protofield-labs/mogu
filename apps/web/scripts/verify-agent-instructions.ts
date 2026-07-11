@@ -5,11 +5,28 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { matchesCandidateMarkerLine } from "../src/lib/agent/candidate-spot-markers";
+import {
+  CANONICAL_CANDIDATE_MARKER_SAMPLE,
+  CANDIDATE_MARKER_LINE_PREFIX,
+  matchesCandidateMarkerLine,
+} from "../src/lib/agent/candidate-spot-markers";
+import { AGENT_PERSONAS } from "../src/lib/agent/persona-config";
+import {
+  inferPersonaTasteEvidence,
+  stripDelegationNarration,
+  stripLeakedThinkingText,
+  stripPersonaReferenceLines,
+} from "../src/lib/agent/reply-sanitizer";
+import {
+  applyStreamEvent,
+  drainJsonObjects,
+} from "../src/lib/agent/stream-parser";
 
 import { assert } from "./test-helpers/assert";
 
 const agentsRoot = join(process.cwd(), "..", "..", "agents");
+const kenPersona = AGENT_PERSONAS.find((persona) => persona.key === "ken")!;
+const aoiPersona = AGENT_PERSONAS.find((persona) => persona.key === "aoi")!;
 
 function readAgentSource(relativePath: string): string {
   return readFileSync(join(agentsRoot, relativePath), "utf8");
@@ -58,12 +75,10 @@ function main() {
   );
   assert(
     orchestrator.includes("味覚の手がかり") ||
-      orchestrator.includes("中目黒サク飲み") ||
-      orchestrator.includes("静かな二人時間"),
+      orchestrator.includes(kenPersona.collectionName) ||
+      orchestrator.includes(aoiPersona.collectionName),
     "orchestrator surfaces persona taste in final reply",
   );
-
-  const markerContract = "[[候補 spot_id=";
 
   const personaBase = readAgentSource("mogu/personas/_base.py");
   assert(personaBase.includes("日本語"), "persona base uses Japanese instruction");
@@ -81,7 +96,7 @@ function main() {
   );
   assert(personaBase.includes("参照:"), "persona base declares collection reference line");
   assert(
-    personaBase.includes(markerContract),
+    personaBase.includes(CANDIDATE_MARKER_LINE_PREFIX),
     "persona base documents candidate marker format (#333)",
   );
   assert(
@@ -104,7 +119,7 @@ function main() {
     "ken avoids quiet/formal date venues",
   );
   assert(
-    ken.includes("中目黒サク飲み"),
+    ken.includes(kenPersona.collectionName),
     "ken declares demo collection name",
   );
 
@@ -123,7 +138,7 @@ function main() {
     "aoi avoids loud izakaya-style venues",
   );
   assert(
-    aoi.includes("静かな二人時間"),
+    aoi.includes(aoiPersona.collectionName),
     "aoi declares demo collection name",
   );
 
@@ -133,28 +148,39 @@ function main() {
     "maps grounding forbids thinking process output",
   );
 
-  const parser = readFileSync(
-    join(process.cwd(), "src/lib/agent/reply-sanitizer.ts"),
-    "utf8",
-  );
-  assert(parser.includes("stripLeakedThinkingText"), "sanitizer strips leaked thinking");
-  assert(parser.includes("stripDelegationNarration"), "sanitizer strips delegation narration");
-  assert(parser.includes("stripPersonaReferenceLines"), "sanitizer strips persona reference lines");
-  assert(parser.includes("inferPersonaTasteEvidence"), "sanitizer infers persona taste evidence");
   assert(
-    parser.includes("thinking\\s*process"),
-    "sanitizer matches thinking process label",
+    stripLeakedThinkingText("Thinking Process: 今夜はどんな気分？") === "今夜はどんな気分？",
+    "sanitizer strips leaked thinking label",
+  );
+  assert(
+    stripDelegationNarration(
+      "特別なディナーが楽しめるお店に詳しい『アオイ』に相談してみましょう。\n中目黒なら落ち着いた店がいいですね。",
+    ) === "中目黒なら落ち着いた店がいいですね。",
+    "sanitizer strips delegation narration",
+  );
+  assert(
+    stripPersonaReferenceLines("参照: Kenのコレクション『中目黒サク飲み』\n今夜はこちら。") ===
+      "今夜はこちら。",
+    "sanitizer strips persona reference lines",
+  );
+  assert(
+    inferPersonaTasteEvidence(`Kenの『${kenPersona.collectionName}』寄り`, []) !== null,
+    "sanitizer infers persona taste evidence",
   );
 
-  const streamParser = readFileSync(
-    join(process.cwd(), "src/lib/agent/stream-parser.ts"),
-    "utf8",
+  const textParts: string[] = [];
+  const personaTextParts: string[] = [];
+  applyStreamEvent(
+    { author: "ken", content: { parts: [{ text: "persona-only" }] } },
+    textParts,
+    personaTextParts,
   );
-  assert(streamParser.includes("PERSONA_AUTHORS"), "parser skips persona author text");
   assert(
-    streamParser.includes("drainJsonObjects"),
-    "parser extracts JSON stream objects",
+    personaTextParts.join("") === "persona-only" && textParts.length === 0,
+    "parser routes persona author text separately",
   );
+  const drained = drainJsonObjects('{"content":{"parts":[{"text":"ok"}]}}');
+  assert(drained.events.length === 1 && drained.remainder === "", "parser extracts JSON stream objects");
 
   assert(
     orchestrator.includes("フォローアップ") ||
@@ -167,19 +193,17 @@ function main() {
     ["persona_base", personaBase],
   ] as const) {
     assert(
-      source.includes(markerContract),
+      source.includes(CANDIDATE_MARKER_LINE_PREFIX),
       `${label} documents candidate marker format (#333)`,
     );
   }
 
-  const sampleMarker =
-    "[[候補 spot_id=22222222-2222-4222-8222-222222222303 place_id=ChIJN1t_tDeuEmsRUsoyG83frY4]]";
   assert(
-    matchesCandidateMarkerLine(sampleMarker),
+    matchesCandidateMarkerLine(CANONICAL_CANDIDATE_MARKER_SAMPLE),
     "TS candidate marker pattern matches canonical sample line (#333)",
   );
 
-  console.log("PASS: agent instructions (#251/#263/#269/#270/#264/#333/#334/#339)");
+  console.log("PASS: agent instructions (#251/#263/#269/#270/#264/#333/#334/#336/#339)");
 }
 
 main();

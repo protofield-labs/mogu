@@ -34,6 +34,14 @@ This is development mode: fast iteration is encouraged.
 - Run `pnpm lint`.
 - Run `pnpm build` and ensure it succeeds.
 
+## Verify scripts (`scripts/verify-*.ts`)
+
+Regression guards for Definition of Done. Follow `apps/web/.cursor/rules/verify-scripts.mdc`:
+
+- Prefer **import + behavior asserts** over `readFileSync` + `source.includes(...)`.
+- File **line-count limits** belong in ESLint `max-lines` (`eslint.config.mjs`), not verify scripts.
+- Shared contract strings (marker format, persona names) live in `src/lib/` and are imported by verify.
+
 ## Conventions
 
 - Use the App Router (`src/app/`).
