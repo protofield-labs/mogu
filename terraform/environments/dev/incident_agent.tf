@@ -4,10 +4,10 @@
 locals {
   incident_agent_enabled = var.enable_db_connection && var.enable_incident_agent
 
-  incident_agent_image = coalesce(
-    var.incident_agent_image,
-    "${var.region}-docker.pkg.dev/${var.project_id}/incident-agent/incident-agent:latest",
-  )
+  # Cloud Run validates that the image exists during apply. Require callers to
+  # publish an image first instead of defaulting to this repository before its
+  # first version exists.
+  incident_agent_image = var.incident_agent_image == null ? "" : var.incident_agent_image
 
   incident_agent_service_names = {
     ingest = "${var.environment}-incident-agent-ingest"

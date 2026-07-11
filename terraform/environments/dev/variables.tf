@@ -197,9 +197,14 @@ variable "enable_incident_agent" {
 }
 
 variable "incident_agent_image" {
-  description = "Container image for incident-agent services. Defaults to Artifact Registry incident-agent:latest."
+  description = "Existing container image for incident-agent services. Required when enable_incident_agent is true."
   type        = string
   default     = null
+
+  validation {
+    condition     = !var.enable_incident_agent || try(length(trimspace(var.incident_agent_image)) > 0, false)
+    error_message = "incident_agent_image must reference an existing image when enable_incident_agent is true."
+  }
 }
 
 variable "incident_agent_max_instances" {

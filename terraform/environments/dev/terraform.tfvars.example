@@ -37,8 +37,9 @@ billing_account_id = "000000-000000-000000"
 
 # #355: incident-agent (requires enable_db_connection = true).
 # enable_incident_agent = true
+# Publish this image before enabling incident-agent; Cloud Run rejects missing images.
+# incident_agent_image = "asia-northeast1-docker.pkg.dev/mogu-501309/incident-agent/incident-agent:VERSION"
 # incident_agent_slack_domain = "incident-slack.example.com"
 # incident_agent_slack_signing_secret = "..."
 # incident_agent_slack_bot_token = "xoxb-..."
 # incident_agent_github_token = "github_pat_..."
-# incident_agent_image = "asia-northeast1-docker.pkg.dev/mogu-501309/incident-agent/incident-agent:latest"
