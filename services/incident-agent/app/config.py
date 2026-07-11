@@ -37,6 +37,7 @@ class Settings:
     vertex_location: str = "asia-northeast1"
     embedding_model: str = "text-embedding-005"
     embedding_backend: str = "vertex"
+    agent_model: str = "gemini-2.5-flash"
 
     @property
     def dsn(self) -> str:
@@ -88,4 +89,5 @@ def get_settings() -> Settings:
         vertex_location=os.environ.get("VERTEX_LOCATION", "asia-northeast1"),
         embedding_model=os.environ.get("EMBEDDING_MODEL", "text-embedding-005"),
         embedding_backend=embedding_backend,
+        agent_model=os.environ.get("INCIDENT_AGENT_MODEL", "gemini-2.5-flash"),
     )

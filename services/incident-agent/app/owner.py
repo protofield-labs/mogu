@@ -27,6 +27,51 @@ class RenewLeaseResult:
     attempt_count: int | None = None
 
 
+def expire_owner_lease(
+    db: Database,
+    *,
+    incident_id: UUID,
+    delivery_message_id: str,
+    investigation_token: UUID,
+    work_token: UUID,
+) -> bool:
+    """Expire mirrored owner leases with both current tokens."""
+    with db.transaction() as conn:
+        incident = conn.execute(
+            """
+            UPDATE ops.incidents
+               SET lease_expires_at = now()
+             WHERE id = %s
+               AND investigation_token = %s
+               AND status = 'investigating'
+             RETURNING id
+            """,
+            (incident_id, investigation_token),
+        ).fetchone()
+        if not incident:
+            return False
+        delivery = conn.execute(
+            """
+            UPDATE ops.alert_deliveries
+               SET work_lease_expires_at = now()
+             WHERE message_id = %s
+               AND incident_id = %s
+               AND work_token = %s
+               AND status = 'processing'
+               AND is_owner = true
+             RETURNING message_id
+            """,
+            (
+                delivery_message_id,
+                incident_id,
+                work_token,
+            ),
+        ).fetchone()
+        if not delivery:
+            raise RuntimeError("partial lease expiration forbidden")
+    return True
+
+
 def renew_owner_lease(
     db: Database,
     *,
