@@ -49,9 +49,8 @@ def verify_task_oidc(request: Request, settings: Settings) -> None:
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="missing bearer token")
-    if not settings.task_service_account_email:
+    if not settings.task_service_account_email or not settings.worker_audience:
         raise HTTPException(status_code=500, detail="task auth not configured")
-    audience = settings.worker_audience or str(request.base_url).rstrip("/")
 
     try:
         from google.auth.transport import requests as google_requests
@@ -63,7 +62,7 @@ def verify_task_oidc(request: Request, settings: Settings) -> None:
         claims = id_token.verify_oauth2_token(
             auth_header[7:],
             google_requests.Request(),
-            audience=audience,
+            audience=settings.worker_audience,
         )
     except Exception as exc:
         raise HTTPException(status_code=401, detail="invalid oidc token") from exc

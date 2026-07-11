@@ -5,7 +5,7 @@ from uuid import UUID
 import app.worker as worker_module
 from agent.scanner import SecretScanner
 from app.external import SlackReference
-from app.outbox import ClaimResult
+from app.outbox import ClaimResult, ReferenceConflictError
 from app.worker import OutboxWorker
 from tests.test_external import _record
 
@@ -127,6 +127,47 @@ def test_worker_secret_failure_is_permanently_failed_without_external_call(
     assert result.status_code == 200
     assert result.body["state"] == "failed"
     assert slack.calls == 0
+
+
+def test_worker_reference_conflict_fails_permanently_without_retry(
+    monkeypatch,
+) -> None:
+    record = _record("github_issue")
+    monkeypatch.setattr(
+        worker_module, "claim_outbox", lambda *args, **kwargs: ClaimResult("claimed", record)
+    )
+
+    def raise_conflict(*args, **kwargs):
+        raise ReferenceConflictError("incident GitHub reference conflict")
+
+    monkeypatch.setattr(worker_module, "mark_outbox_sent", raise_conflict)
+    failed = {}
+    monkeypatch.setattr(
+        worker_module,
+        "fail_outbox_safety",
+        lambda *args, **kwargs: failed.update(kwargs) or True,
+    )
+    released = []
+    monkeypatch.setattr(
+        worker_module,
+        "release_or_fail_outbox",
+        lambda *args, **kwargs: released.append(kwargs) or "pending",
+    )
+    github = FakeGitHub()
+    worker = OutboxWorker(
+        object(),
+        slack=FakeSlack(),
+        github=github,
+        scanner=SecretScanner(),
+    )
+
+    result = worker.handle(record.id)
+
+    assert result.status_code == 200
+    assert result.body["state"] == "failed"
+    assert github.calls == 1
+    assert failed["record"] == record
+    assert released == []
 
 
 def test_worker_treats_sent_task_retry_as_success(monkeypatch) -> None:

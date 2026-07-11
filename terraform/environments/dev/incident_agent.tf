@@ -19,6 +19,11 @@ locals {
   incident_agent_slack_queue_name  = "${var.environment}-incident-agent-slack"
   incident_agent_outbox_queue_name = "${var.environment}-incident-agent-outbox"
 
+  # Deterministic Cloud Run URL (#209 pattern). The worker cannot reference its
+  # own module output for WORKER_AUDIENCE without a cycle, so both the token
+  # minting side (dispatcher) and the verifying side (worker) pin this value.
+  incident_agent_worker_audience = "https://${local.incident_agent_service_names.worker}-${data.google_project.current.number}.${var.region}.run.app"
+
   incident_agent_common_env = local.incident_agent_enabled ? {
     GOOGLE_CLOUD_PROJECT = var.project_id
     NODE_ENV             = "production"
@@ -545,6 +550,7 @@ module "incident_agent_worker" {
     OUTBOX_LEASE_SECONDS = "660"
     SLACK_CHANNEL_ID     = var.incident_agent_slack_channel_id
     SLACK_TEAM_ID        = var.incident_agent_slack_team_id
+    WORKER_AUDIENCE      = local.incident_agent_worker_audience
   })
 
   secret_env = merge(
@@ -608,7 +614,7 @@ module "incident_agent_slack" {
     CLOUD_TASKS_LOCATION      = var.region
     CLOUD_TASKS_TARGET_URL    = module.incident_agent_worker[0].uri
     CLOUD_TASKS_OIDC_SA       = google_service_account.incident_agent_tasks[0].email
-    CLOUD_TASKS_OIDC_AUDIENCE = module.incident_agent_worker[0].uri
+    CLOUD_TASKS_OIDC_AUDIENCE = local.incident_agent_worker_audience
   })
 
   secret_env = merge(
@@ -659,7 +665,7 @@ module "incident_agent_outbox_dispatcher" {
     CLOUD_TASKS_LOCATION      = var.region
     CLOUD_TASKS_TARGET_URL    = module.incident_agent_worker[0].uri
     CLOUD_TASKS_OIDC_SA       = google_service_account.incident_agent_tasks[0].email
-    CLOUD_TASKS_OIDC_AUDIENCE = module.incident_agent_worker[0].uri
+    CLOUD_TASKS_OIDC_AUDIENCE = local.incident_agent_worker_audience
   })
 
   secret_env = {

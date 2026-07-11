@@ -8,6 +8,7 @@ from app.db import Database
 from app.external import GitHubSender, SlackReference, SlackSender, render_analysis
 from app.outbox import (
     ClaimResult,
+    ReferenceConflictError,
     claim_outbox,
     fail_outbox_safety,
     mark_outbox_sent,
@@ -84,6 +85,18 @@ class OutboxWorker:
                 200 if failed else 503,
                 {
                     "error": "outbox rejected by safety policy",
+                    "state": "failed" if failed else "stale",
+                },
+            )
+        except ReferenceConflictError:
+            # External delivery succeeded but the incident row already holds a
+            # different reference. Retrying cannot reconcile that, so fail the
+            # row permanently (operator replay) instead of burning retries.
+            failed = fail_outbox_safety(self._db, record=record)
+            return WorkerResult(
+                200 if failed else 503,
+                {
+                    "error": "incident external reference conflict",
                     "state": "failed" if failed else "stale",
                 },
             )

@@ -173,6 +173,15 @@ def claim_outbox(
         )
 
 
+class ReferenceConflictError(RuntimeError):
+    """Incident already carries a different external reference.
+
+    The external side effect has already happened, but retrying the task
+    cannot resolve the mismatch; it requires operator replay after fixing
+    the incident row.
+    """
+
+
 def mark_outbox_sent(
     db: Database,
     *,
@@ -212,10 +221,10 @@ def mark_outbox_sent(
                 (external_ref, record.incident_id, external_ref),
             ).fetchone()
             if not updated:
-                raise RuntimeError("incident GitHub reference conflict")
+                raise ReferenceConflictError("incident GitHub reference conflict")
         elif record.destination == "slack":
             if not slack_team or not slack_channel or not slack_thread:
-                raise RuntimeError("complete Slack reference is required")
+                raise ReferenceConflictError("complete Slack reference is required")
             updated = conn.execute(
                 """
                 UPDATE ops.incidents
@@ -240,7 +249,7 @@ def mark_outbox_sent(
                 ),
             ).fetchone()
             if not updated:
-                raise RuntimeError("incident Slack reference conflict")
+                raise ReferenceConflictError("incident Slack reference conflict")
     return True
 
 
