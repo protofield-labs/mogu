@@ -1,8 +1,10 @@
 /** Persona intro onboarding for first-time agent chat (#291). */
 
+import { AGENT_PERSONAS, type PersonaKey } from "@/lib/agent/persona-config";
+
 export const PERSONA_INTRO_SEEN_KEY = "mogu:persona-intro-seen:v1";
 
-export type PersonaIntroKey = "ken" | "aoi";
+export type PersonaIntroKey = PersonaKey;
 
 export type PersonaIntroProfile = {
   key: PersonaIntroKey;
@@ -13,24 +15,16 @@ export type PersonaIntroProfile = {
   imageSrc: string;
 };
 
-export const PERSONA_INTRO_PROFILES: PersonaIntroProfile[] = [
-  {
-    key: "ken",
-    name: "Ken",
-    role: "サク飲み担当",
-    blurb: "居酒屋・コスパ・友人との気軽な飲みに強い味覚アドバイザーです。",
-    collection: "中目黒サク飲み",
-    imageSrc: "/personas/ken.png",
-  },
-  {
-    key: "aoi",
-    name: "Aoi",
-    role: "大人デート担当",
-    blurb: "静かなお店・記念日・二人の時間に強い味覚アドバイザーです。",
-    collection: "静かな二人時間",
-    imageSrc: "/personas/aoi.png",
-  },
-];
+export const PERSONA_INTRO_PROFILES: PersonaIntroProfile[] = AGENT_PERSONAS.map(
+  (persona) => ({
+    key: persona.key,
+    name: persona.displayName,
+    role: persona.role,
+    blurb: persona.blurb,
+    collection: persona.collectionName,
+    imageSrc: persona.imageSrc,
+  }),
+);
 
 export const PERSONA_INTRO_LEAD =
   "あなたの相談内容に合わせて、この2人の味覚を参照します。他人のチャットではなく、mogu 専用のデモ用アドバイザーです。";
@@ -71,11 +65,10 @@ export function resetPersonaIntroSeen(): void {
 export function personaImageForThinkingMessage(
   message: string,
 ): string | null {
-  if (message.includes("Ken")) {
-    return "/personas/ken.png";
-  }
-  if (message.includes("Aoi")) {
-    return "/personas/aoi.png";
+  for (const persona of AGENT_PERSONAS) {
+    if (message.includes(persona.displayName)) {
+      return persona.imageSrc;
+    }
   }
   return null;
 }
@@ -83,7 +76,7 @@ export function personaImageForThinkingMessage(
 /** Persona avatar image for agent bubbles (#312). */
 export function personaImageForPersonaKey(key: PersonaIntroKey): string {
   return (
-    PERSONA_INTRO_PROFILES.find((profile) => profile.key === key)?.imageSrc ??
+    AGENT_PERSONAS.find((profile) => profile.key === key)?.imageSrc ??
     `/personas/${key}.png`
   );
 }

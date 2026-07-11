@@ -1,3 +1,5 @@
+import type { PersonaKey } from "@/lib/agent/persona-config";
+
 export type PersonaCollectionSpotSummary = {
   placeId: string;
   spotId: string;
@@ -9,7 +11,7 @@ export type PersonaCollectionSpotSummary = {
 };
 
 export type PersonaCollectionBlock = {
-  personaKey: "ken" | "aoi";
+  personaKey: PersonaKey;
   displayName: string;
   collectionName: string;
   tags: string;

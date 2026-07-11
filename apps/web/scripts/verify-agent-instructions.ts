@@ -170,7 +170,7 @@ function main() {
     "TS candidate marker pattern matches canonical sample line (#333)",
   );
 
-  console.log("PASS: agent instructions (#251/#263/#269/#270/#264/#333/#339)");
+  console.log("PASS: agent instructions (#251/#263/#269/#270/#264/#333/#334/#339)");
 }
 
 main();

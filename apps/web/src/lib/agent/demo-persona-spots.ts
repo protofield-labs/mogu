@@ -1,10 +1,11 @@
 import { DEMO_VIEWER_DEFAULT } from "@/lib/seed/demo-data";
+import { DEMO_PERSONA_SPOT_ID_PREFIX } from "@/lib/agent/persona-config";
 
 /** spot.id column — reject hallucinated marker ids before Prisma queries. */
 const SPOT_UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export const DEMO_PERSONA_SPOT_ID_PREFIX = "22222222-2222-4222-8222-";
+export { DEMO_PERSONA_SPOT_ID_PREFIX };
 
 export function isValidSpotUuid(spotId: string): boolean {
   return SPOT_UUID_PATTERN.test(spotId);

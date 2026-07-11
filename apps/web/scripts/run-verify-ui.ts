@@ -18,6 +18,7 @@ const scripts = [
   "verify-agent-config.ts",
   "verify-agent-message.ts",
   "verify-agent-instructions.ts",
+  "verify-persona-config.ts",
   "verify-agent-events.ts",
   "verify-agent-event-relay.ts",
   "verify-agent-chat.ts",

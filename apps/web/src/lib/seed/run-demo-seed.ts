@@ -5,6 +5,7 @@
  */
 import { PrismaClient, Rating } from "@prisma/client";
 
+import { AGENT_PERSONA_BY_KEY } from "@/lib/agent/persona-config";
 import type { DemoUserDef } from "./demo-data";
 import {
   DEMO_COLLECTION_IDS,
@@ -328,7 +329,7 @@ export async function seedDemo(prisma: PrismaClient): Promise<void> {
           {
             id: DEMO_COLLECTION_IDS.kenIzakaya,
             ownerId: DEMO_PERSONAS.ken.uid,
-            name: "中目黒サク飲み",
+            name: AGENT_PERSONA_BY_KEY.ken.collectionName,
             description: "会社帰りにサッと入れる店",
             visibility: "friends",
             theme: "izakaya",
@@ -352,7 +353,7 @@ export async function seedDemo(prisma: PrismaClient): Promise<void> {
           {
             id: DEMO_COLLECTION_IDS.aoiQuiet,
             ownerId: DEMO_PERSONAS.aoi.uid,
-            name: "静かな二人時間",
+            name: AGENT_PERSONA_BY_KEY.aoi.collectionName,
             description: "会話が途切れない店",
             visibility: "friends",
             theme: "date",

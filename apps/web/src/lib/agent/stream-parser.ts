@@ -1,4 +1,12 @@
 import { AgentSessionError, AgentSessionNotFoundError } from "./errors";
+import {
+  AGENT_PERSONAS,
+  buildPersonaCollectionHintsRecord,
+  buildPersonaReferenceLinePattern,
+  buildPersonaThinkingRecord,
+  isPersonaKey,
+  type PersonaKey,
+} from "./persona-config";
 import type { AgentEvent, AgentMessage } from "./types";
 
 export type StreamEvent = {
@@ -15,35 +23,17 @@ export type StreamEvent = {
 };
 
 /** Role + name thinking labels so first-time users get context (#288). */
-export const PERSONA_THINKING: Record<string, string> = {
-  ken: "サク飲み担当 Ken のコレクションを参照中…",
-  aoi: "大人デート担当 Aoi のコレクションを参照中…",
-};
+export const PERSONA_THINKING = buildPersonaThinkingRecord();
 
-/** Demo-fixed collection labels aligned with seed DEMO_PERSONAS (#270/#271/#288). */
-export const PERSONA_COLLECTION_HINTS: Record<
-  string,
-  { collection: string; evidence: string; demoUid: string; role: string }
-> = {
-  ken: {
-    collection: "中目黒サク飲み",
-    evidence: "サク飲み担当 Kenの『中目黒サク飲み』寄り",
-    demoUid: "demo-ken",
-    role: "サク飲み担当",
-  },
-  aoi: {
-    collection: "静かな二人時間",
-    evidence: "大人デート担当 Aoiの『静かな二人時間』寄り",
-    demoUid: "demo-aoi",
-    role: "大人デート担当",
-  },
-};
+/** Demo-fixed collection labels aligned with AGENT_PERSONAS (#270/#271/#288 / #334). */
+export const PERSONA_COLLECTION_HINTS = buildPersonaCollectionHintsRecord();
 
-const PERSONA_AUTHORS = new Set(Object.keys(PERSONA_THINKING));
+const PERSONA_AUTHORS = new Set<string>(
+  AGENT_PERSONAS.map((persona) => persona.key),
+);
 
 /** Internal persona "参照:" lines must not reach the user bubble (#270). */
-const PERSONA_REFERENCE_LINE =
-  /^\s*参照\s*[:：].*(?:コレクション|Ken|Aoi|ケン|アオイ|中目黒サク飲み|静かな二人時間)/i;
+const PERSONA_REFERENCE_LINE = buildPersonaReferenceLinePattern();
 
 /** Labels Gemini sometimes leaks into text parts (#251). */
 const LEAKED_THINKING_LABEL =
@@ -243,31 +233,24 @@ export function sanitizeAgentReplyText(text: string): string {
 export function inferPersonaKey(
   text: string,
   thinkingMessages: string[] = [],
-): "ken" | "aoi" | null {
-  const kenHint = PERSONA_COLLECTION_HINTS.ken!;
-  const aoiHint = PERSONA_COLLECTION_HINTS.aoi!;
-  if (
-    text.includes(kenHint.collection) ||
-    /Kenの[『「].+?[』」]/.test(text) ||
-    /ケンの[『「].+?[』」]/.test(text)
-  ) {
-    return "ken";
-  }
-  if (
-    text.includes(aoiHint.collection) ||
-    /Aoiの[『「].+?[』」]/.test(text) ||
-    /アオイの[『「].+?[』」]/.test(text)
-  ) {
-    return "aoi";
+): PersonaKey | null {
+  for (const persona of AGENT_PERSONAS) {
+    if (
+      text.includes(persona.collectionName) ||
+      new RegExp(`${persona.displayName}の[『「].+?[』」]`).test(text) ||
+      (persona.key === "ken" && /ケンの[『「].+?[』」]/.test(text)) ||
+      (persona.key === "aoi" && /アオイの[『「].+?[』」]/.test(text))
+    ) {
+      return persona.key;
+    }
   }
 
   for (let i = thinkingMessages.length - 1; i >= 0; i--) {
     const message = thinkingMessages[i];
-    if (message === PERSONA_THINKING.ken) {
-      return "ken";
-    }
-    if (message === PERSONA_THINKING.aoi) {
-      return "aoi";
+    for (const persona of AGENT_PERSONAS) {
+      if (message === persona.thinkingLabel) {
+        return persona.key;
+      }
     }
   }
   return null;
@@ -448,29 +431,37 @@ function firstRegexIndex(haystack: string, pattern: RegExp): number {
   return match?.index ?? Number.POSITIVE_INFINITY;
 }
 
-function resolvePersonaKeyFromBlob(blob: string): "ken" | "aoi" | null {
+function resolvePersonaKeyFromBlob(blob: string): PersonaKey | null {
   const lower = blob.toLowerCase();
-  const kenIdx = Math.min(
-    firstRegexIndex(lower, /(?:^|[^a-z0-9_])ken(?:[^a-z0-9_]|$)/i),
-    firstIndex(blob, "中目黒サク飲み"),
-    firstRegexIndex(blob, /(?:^|[^\p{L}\p{N}])ケン(?:[^\p{L}\p{N}]|$)/u),
-  );
-  const aoiIdx = Math.min(
-    firstRegexIndex(lower, /(?:^|[^a-z0-9_])aoi(?:[^a-z0-9_]|$)/i),
-    firstIndex(blob, "静かな二人時間"),
-    firstRegexIndex(blob, /(?:^|[^\p{L}\p{N}])(?:アオイ|あおい)(?:[^\p{L}\p{N}]|$)/u),
-  );
+  const indices = AGENT_PERSONAS.map((persona) => {
+    const nameIdx = Math.min(
+      firstRegexIndex(
+        lower,
+        new RegExp(
+          `(?:^|[^a-z0-9_])${persona.displayName.toLowerCase()}(?:[^a-z0-9_]|$)`,
+          "i",
+        ),
+      ),
+      firstIndex(blob, persona.collectionName),
+      persona.key === "ken"
+        ? firstRegexIndex(blob, /(?:^|[^\p{L}\p{N}])ケン(?:[^\p{L}\p{N}]|$)/u)
+        : firstRegexIndex(
+            blob,
+            /(?:^|[^\p{L}\p{N}])(?:アオイ|あおい)(?:[^\p{L}\p{N}]|$)/u,
+          ),
+    );
+    return { key: persona.key, idx: nameIdx };
+  });
 
-  if (!Number.isFinite(kenIdx) && !Number.isFinite(aoiIdx)) {
+  const finite = indices.filter((entry) => Number.isFinite(entry.idx));
+  if (finite.length === 0) {
     return null;
   }
-  if (!Number.isFinite(aoiIdx) || kenIdx <= aoiIdx) {
-    return Number.isFinite(kenIdx) ? "ken" : "aoi";
-  }
-  return "aoi";
+  finite.sort((a, b) => a.idx - b.idx);
+  return finite[0]!.key;
 }
 
-function resolvePersonaFromFunctionCall(functionCall: unknown): "ken" | "aoi" | null {
+function resolvePersonaFromFunctionCall(functionCall: unknown): PersonaKey | null {
   if (!functionCall || typeof functionCall !== "object") {
     return null;
   }
@@ -490,7 +481,8 @@ function resolvePersonaFromFunctionCall(functionCall: unknown): "ken" | "aoi" | 
 /** Map Vertex stream event to OpenAPI AgentEvent thinking (#45 / #270). */
 export function extractThinkingEvent(event: StreamEvent): AgentEvent | null {
   const author = event.author?.trim().toLowerCase();
-  const personaMessage = author ? PERSONA_THINKING[author] : undefined;
+  const personaMessage =
+    author && isPersonaKey(author) ? PERSONA_THINKING[author] : undefined;
   if (personaMessage) {
     return createThinkingEvent(personaMessage);
   }
