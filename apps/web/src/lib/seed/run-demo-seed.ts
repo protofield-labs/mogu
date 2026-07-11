@@ -89,6 +89,14 @@ function buildDemoPlaceRefreshTargets(viewerUid: string) {
 
 /** Update place_id and shared-spot tags on existing demo rows (RLS-safe). */
 async function refreshDemoPlaceIds(tx: SeedTx, viewerUid: string) {
+  await enableDemoSeedContext(tx, viewerUid);
+  await tx.$executeRaw`
+    UPDATE "spots"
+    SET "archived_at" = NULL,
+        "updated_at" = now()
+    WHERE "id"::text LIKE '22222222-2222-4222-8222-%'
+  `;
+
   for (const target of buildDemoPlaceRefreshTargets(viewerUid)) {
     await withSeedRls(tx, target.actorUid, (scoped) =>
       scoped.spot.updateMany({
@@ -260,6 +268,7 @@ export async function seedDemo(prisma: PrismaClient): Promise<void> {
       await tx.$executeRaw`RELEASE SAVEPOINT demo_seed_wipe`;
     } catch (error) {
       await tx.$executeRaw`ROLLBACK TO SAVEPOINT demo_seed_wipe`;
+      await enableDemoSeedContext(tx, viewerUid);
       console.warn(
         "WARN: demo wipe partial failure (continuing with upsert):",
         error,
@@ -371,6 +380,7 @@ export async function seedDemo(prisma: PrismaClient): Promise<void> {
       }),
     );
 
+    await enableDemoSeedContext(tx, viewerUid);
     await withSeedRls(tx, viewerUid, (scoped) =>
       scoped.collection.upsert({
         where: { id: DEMO_COLLECTION_IDS.viewerWishlist },

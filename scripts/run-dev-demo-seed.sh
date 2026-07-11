@@ -32,9 +32,14 @@ gcloud run jobs execute "${JOB}" \
   --project="${PROJECT}" --region="${REGION}" --wait
 
 echo "==> Seed demo data"
+SEED_ENV_VARS="DB_HOST=${DB_HOST},DB_USER=app_user,DB_NAME=app,RUN_DEMO_SEED=true"
+if [[ -n "${SEED_VIEWER_UID:-}" ]]; then
+  SEED_ENV_VARS="${SEED_ENV_VARS},SEED_VIEWER_UID=${SEED_VIEWER_UID}"
+  echo "    viewer uid: ${SEED_VIEWER_UID}"
+fi
 gcloud run jobs update "${JOB}" \
   --project="${PROJECT}" --region="${REGION}" \
-  --set-env-vars="DB_HOST=${DB_HOST},DB_USER=app_user,DB_NAME=app,RUN_DEMO_SEED=true"
+  --set-env-vars="${SEED_ENV_VARS}"
 
 gcloud run jobs execute "${JOB}" \
   --project="${PROJECT}" --region="${REGION}" --wait

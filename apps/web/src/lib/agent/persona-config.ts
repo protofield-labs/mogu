@@ -1,4 +1,4 @@
-import { DEMO_COLLECTION_IDS, DEMO_PERSONAS } from "@/lib/seed/demo-data";
+import { DEMO_COLLECTION_IDS, DEMO_PERSONAS, DEMO_SPOT_IDS } from "@/lib/seed/demo-data";
 
 /** Ken / Aoi demo taste advisors shared across agent, seed, and UI (#334). */
 export type PersonaKey = "ken" | "aoi";
@@ -57,6 +57,16 @@ export const AGENT_PERSONA_BY_KEY: Record<PersonaKey, AgentPersonaConfig> =
 
 /** Demo seed spot UUID prefix — aligned with demo_seed_policy migration. */
 export const DEMO_PERSONA_SPOT_ID_PREFIX = "22222222-2222-4222-8222-";
+
+/** Core persona spots excluded from weekly rotation (#318). */
+export const PERSONA_CORE_SPOT_IDS: Readonly<Record<PersonaKey, string>> = {
+  ken: DEMO_SPOT_IDS.kenSharedIzakaya,
+  aoi: DEMO_SPOT_IDS.aoiSharedQuiet,
+} as const;
+
+export function isPersonaCoreSpotId(spotId: string): boolean {
+  return Object.values(PERSONA_CORE_SPOT_IDS).includes(spotId);
+}
 
 export type PersonaCollectionHint = {
   collection: string;
