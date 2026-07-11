@@ -22,21 +22,34 @@ import {
 
 const root = process.cwd();
 
-const migration = readFileSync(
+const archiveMigration = readFileSync(
   join(root, "prisma/migrations/20260711150000_spot_archive_curation/migration.sql"),
   "utf8",
 );
-assert(migration.includes("archived_at"), "spot archive migration adds archived_at");
-assert(
-  migration.includes("archive_persona_spot"),
-  "spot archive migration defines archive_persona_spot",
+assert(archiveMigration.includes("archived_at"), "spot archive migration adds archived_at");
+
+const rlsFixMigration = readFileSync(
+  join(root, "prisma/migrations/20260711220000_persona_curation_rls_fix/migration.sql"),
+  "utf8",
 );
 assert(
-  migration.includes("REVOKE ALL ON FUNCTION archive_persona_spot"),
+  rlsFixMigration.includes("set_config('app.current_user_id', p_added_by"),
+  "insert_persona_curation_spot sets viewer uid for spots RLS",
+);
+assert(
+  rlsFixMigration.includes("DROP FUNCTION IF EXISTS archive_persona_spot"),
+  "rls fix migration drops void functions before recreating",
+);
+assert(
+  rlsFixMigration.includes("RETURNS boolean"),
+  "curation functions return success booleans",
+);
+assert(
+  rlsFixMigration.includes("REVOKE ALL ON FUNCTION archive_persona_spot"),
   "archive_persona_spot revokes public execute",
 );
 assert(
-  migration.includes("demo-ken"),
+  rlsFixMigration.includes("demo-ken"),
   "curation functions scope to demo personas",
 );
 

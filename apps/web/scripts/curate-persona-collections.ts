@@ -53,10 +53,11 @@ async function loadActivePersonaSpots(
   );
 }
 
-async function archiveSpot(spotId: string): Promise<void> {
-  await prisma.$executeRaw`
-    SELECT archive_persona_spot(${spotId}::uuid)
+async function archiveSpot(spotId: string): Promise<boolean> {
+  const rows = await prisma.$queryRaw<{ archived: boolean }[]>`
+    SELECT archive_persona_spot(${spotId}::uuid) AS archived
   `;
+  return rows[0]?.archived === true;
 }
 
 async function insertCuratedSpot(
@@ -66,7 +67,7 @@ async function insertCuratedSpot(
   name: string,
 ): Promise<boolean> {
   const spotId = randomUUID();
-  await prisma.$executeRaw`
+  const rows = await prisma.$queryRaw<{ inserted: boolean }[]>`
     SELECT insert_persona_curation_spot(
       ${spotId}::uuid,
       ${placeId},
@@ -78,9 +79,9 @@ async function insertCuratedSpot(
       ${tags.tagGenre},
       ${tags.tagSituation},
       ${["curation"]}::text[]
-    )
+    ) AS inserted
   `;
-  return true;
+  return rows[0]?.inserted === true;
 }
 
 async function curatePersonaCollection(persona: AgentPersonaConfig): Promise<{
@@ -105,8 +106,9 @@ async function curatePersonaCollection(persona: AgentPersonaConfig): Promise<{
     if (status !== "CLOSED_TEMPORARILY" && status !== "CLOSED_PERMANENTLY") {
       continue;
     }
-    await archiveSpot(spot.id);
-    archived += 1;
+    if (await archiveSpot(spot.id)) {
+      archived += 1;
+    }
   }
 
   const refreshed = await loadActivePersonaSpots(persona);
