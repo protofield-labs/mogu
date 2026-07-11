@@ -290,7 +290,7 @@ playbooks/
 
 ## 7. ガードレール(すべて「事後アラート」ではなく「実行経路での強制」)
 
-1. **読み取り専用をIAMで強制**: AgentのSAには `roles/monitoring.viewer` / `roles/logging.viewer` / `roles/cloudtrace.agent`(Trace送出のみ) / `roles/aiplatform.user`(LoopAgent・embedding・Vertex AI Sessions実行)とopsスキーマDBロール+Slack webhookを付与する。GitHub fine-grained tokenは対象リポジトリ1つに限定し、`Issues: Read and write`(Issue作成+コメント)と必須のMetadata read以外(Contents/Actions等)を付与しない。本番リソースへの書き込み系・デプロイ系ロールは一切付与しない。
+1. **読み取り専用をIAMで強制**: AgentのSAには `roles/monitoring.viewer` / `roles/logging.viewer` / `roles/cloudtrace.agent`(Trace送出のみ) / `roles/aiplatform.user`(LoopAgent・embedding・Vertex AI Sessions実行)とopsスキーマDBロールを付与する。Slack送信は専用Bot Tokenの`chat:write`だけを使い、Incoming Webhookは使わない。GitHub fine-grained tokenは対象リポジトリ1つに限定し、`Issues: Read and write`(Issue作成+コメント/close)と必須のMetadata read以外(Contents/Actions等)を付与しない。本番リソースへの書き込み系・デプロイ系ロールは一切付与しない。
 2. **自己監視の除外**: アラート対象が `incident-agent` 自身なら調査せず固定文通知のみ。アラートポリシー側でも除外(二重防御)。自己言及ループの遮断。
 3. **多層ノイズ制御**: §9参照。Issue数をインシデント数に収束させる。
 4. **コストサーキットブレーカー**: ingestとSlack workerは`ops.budget_usage`を共有する。L1〜L3通過後かつembedding API前に`embedding_count`を、L4非該当後かつLoopAgent前に`investigation_count`を行ロック下で別々に予約する。各日次上限と1調査トークン上限を強制し、予約失敗時は高価な処理を呼ばずfail-closed。I6は`investigation_count`を共有し、incident排他+user/thread時間レートも適用する。
@@ -351,7 +351,7 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 
 **Issueライフサイクル**: 1インシデント=1 Issue。後続の関連アラート(L2/L4)・二次切り分けの発見(§11)は、すべて該当issueへのコメントとして積む。ストーム時(L3)はストーム宣言issueが1本のみ。
 
-**外部出力のoutbox**: Slack/GitHub書き込みは`ops.outbox`を経由する。Task bodyは`outbox.id`だけを識別子として受け、workerはdestination/payload/incident/idempotency_keyを必ずDB行から再読込する。bodyの追加fieldやDB不一致は拒否し、DB行を唯一の正本としてlease+idempotency keyで送信する。GitHub Issue成功時はoutbox `external_ref`と`incidents.github_issue`を、Slack一次投稿成功時はoutbox refと`incidents.slack_team/slack_channel/slack_thread`を同一transactionで保存する。I6は4フィールドがすべて揃うまでfail-closed。失敗は最大10回再試行後`failed`として運用アラートを出す。
+**外部出力のoutbox**: Slack/GitHub書き込みは`ops.outbox`を経由する。Task bodyは`outbox.id`だけを識別子として受け、workerはdestination/payload/incident/idempotency_keyを必ずDB行から再読込する。bodyの追加fieldやDB不一致は拒否し、DB行を唯一の正本としてlease+idempotency keyで送信する。Slack一次投稿はIncoming Webhookでなく専用Bot Tokenの`chat.postMessage`を使い、成功レスポンスの`channel`と`ts`を`incidents.slack_channel/slack_thread`へ保存し、設定済みteam IDを`slack_team`へ保存する。GitHub Issue成功時はoutbox `external_ref`と`incidents.github_issue`を同一transactionで保存する。I6は4フィールドがすべて揃うまでfail-closed。失敗は最大10回再試行後`failed`として運用アラートを出す。
 
 **failed outboxの回復**: 原因修正後、運用者専用CLI `replay_outbox <outbox UUID>`で`status='failed'`行だけを`pending`、`attempt_count=0`、`lease_expires_at=NULL`へCAS更新できるようにする。destination/payload/idempotency_keyは変更不可とし、同じidempotency keyで再送する。CLIはops operator用DB資格情報を使い、AgentランタイムSA・公開エンドポイントから呼べないようにする。Slack成功/GitHub失敗などの部分成功時も、欠けたoutboxだけを再実行してincident参照を補完し、4参照が揃うまでI6は拒否を続ける。
 
@@ -409,7 +409,7 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 - incident-agent 用Cloud Run 3サービス(ingest/slack/worker)。共有イメージ・別entrypoint、デプロイパイプラインはアプリと分離
 - Cloud SQLに ops スキーマ用DBロール
 - Slack App作成(I6用): Bot Token Scopes(app_mentions:read, chat:write)+ Events APIのリクエストURL設定
-- incident-agent専用Slack App / Bot Token / Signing Secret / Webhookを作成し、Budget通知用の認証情報と共有しない。Secret Manager secretとsecretAccessor IAMもサービス単位で分離する。
+- incident-agent専用Slack App / Bot Token / Signing Secretを作成し、Incoming Webhookは作成・使用しない。Budget通知用の認証情報と共有せず、Secret Manager secretとsecretAccessor IAMもサービス単位で分離する。
 
 ## 15. 実装WBS(Phase A)
 
@@ -420,7 +420,7 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 | I1 | opsスキーマ+incidents/alert_deliveries/slack_events/outbox/budget_usage | なし | `services/incident-agent/db/**` | delivery/incident制約、outbox(github_close含む)、UTC日次budget遅延upsert+lock予約 |
 | I2 | 受け口(Pub/Sub push受信+L1〜L4ノイズ制御+自己除外+コストブレーカー) | I1, §14 | `services/incident-agent/app/**` | mask前に安全placeholder deliveryでmessageId冪等化。L3明示遷移、二相判定、両token/lease原子更新 |
 | I3 | LoopAgent+3ツール+プレイブック注入 | I2 | `services/incident-agent/agent/**`, `playbooks/**` | reviewed事例のみ。resource/60分固定、playbook containment。ツールマスク失敗は内容破棄+固定escalation |
-| I4 | outbox出力(Slack+GitHub)+RCAレビュー/failed replay CLI | I3, §14 | `services/incident-agent/app/**`, `services/incident-agent/scripts/**` | worker OIDC/DB正本。storm統合comment成功後close。出力mask、ref原子反映/replay |
+| I4 | outbox出力(Slack+GitHub)+RCAレビュー/failed replay CLI | I3, §14 | `services/incident-agent/app/**`, `services/incident-agent/scripts/**` | Slack chat.postMessageのchannel/ts保存(Webhook禁止)。worker OIDC/DB正本、storm comment→close、replay |
 | I5 | otel_to_cloud+圧縮率メトリクス(受信アラート→インシデント→Issue) | I4 | `services/incident-agent/**`(設定のみ) | Cloud Traceにマスキング済み要約/メタデータのみ送出(生ログ・ツール結果・プロンプト禁止)。圧縮率がダッシュボードで見える |
 | I6 | Slack対話型二次切り分け(app_mention→session=incident UUID→追調査→スレッド返信+issueコメント追記) | I4, §14 | `services/incident-agent/app/**` | worker OIDC。Task bodyはevent_idのみ、slack_events正本。許可文脈/Session mask+TTL、予算/排他/rate |
 
