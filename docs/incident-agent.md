@@ -27,7 +27,8 @@ Cloud Monitoring アラートポリシー発火
 Pub/Sub ──OIDC push──▶ Cloud Run service「incident-agent-ingest」(非公開)
                      │ 1. 認証・自己監視除外
                      │ 2. 無料のL1/L2候補+L3
-                     │    ├─ L3 hit: stormへ統合して通常フロー終了
+                     │    ├─ L3 hit: 個別フローを停止し、storm親+予算を1件確保
+                     │    │          → 共通LoopAgent調査を1回だけ実行
                      │    └─ L3非該当かつL1/L2 hit: 既存へ集約して終了
                      │ 3. 上記全miss時だけembedding予算予約 → L4
                      │    └─ L4 hit: 既存へ集約して終了
