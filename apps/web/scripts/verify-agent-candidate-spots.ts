@@ -381,6 +381,15 @@ assert(
   "orchestrator must not name shops without markers",
 );
 
+const personaBase = readFileSync(
+  join(process.cwd(), "..", "..", "agents", "mogu", "personas", "_base.py"),
+  "utf8",
+);
+assert(
+  personaBase.includes("[[候補 spot_id=") && personaBase.includes("place_id="),
+  "persona base defines candidate markers (#287/#339)",
+);
+
 const kenPersona = readFileSync(
   join(process.cwd(), "..", "..", "agents", "mogu", "personas", "ken.py"),
   "utf8",
@@ -394,8 +403,8 @@ for (const [name, source] of [
   ["aoi", aoiPersona],
 ] as const) {
   assert(
-    source.includes("[[候補 spot_id=") && source.includes("place_id="),
-    `${name} persona emits candidate markers`,
+    source.includes("build_persona_instruction"),
+    `${name} persona uses shared instruction builder (#339)`,
   );
   assert(
     !source.includes("デモ固定名"),
