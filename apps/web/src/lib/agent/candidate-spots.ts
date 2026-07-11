@@ -3,8 +3,8 @@ import "server-only";
 import type { CandidateSpotRef, Spot } from "./types";
 import type { CandidateSpotMarker } from "./candidate-spot-markers";
 import type { CandidatePinContext } from "./followup-context";
+import { withDemoPersonaViewerFallback } from "./demo-persona-fallback";
 import {
-  DEMO_PERSONA_VIEWER_UID,
   isDemoPersonaSpotId,
   isValidSpotUuid,
 } from "./demo-persona-spots";
@@ -85,11 +85,15 @@ export async function buildAgentCandidateSpots(
   const demoMarkers = eligible.filter((marker) =>
     isDemoPersonaSpotId(marker.spotId),
   );
-  if (demoMarkers.length === 0 || uid === DEMO_PERSONA_VIEWER_UID) {
+  if (demoMarkers.length === 0) {
     return [];
   }
 
-  return resolveCandidateSpotRows(DEMO_PERSONA_VIEWER_UID, demoMarkers);
+  return withDemoPersonaViewerFallback(
+    uid,
+    (viewerUid) => resolveCandidateSpotRows(viewerUid, demoMarkers),
+    (fallbackResult) => fallbackResult.length === 0,
+  );
 }
 
 /**
@@ -130,9 +134,9 @@ export async function getCandidatePinContext(
       };
     });
 
-  const direct = await load(uid);
-  if (direct || !isDemoPersonaSpotId(ref.spotId) || uid === DEMO_PERSONA_VIEWER_UID) {
-    return direct;
-  }
-  return load(DEMO_PERSONA_VIEWER_UID);
+  return withDemoPersonaViewerFallback(
+    uid,
+    load,
+    (direct) => direct === null && isDemoPersonaSpotId(ref.spotId),
+  );
 }

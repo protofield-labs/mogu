@@ -302,7 +302,7 @@ assert(
   "candidate spots filter invalid marker uuids before prisma",
 );
 assert(
-  candidateSpots.includes("DEMO_PERSONA_VIEWER_UID"),
+  candidateSpots.includes("withDemoPersonaViewerFallback"),
   "candidate spots fall back to demo-viewer for persona markers",
 );
 assert(
@@ -313,7 +313,7 @@ assert(
 
 const personaContext = readSource("lib/agent/persona-collection-context.ts");
 assert(
-  personaContext.includes("DEMO_PERSONA_VIEWER_UID"),
+  personaContext.includes("withDemoPersonaViewerFallback"),
   "persona prefetch falls back to demo-viewer when viewer lacks friendships",
 );
 

@@ -1,6 +1,11 @@
 import { AgentSessionError, AgentSessionNotFoundError } from "./errors";
 import {
-  PERSONA_COLLECTION_HINTS,
+  AGENT_PERSONAS,
+  buildPersonaReferenceLinePattern,
+  isPersonaKey,
+  type PersonaKey,
+} from "./persona-config";
+import {
   PERSONA_THINKING,
   resolveAgentReplyText,
 } from "./reply-sanitizer";
@@ -31,14 +36,11 @@ export {
   withPersonaTasteEvidence,
 } from "./reply-sanitizer";
 
-const PERSONA_AUTHORS = new Set(Object.keys(PERSONA_THINKING));
+const PERSONA_AUTHORS = new Set<string>(
+  AGENT_PERSONAS.map((persona) => persona.key),
+);
 
-const PERSONA_REFERENCE_LINE =
-  /(?:^|\n)\s*(?:参照\s*[:：]|Kenのコレクション|Aoiのコレクション|ケンのコレクション|アオイのコレクション)/u;
-
-function isPersonaKey(value: string): value is "ken" | "aoi" {
-  return value === "ken" || value === "aoi";
-}
+const PERSONA_REFERENCE_LINE = buildPersonaReferenceLinePattern();
 
 function scanJsonObjects(
   raw: string,
@@ -155,31 +157,37 @@ function firstRegexIndex(haystack: string, pattern: RegExp): number {
   return match?.index ?? Number.POSITIVE_INFINITY;
 }
 
-function resolvePersonaKeyFromBlob(blob: string): "ken" | "aoi" | null {
+function resolvePersonaKeyFromBlob(blob: string): PersonaKey | null {
   const lower = blob.toLowerCase();
-  const kenIdx = Math.min(
-    firstRegexIndex(lower, /(?:^|[^a-z0-9_])ken(?:[^a-z0-9_]|$)/i),
-    firstIndex(blob, PERSONA_COLLECTION_HINTS.ken!.collection),
-    firstRegexIndex(blob, /(?:^|[^\p{L}\p{N}])ケン(?:[^\p{L}\p{N}]|$)/u),
-  );
-  const aoiIdx = Math.min(
-    firstRegexIndex(lower, /(?:^|[^a-z0-9_])aoi(?:[^a-z0-9_]|$)/i),
-    firstIndex(blob, PERSONA_COLLECTION_HINTS.aoi!.collection),
-    firstRegexIndex(
-      blob,
-      /(?:^|[^\p{L}\p{N}])(?:アオイ|あおい)(?:[^\p{L}\p{N}]|$)/u,
-    ),
-  );
-  if (!Number.isFinite(kenIdx) && !Number.isFinite(aoiIdx)) {
+  const indices = AGENT_PERSONAS.map((persona) => {
+    const nameIdx = Math.min(
+      firstRegexIndex(
+        lower,
+        new RegExp(
+          `(?:^|[^a-z0-9_])${persona.displayName.toLowerCase()}(?:[^a-z0-9_]|$)`,
+          "i",
+        ),
+      ),
+      firstIndex(blob, persona.collectionName),
+      persona.key === "ken"
+        ? firstRegexIndex(blob, /(?:^|[^\p{L}\p{N}])ケン(?:[^\p{L}\p{N}]|$)/u)
+        : firstRegexIndex(
+            blob,
+            /(?:^|[^\p{L}\p{N}])(?:アオイ|あおい)(?:[^\p{L}\p{N}]|$)/u,
+          ),
+    );
+    return { key: persona.key, idx: nameIdx };
+  });
+
+  const finite = indices.filter((entry) => Number.isFinite(entry.idx));
+  if (finite.length === 0) {
     return null;
   }
-  if (!Number.isFinite(aoiIdx) || kenIdx <= aoiIdx) {
-    return "ken";
-  }
-  return "aoi";
+  finite.sort((a, b) => a.idx - b.idx);
+  return finite[0]!.key;
 }
 
-function resolvePersonaFromFunctionCall(functionCall: unknown): "ken" | "aoi" | null {
+function resolvePersonaFromFunctionCall(functionCall: unknown): PersonaKey | null {
   if (!functionCall || typeof functionCall !== "object") {
     return null;
   }

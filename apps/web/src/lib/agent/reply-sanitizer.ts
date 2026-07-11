@@ -1,33 +1,21 @@
-export type PersonaKey = "ken" | "aoi";
+import {
+  AGENT_PERSONAS,
+  buildPersonaCollectionHintsRecord,
+  buildPersonaReferenceLinePattern,
+  buildPersonaThinkingRecord,
+  type PersonaKey,
+} from "./persona-config";
+
+export type { PersonaKey };
 
 /** Role + name thinking labels so first-time users get context (#288). */
-export const PERSONA_THINKING: Record<string, string> = {
-  ken: "サク飲み担当 Ken のコレクションを参照中…",
-  aoi: "大人デート担当 Aoi のコレクションを参照中…",
-};
+export const PERSONA_THINKING = buildPersonaThinkingRecord();
 
-/** Demo-fixed collection labels aligned with seed DEMO_PERSONAS (#270/#271/#288). */
-export const PERSONA_COLLECTION_HINTS: Record<
-  string,
-  { collection: string; evidence: string; demoUid: string; role: string }
-> = {
-  ken: {
-    collection: "中目黒サク飲み",
-    evidence: "サク飲み担当 Kenの『中目黒サク飲み』寄り",
-    demoUid: "demo-ken",
-    role: "サク飲み担当",
-  },
-  aoi: {
-    collection: "静かな二人時間",
-    evidence: "大人デート担当 Aoiの『静かな二人時間』寄り",
-    demoUid: "demo-aoi",
-    role: "大人デート担当",
-  },
-};
+/** Demo-fixed collection labels aligned with AGENT_PERSONAS (#270/#271/#288 / #334). */
+export const PERSONA_COLLECTION_HINTS = buildPersonaCollectionHintsRecord();
 
 /** Internal persona "参照:" lines must not reach the user bubble (#270). */
-const PERSONA_REFERENCE_LINE =
-  /(?:^|\n)\s*(?:参照\s*[:：]|Kenのコレクション|Aoiのコレクション|ケンのコレクション|アオイのコレクション)/u;
+const PERSONA_REFERENCE_LINE = buildPersonaReferenceLinePattern();
 
 /** Labels Gemini sometimes leaks into text parts (#251). */
 const LEAKED_THINKING_LABEL =
@@ -205,30 +193,23 @@ export function inferPersonaKey(
   text: string,
   thinkingMessages: string[] = [],
 ): PersonaKey | null {
-  const kenHint = PERSONA_COLLECTION_HINTS.ken!;
-  const aoiHint = PERSONA_COLLECTION_HINTS.aoi!;
-  if (
-    text.includes(kenHint.collection) ||
-    /Kenの[『「].+?[』」]/.test(text) ||
-    /ケンの[『「].+?[』」]/.test(text)
-  ) {
-    return "ken";
-  }
-  if (
-    text.includes(aoiHint.collection) ||
-    /Aoiの[『「].+?[』」]/.test(text) ||
-    /アオイの[『「].+?[』」]/.test(text)
-  ) {
-    return "aoi";
+  for (const persona of AGENT_PERSONAS) {
+    if (
+      text.includes(persona.collectionName) ||
+      new RegExp(`${persona.displayName}の[『「].+?[』」]`).test(text) ||
+      (persona.key === "ken" && /ケンの[『「].+?[』」]/.test(text)) ||
+      (persona.key === "aoi" && /アオイの[『「].+?[』」]/.test(text))
+    ) {
+      return persona.key;
+    }
   }
 
   for (let i = thinkingMessages.length - 1; i >= 0; i--) {
     const message = thinkingMessages[i];
-    if (message === PERSONA_THINKING.ken) {
-      return "ken";
-    }
-    if (message === PERSONA_THINKING.aoi) {
-      return "aoi";
+    for (const persona of AGENT_PERSONAS) {
+      if (message === persona.thinkingLabel) {
+        return persona.key;
+      }
     }
   }
   return null;
