@@ -7,6 +7,11 @@ import { assert } from "./test-helpers/assert";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import {
+  decodeMapMarkerKey,
+  encodeMapMarkerKey,
+} from "../src/lib/places/map-marker-points";
+
 const root = join(process.cwd(), "src");
 
 function readSource(relativePath: string): string {
@@ -37,6 +42,14 @@ const mapView = readSource("components/collections/collection-spot-map-view.tsx"
 assert(mapView.includes("MapApiProvider"), "map view uses map api provider");
 assert(mapView.includes("mapPinIcon"), "map pins use rating-specific icons");
 assert(mapView.includes("CollectionSpotMapCard"), "map view shows mini card");
+assert(mapView.includes("points={markerPoints}"), "map viewport receives coordinate points");
+
+const markerKey = encodeMapMarkerKey([
+  { lat: 35.658, lng: 139.701 },
+  { lat: 35.659, lng: 139.702 },
+]);
+assert(markerKey.includes("35.658,139.701"), "marker key encodes coordinates");
+assert(decodeMapMarkerKey(markerKey).length === 2, "marker key decodes coordinates");
 
 const mapPinIcon = readSource("lib/collections/map-pin-icon.ts");
 assert(mapPinIcon.includes("ratingPinColor"), "map pins use rating colors");

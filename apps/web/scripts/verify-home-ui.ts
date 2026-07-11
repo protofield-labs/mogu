@@ -184,6 +184,8 @@ function main() {
 
   const homeView = readSource("components/home/home-view.tsx");
   assert(homeView.includes("CollectionSpotViewTabs"), "home view includes list/map tabs");
+  assert(homeView.includes("loadHomeData"), "home view shares initial and refresh loader");
+  assert(homeView.includes("useAsyncLoadEffect"), "home view uses async load hook");
   assert(homeView.includes("HomeFeedMapView"), "home view includes feed map");
   assert(
     homeView.includes('feedViewMode === "map"'),

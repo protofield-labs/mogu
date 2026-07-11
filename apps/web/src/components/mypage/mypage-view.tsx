@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SurfaceCard } from "@/components/ui/card";
 import { LoadErrorState } from "@/components/ui/load-error-state";
-import { CollectionGrid } from "@/components/mypage/collection-grid";
+import { CollectionGrid, CollectionReorderGrid } from "@/components/mypage/collection-grid";
 import { MypageAccountSheet } from "@/components/mypage/mypage-account-sheet";
 import { MypageTopBar } from "@/components/mypage/mypage-top-bar";
 import { NavRow } from "@/components/ui/nav-row";
@@ -207,16 +207,19 @@ export function MypageView() {
         <p className="px-mogu-screen-x text-sm text-destructive">{loadError}</p>
       ) : null}
 
-      <CollectionGrid
-        collections={collectionsState.collections}
-        reorderMode={collectionsState.reorderMode}
-        reorderBusy={collectionsState.busy}
-        onMoveUp={(collection) => collectionsState.moveCollection(collection, "up")}
-        onMoveDown={(collection) =>
-          collectionsState.moveCollection(collection, "down")
-        }
-        onPinTop={collectionsState.pinCollectionToTop}
-      />
+      {collectionsState.reorderMode ? (
+        <CollectionReorderGrid
+          collections={collectionsState.collections}
+          reorderBusy={collectionsState.busy}
+          onMoveUp={(collection) => collectionsState.moveCollection(collection, "up")}
+          onMoveDown={(collection) =>
+            collectionsState.moveCollection(collection, "down")
+          }
+          onPinTop={collectionsState.pinCollectionToTop}
+        />
+      ) : (
+        <CollectionGrid collections={collectionsState.collections} />
+      )}
     </div>
   );
 }

@@ -18,6 +18,8 @@ const collectionGrid = readSource("components/mypage/collection-grid.tsx");
 assert(!collectionGrid.includes("onEdit"), "grid no longer exposes edit action");
 assert(!collectionGrid.includes("onDelete"), "grid no longer exposes delete action");
 assert(!collectionGrid.includes("Trash2"), "grid has no always-visible delete button");
+assert(collectionGrid.includes("CollectionReorderGrid"), "grid exposes reorder variant");
+assert(!collectionGrid.includes('href="#"'), "reorder variant does not hack link href");
 assert(collectionGrid.includes("onPinTop"), "grid keeps reorder pin-to-top");
 assert(collectionGrid.includes('aria-label="上へ"'), "grid keeps move-up control");
 assert(collectionGrid.includes('aria-label="下へ"'), "grid keeps move-down control");
@@ -47,6 +49,7 @@ const mypageView = readSource("components/mypage/mypage-view.tsx");
 assert(!mypageView.includes("editingCollection"), "mypage inline edit form removed");
 assert(!mypageView.includes("ConfirmDialog"), "mypage collection delete dialog removed");
 assert(mypageView.includes("reorderMode"), "mypage keeps reorder mode toggle");
+assert(mypageView.includes("CollectionReorderGrid"), "mypage uses reorder grid variant");
 
 const collectionsHook = readSource("lib/mypage/use-mypage-collections.ts");
 assert(!collectionsHook.includes("startEdit"), "hook no longer manages inline edit");

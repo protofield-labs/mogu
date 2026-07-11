@@ -37,6 +37,8 @@ assert(spotForm < 280, "spot-form slimmed");
 assert(spotList.includes("export function SpotList"), "spot list extracted");
 assert(friendsView < 200, "friends-view slimmed");
 assert(friendsHook.includes("export function useFriendsView"), "friends hook extracted");
+assert(friendsHook.includes("useFriendSearch"), "friend search hook extracted");
+assert(friendsHook.includes("runFriendRequestAction"), "friend request actions consolidated");
 assert(mypageView < 350, "mypage-view slimmed");
 assert(mypageHook.includes("export function useMypageCollections"), "mypage collections hook");
 assert(agentChat < 100, "agent-chat slimmed");

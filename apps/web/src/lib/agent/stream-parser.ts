@@ -29,7 +29,6 @@ export {
   inferPersonaKey,
   inferPersonaTasteEvidence,
   resolveAgentReplyText,
-  sanitizeAgentReplyText,
   stripDelegationNarration,
   stripLeakedThinkingText,
   stripPersonaReferenceLines,

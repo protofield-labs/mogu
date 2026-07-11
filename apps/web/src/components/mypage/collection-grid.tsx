@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Lock, Pin, ChevronDown, ChevronUp } from "lucide-react";
 
 import Link from "next/link";
@@ -17,17 +18,87 @@ type CollectionGridProps = {
   collections: Collection[];
   getCollectionHref?: (collection: Collection) => string;
   emptyMessage?: string;
-  reorderMode?: boolean;
-  reorderBusy?: boolean;
-  onMoveUp?: (collection: Collection) => void;
-  onMoveDown?: (collection: Collection) => void;
-  onPinTop?: (collection: Collection) => void;
 };
 
-function CollectionTile({
+type CollectionReorderGridProps = {
+  collections: Collection[];
+  emptyMessage?: string;
+  reorderBusy?: boolean;
+  onMoveUp: (collection: Collection) => void;
+  onMoveDown: (collection: Collection) => void;
+  onPinTop: (collection: Collection) => void;
+};
+
+function CollectionCoverFrame({
+  collection,
+  enterIndex,
+  children,
+}: {
+  collection: Collection;
+  enterIndex?: number;
+  children: ReactNode;
+}) {
+  const isSecret = collection.visibility === "secret";
+
+  return (
+    <article
+      className={cn("space-y-2", enterIndex !== undefined && moguEnterMotionClass)}
+      style={moguEnterDelayStyle(enterIndex)}
+    >
+      {children}
+      <p className="text-center text-xs text-muted-foreground">
+        {isSecret ? `${formatCollectionVisibility("secret")} ・ ` : ""}
+        {collection.spotCount}軒
+      </p>
+    </article>
+  );
+}
+
+function CollectionCoverCard({ collection }: { collection: Collection }) {
+  const isSecret = collection.visibility === "secret";
+
+  return (
+    <div
+      className={cn(
+        "relative aspect-square overflow-hidden rounded-2xl bg-gradient-to-br from-muted to-background shadow-sm transition-shadow hover:shadow-md",
+        touchCardClass,
+      )}
+    >
+      <CollectionCover
+        name={collection.name}
+        coverUrl={collection.coverUrl}
+        autoCoverUrls={collection.autoCoverUrls}
+        className="size-full"
+      />
+      {isSecret ? (
+        <span className="absolute right-2 top-2 rounded-full bg-background/90 p-1.5 text-foreground shadow-sm">
+          <Lock className="size-3.5" aria-label="自分だけのコレクション" />
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function CollectionBrowseTile({
   collection,
   href,
-  reorderMode = false,
+  enterIndex,
+}: {
+  collection: Collection;
+  href: string;
+  enterIndex?: number;
+}) {
+  return (
+    <CollectionCoverFrame collection={collection} enterIndex={enterIndex}>
+      <Link href={href} className="block" aria-label={collection.name}>
+        <CollectionCoverCard collection={collection} />
+      </Link>
+    </CollectionCoverFrame>
+  );
+}
+
+function CollectionReorderTile({
+  collection,
   onMoveUp,
   onMoveDown,
   onPinTop,
@@ -37,97 +108,58 @@ function CollectionTile({
   enterIndex,
 }: {
   collection: Collection;
-  href: string;
-  reorderMode?: boolean;
-  onMoveUp?: (collection: Collection) => void;
-  onMoveDown?: (collection: Collection) => void;
-  onPinTop?: (collection: Collection) => void;
+  onMoveUp: (collection: Collection) => void;
+  onMoveDown: (collection: Collection) => void;
+  onPinTop: (collection: Collection) => void;
   disableMoveUp?: boolean;
   disableMoveDown?: boolean;
   reorderBusy?: boolean;
   enterIndex?: number;
 }) {
-  const isSecret = collection.visibility === "secret";
-
   return (
-    <article
-      className={cn("space-y-2", enterIndex !== undefined && moguEnterMotionClass)}
-      style={moguEnterDelayStyle(enterIndex)}
-    >
-      <Link
-        href={reorderMode ? "#" : href}
-        className="block"
-        aria-label={collection.name}
-        onClick={(event) => {
-        if (reorderMode) {
-          event.preventDefault();
-        }
-      }}
-      >
-        <div
+    <CollectionCoverFrame collection={collection} enterIndex={enterIndex}>
+      <div className="block" aria-label={collection.name}>
+        <CollectionCoverCard collection={collection} />
+      </div>
+      <div className="flex gap-1.5">
+        <button
+          type="button"
+          disabled={disableMoveUp || reorderBusy}
+          onClick={() => onPinTop(collection)}
           className={cn(
-            "relative aspect-square overflow-hidden rounded-2xl bg-gradient-to-br from-muted to-background shadow-sm transition-shadow hover:shadow-md",
-            touchCardClass,
+            "inline-flex min-h-11 flex-1 items-center justify-center gap-1 rounded-xl bg-mogu-surface-elevated text-xs font-medium shadow-sm disabled:opacity-40",
+            touchRowClass,
           )}
         >
-          <CollectionCover
-            name={collection.name}
-            coverUrl={collection.coverUrl}
-            autoCoverUrls={collection.autoCoverUrls}
-            className="size-full"
-          />
-          {isSecret ? (
-            <span className="absolute right-2 top-2 rounded-full bg-background/90 p-1.5 text-foreground shadow-sm">
-              <Lock className="size-3.5" aria-label="自分だけのコレクション" />
-            </span>
-          ) : null}
-        </div>
-      </Link>
-      <p className="text-center text-xs text-muted-foreground">
-        {isSecret ? `${formatCollectionVisibility("secret")} ・ ` : ""}
-        {collection.spotCount}軒
-      </p>
-      {reorderMode ? (
-        <div className="flex gap-1.5">
-          <button
-            type="button"
-            disabled={disableMoveUp || reorderBusy}
-            onClick={() => onPinTop?.(collection)}
-            className={cn(
-              "inline-flex min-h-11 flex-1 items-center justify-center gap-1 rounded-xl bg-mogu-surface-elevated text-xs font-medium shadow-sm disabled:opacity-40",
-              touchRowClass,
-            )}
-          >
-            <Pin className="size-3" aria-hidden />
-            先頭
-          </button>
-          <button
-            type="button"
-            disabled={disableMoveUp || reorderBusy}
-            onClick={() => onMoveUp?.(collection)}
-            className={cn(
-              "inline-flex size-11 items-center justify-center rounded-xl bg-mogu-surface-elevated shadow-sm disabled:opacity-40",
-              touchRowClass,
-            )}
-            aria-label="上へ"
-          >
-            <ChevronUp className="size-4" aria-hidden />
-          </button>
-          <button
-            type="button"
-            disabled={disableMoveDown || reorderBusy}
-            onClick={() => onMoveDown?.(collection)}
-            className={cn(
-              "inline-flex size-11 items-center justify-center rounded-xl bg-mogu-surface-elevated shadow-sm disabled:opacity-40",
-              touchRowClass,
-            )}
-            aria-label="下へ"
-          >
-            <ChevronDown className="size-4" aria-hidden />
-          </button>
-        </div>
-      ) : null}
-    </article>
+          <Pin className="size-3" aria-hidden />
+          先頭
+        </button>
+        <button
+          type="button"
+          disabled={disableMoveUp || reorderBusy}
+          onClick={() => onMoveUp(collection)}
+          className={cn(
+            "inline-flex size-11 items-center justify-center rounded-xl bg-mogu-surface-elevated shadow-sm disabled:opacity-40",
+            touchRowClass,
+          )}
+          aria-label="上へ"
+        >
+          <ChevronUp className="size-4" aria-hidden />
+        </button>
+        <button
+          type="button"
+          disabled={disableMoveDown || reorderBusy}
+          onClick={() => onMoveDown(collection)}
+          className={cn(
+            "inline-flex size-11 items-center justify-center rounded-xl bg-mogu-surface-elevated shadow-sm disabled:opacity-40",
+            touchRowClass,
+          )}
+          aria-label="下へ"
+        >
+          <ChevronDown className="size-4" aria-hidden />
+        </button>
+      </div>
+    </CollectionCoverFrame>
   );
 }
 
@@ -135,11 +167,6 @@ export function CollectionGrid({
   collections,
   getCollectionHref = (collection) => collectionPath(collection.id),
   emptyMessage = "まだコレクションがありません。最初のコレクションを作ってみましょう。",
-  reorderMode = false,
-  reorderBusy = false,
-  onMoveUp,
-  onMoveDown,
-  onPinTop,
 }: CollectionGridProps) {
   return (
     <section className="space-y-4 px-mogu-screen-x">
@@ -148,11 +175,37 @@ export function CollectionGrid({
       ) : (
         <div className="grid grid-cols-2 gap-3">
           {collections.map((collection, index) => (
-            <CollectionTile
+            <CollectionBrowseTile
               key={collection.id}
               collection={collection}
               href={getCollectionHref(collection)}
-              reorderMode={reorderMode}
+              enterIndex={index}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+export function CollectionReorderGrid({
+  collections,
+  emptyMessage = "まだコレクションがありません。最初のコレクションを作ってみましょう。",
+  reorderBusy = false,
+  onMoveUp,
+  onMoveDown,
+  onPinTop,
+}: CollectionReorderGridProps) {
+  return (
+    <section className="space-y-4 px-mogu-screen-x">
+      {collections.length === 0 ? (
+        <EmptyState>{emptyMessage}</EmptyState>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          {collections.map((collection, index) => (
+            <CollectionReorderTile
+              key={collection.id}
+              collection={collection}
               onMoveUp={onMoveUp}
               onMoveDown={onMoveDown}
               onPinTop={onPinTop}
