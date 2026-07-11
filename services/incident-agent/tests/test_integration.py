@@ -14,8 +14,11 @@ from app.embedding import DeterministicEmbeddingClient
 from app.ingest import IngestService
 from app.keys import compute_incident_key
 from app.masking import mask_alert
+from app.noise import InvestigationReady
 from app.owner import renew_owner_lease, save_owner_analysis
 from tests.conftest import requires_docker_pg
+
+ZERO_VECTOR = "[" + ",".join(["0"] * 768) + "]"
 
 
 def _test_settings(**overrides) -> Settings:
@@ -101,7 +104,9 @@ class TestNoiseControlIntegration:
         result1 = service.handle_pubsub(body, deadline)
         result2 = service.handle_pubsub(body, deadline)
 
-        assert result1.status_code in (200, 503)
+        assert isinstance(result1, InvestigationReady)
+        assert result2.status_code == 503
+        assert result2.body == {"error": "owner lease active"}
         with db.connection() as conn:
             row = conn.execute(
                 "SELECT COUNT(*) AS cnt FROM ops.alert_deliveries WHERE message_id = %s",
@@ -263,20 +268,20 @@ class TestStormMerge:
             conn.execute(
                 """
                 INSERT INTO ops.incidents (id, incident_key, alert_policy, resource, raw_alert, status,
-                    incident_kind, storm_key, investigation_token, lease_expires_at)
+                    incident_kind, storm_key, investigation_token, lease_expires_at, embedding)
                 VALUES (%s, 'storm-key', 'dev-web-latency', 'cloud_run/dev-web', '{}', 'investigating',
-                    'storm', 'storm-key', %s, now() + interval '600 seconds')
+                    'storm', 'storm-key', %s, now() + interval '600 seconds', %s::vector)
                 """,
-                (storm_id, token),
+                (storm_id, token, ZERO_VECTOR),
             )
             conn.execute(
                 """
                 INSERT INTO ops.incidents (id, incident_key, alert_policy, resource, raw_alert, status,
-                    investigation_token, lease_expires_at)
+                    investigation_token, lease_expires_at, embedding)
                 VALUES (%s, 'normal-key', 'dev-web-latency', 'cloud_run/dev-web', '{}', 'investigating',
-                    %s, now() + interval '600 seconds')
+                    %s, now() + interval '600 seconds', %s::vector)
                 """,
-                (normal_id, uuid.uuid4()),
+                (normal_id, uuid.uuid4(), ZERO_VECTOR),
             )
             conn.execute(
                 """
@@ -329,11 +334,11 @@ class TestOwnerCAS:
             conn.execute(
                 """
                 INSERT INTO ops.incidents (id, incident_key, alert_policy, resource, raw_alert, status,
-                    investigation_token, lease_expires_at)
+                    investigation_token, lease_expires_at, embedding)
                 VALUES (%s, 'key-1', 'dev-web-latency', 'cloud_run/dev-web', '{}', 'investigating',
-                    %s, now() + interval '600 seconds')
+                    %s, now() + interval '600 seconds', %s::vector)
                 """,
-                (incident_id, token),
+                (incident_id, token, ZERO_VECTOR),
             )
             conn.execute(
                 """
@@ -381,11 +386,11 @@ class TestOwnerCAS:
             conn.execute(
                 """
                 INSERT INTO ops.incidents (id, incident_key, alert_policy, resource, raw_alert, status,
-                    investigation_token, lease_expires_at, attempt_count)
+                    investigation_token, lease_expires_at, attempt_count, embedding)
                 VALUES (%s, 'key-2', 'dev-web-latency', 'cloud_run/dev-web', '{}', 'investigating',
-                    %s, %s, 1)
+                    %s, %s, 1, %s::vector)
                 """,
-                (incident_id, token, expired),
+                (incident_id, token, expired, ZERO_VECTOR),
             )
             conn.execute(
                 """
@@ -450,7 +455,7 @@ class TestOwnerCAS:
                     (
                         incident_id,
                         key,
-                        "[" + ",".join(["0"] * 768) + "]",
+                        ZERO_VECTOR,
                         token,
                     ),
                 )
