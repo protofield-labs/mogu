@@ -110,13 +110,20 @@ CREATE UNIQUE INDEX incidents_open_incident_key
   WHERE resolved_at IS NULL AND status <> 'merged';
 CREATE INDEX ON ops.incidents (resource, last_seen_at DESC)
   WHERE resolved_at IS NULL AND status <> 'merged';
+CREATE UNIQUE INDEX incidents_open_slack_thread
+  ON ops.incidents (slack_team, slack_channel, slack_thread)
+  WHERE resolved_at IS NULL
+    AND status <> 'merged'
+    AND slack_team IS NOT NULL
+    AND slack_channel IS NOT NULL
+    AND slack_thread IS NOT NULL;
 
 CREATE TABLE ops.alert_deliveries (
   message_id  text PRIMARY KEY,          -- Pub/Sub message.messageId
   incident_id uuid REFERENCES ops.incidents(id),
   is_owner    boolean NOT NULL DEFAULT false,
-  status      text NOT NULL DEFAULT 'processing'
-    CHECK (status IN ('processing', 'completed')),
+  status      text NOT NULL DEFAULT 'received'
+    CHECK (status IN ('received', 'processing', 'completed')),
   received_at timestamptz NOT NULL DEFAULT now(),
   completed_at timestamptz
 );
@@ -138,6 +145,23 @@ CREATE TABLE ops.slack_events (
   completed_at timestamptz
 );
 CREATE INDEX ON ops.slack_events (received_at);
+
+CREATE TABLE ops.outbox (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  incident_id     uuid NOT NULL REFERENCES ops.incidents(id),
+  destination     text NOT NULL
+    CHECK (destination IN ('slack', 'github_issue', 'github_comment')),
+  idempotency_key text NOT NULL UNIQUE,
+  payload         jsonb NOT NULL,         -- §7-10サニタイズ済み
+  status          text NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'sending', 'sent', 'failed')),
+  attempt_count   int NOT NULL DEFAULT 0 CHECK (attempt_count BETWEEN 0 AND 10),
+  lease_expires_at timestamptz,
+  external_ref    text,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  sent_at         timestamptz
+);
+CREATE INDEX ON ops.outbox (status, created_at);
 
 CREATE TABLE ops.budget_usage (
   usage_date          date PRIMARY KEY,
@@ -238,7 +262,7 @@ playbooks/
 3. **多層ノイズ制御**: §9参照。Issue数をインシデント数に収束させる。
 4. **コストサーキットブレーカー**: ingestとSlack workerは`ops.budget_usage`を共有する。L1〜L3通過後かつembedding API前に`embedding_count`を、L4非該当後かつLoopAgent前に`investigation_count`を行ロック下で別々に予約する。各日次上限と1調査トークン上限を強制し、予約失敗時は高価な処理を呼ばずfail-closed。I6は`investigation_count`を共有し、incident排他+user/thread時間レートも適用する。
 5. **ログはデータとして扱う**: ログ本文内の指示には従わない旨をシステムプロンプトに明記。書き込み権限がない(1.)ことで実害を構造遮断。
-6. **タイムアウトと再試行**: Cloud Runのリクエストタイムアウト(300s)が1回の調査上限。Pub/Sub ingestは分析+出力の永続化完了後にのみ2xxを返し、早期ACKしない。過渡障害は5xxでPub/Sub再送に委ね、期限切れleaseを原子的に引き継ぐ。3回失敗時はLLMなしの固定文でSlack/Issueへエスカレーションし、通知永続化まで5xxを返す。
+6. **タイムアウトと再試行**: Cloud Runの300sが1回の調査上限。Pub/Sub ingestは分析結果とサニタイズ済みoutbox行を同一transactionで永続化してから2xxを返す。外部Slack/GitHub APIはtransaction内で呼ばず、Cloud Tasks駆動のoutbox workerがidempotency key+leaseで送信する。過渡障害は各workerの再試行に委ね、3回調査失敗時も固定文outboxを永続化して`escalated`へ遷移する。
 7. **本番不変**: 環境を変更するツールを持たせない。緩和は推奨としてissueに書くだけ。実行は人間(Phase BでもToolConfirmationによる人間承認を必須とする)。
 8. **Slack対話(I6)の追加ガード**: 署名+5分timestampを検証後、`event_id`と決定論的Cloud Tasks名を原子的に登録し、Task enqueue後だけ200 ACKする。workerはlease+最大3回で処理する。許可主体は設定値`ALLOWED_SLACK_TEAM_IDS` / `ALLOWED_SLACK_CHANNEL_IDS` / `ALLOWED_SLACK_USER_IDS`の3つすべてに一致する場合のみとし、未設定・空・不一致は拒否する。channel allowlistは一次通知先と一致させ、user allowlistはon-call/運用担当だけを登録する。workerはSlack複合キー、未解決状態、GitHub Issue、3 allowlist、incidentのresource allowlistを実行直前に再検証する。
 9. **受信エンドポイントの認証**: `incident-agent-ingest` はunauthenticated禁止。Pub/Sub pushはOIDC JWTの署名・issuer・audience(ingestのCloud Run URL)を検証し、push用SAのみ `run.invoker`。受信した`resource`は監視対象allowlist(Phase Aでは`cloud_run/dev-web`等の明示設定値)に一致する場合のみ許可し、不一致はfail-closed。`incident-alerts`へのpublish権限はCloud Monitoring通知サービスエージェントのみに付与する。`incident-agent-slack` はSlack Events到達のため公開するが、§7-8の署名検証をアプリ層の必須境界とする。
@@ -278,20 +302,22 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 
 ノイズ制御の判定と新規調査の開始を分離すると、Issue作成前の同時アラートがすべて「既存なし」と判定して重複調査を開始する。これを防ぐため、I2はDB状態遷移を短いトランザクションとadvisory lockで強制する(API呼び出し中にDB transactionを保持しない)。
 
-1. 認証後、Pub/Sub `message.messageId`を`ops.alert_deliveries`へ原子的に挿入する。既存messageIdなら`alert_count`を更新しない。`completed`なら2xx、`processing AND is_owner=true`なら対応incidentのlease回復判定へ進む。初回messageIdが既存incidentへL1/L2/L4集約された場合は件数を1回だけ更新してdeliveryをcompletedにし2xx。新規incidentを作るmessageIdだけ`is_owner=true`として分析完了までprocessingに保つ。
+1. 認証後、Pub/Sub `message.messageId`を`status='received'`で原子的に挿入する。既存messageIdなら`alert_count`を更新しない。`completed`は2xx、`processing AND is_owner=true`はlease回復へ進み、`received`はowner確定前にクラッシュした処理としてノイズ制御を再開する。既存incidentへ集約した場合はincident更新とdelivery completedを同一transactionで行う。新規incident作成時は、incident挿入とdeliveryの`incident_id`/`is_owner=true`/`status='processing'`更新を同一transactionで行い、owner未確定の中間状態を残さない。
 2. リソース単位のtransaction advisory lock内でL1/L2を再チェックする。別messageIdがヒットした場合だけ対象incidentの`alert_count`/`last_seen_at`を更新し、そのdeliveryをcompletedにして2xxを返す。
 3. L3閾値に達したら通常フローから**排他的にストーム分岐**する。時間bucket+共通属性の`storm_key`でadvisory lockを取得し、同bucketのストーム行があれば集約して終了する。なければ1件だけがembedding/調査予算を予約してストーム用`investigating`行を作り、共通調査を開始する。L3ヒット後はL4検索・個別行作成へ進まない。
 4. L1〜L3がすべて非該当の場合だけ、`embedding_count`を原子的に予約してembeddingを生成する。L4用lock内で再チェックし、類似先があれば集約して終了する。
 5. L4も非該当の場合だけ`investigation_count`を予約し、embedding入り`investigating`行をLoopAgent前に挿入する。このmessageIdをowner deliveryとしてincidentへ紐付ける。
 6. 調査中の行へ別messageIdのアラートが集約された場合はDBの`alert_count`へ1回だけ記録し、Issue作成時に集約数を本文へ反映する。
-7. owner deliveryの調査オーナーはtoken+leaseを持つ。leaseはリクエスト開始から295秒で切れ、300秒上限直前に引継ぎ可能にする。期限切れ時はCASで1件だけがattemptを増やす。lease有効中の同じowner message再送だけ5xxで維持し、古いtokenの書き込みを拒否する。
-8. 分析+出力永続化または3回失敗fallback完了時にowner deliveryをcompletedへ更新して2xxを返す。これ以後の同一messageId再送は即2xxとなる。
+7. owner deliveryの調査オーナーはtoken+leaseを持つ。leaseはリクエスト開始から295秒で切れる。期限切れ時は`WHERE investigation_token=:old AND lease_expires_at<=now()`のCASで`investigation_token=gen_random_uuid()`、lease延長、attempt+1を同時更新し、新tokenを得た1件だけが引き継ぐ。古いtokenの書き込みを拒否する。
+8. 成功時は分析結果、サニタイズ済みSlack/GitHub outbox、incidentの`analyzed`遷移、owner delivery completedを同一transactionで永続化する。3回失敗時も固定文outbox、incident `escalated`、delivery completedを同一transactionで保存する。
 
 ## 10. Issue起票のタイミングとライフサイクル
 
 **一次切り分け完了時に起票する**(アラート受信時ではない)。理由: ①issue本文に仮説・根拠・推奨が入った状態で生まれ、開いた瞬間にactionable ②§9の多層ノイズ制御を通過済みのためissueが荒れない ③人間承認待ちにしないことで記録漏れを防ぐ。役割分担: **GitHub Issue=記録(ストック)、Slackスレッド=対話(フロー)**。
 
 **Issueライフサイクル**: 1インシデント=1 Issue。後続の関連アラート(L2/L4)・二次切り分けの発見(§11)は、すべて該当issueへのコメントとして積む。ストーム時(L3)はストーム宣言issueが1本のみ。
+
+**外部出力のoutbox**: Slack/GitHub書き込みは`ops.outbox`を経由する。`idempotency_key`は`incident_id+destination+event_type+sequence`から決定論的に生成する。workerはleaseを取得し、Slackではclient message ID、GitHubではIssue本文の非表示incident marker/保存済み`external_ref`を使って送信前にも重複確認する。送信成功後に`sent`+`external_ref`を保存し、失敗は最大10回再試行後`failed`として運用アラートを出す。
 
 **解決・RCAレビュー**: GitHub Issueを閉じただけでは過去事例検索へ昇格しない。運用者が専用CLI `review_incident` にincident UUID・最終RCA要約・reviewer IDを明示して実行し、同一トランザクションで`status='resolved'` / `resolved_at` / `rca_reviewed=true` / `reviewed_at` / `reviewed_by`を更新する。CLIはops reviewer用DB資格情報を使い、AgentランタイムSAや公開エンドポイントから呼べないようにする。未レビューの解決事例は保存されるが`search_similar_incidents`から除外する。
 
@@ -335,6 +361,7 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 - `incident-agent-ingest`はunauthenticated禁止。push用SAのみ `roles/run.invoker`
 - Slack Events用Cloud Run `incident-agent-slack`は公開し、Slack署名検証を必須化。ingestとコード/イメージは共有するがサービス・入口・IAMを分離
 - Slack追調査用Cloud Tasks queue。slack SAにqueue限定`roles/cloudtasks.enqueuer`、Task用SAにingest worker限定`roles/run.invoker`
+- Slack/GitHub outbox配信用Cloud Tasks queue(または同queueの別routing)。Task用SAだけが非公開outbox workerをinvoke
 - Cloud Monitoring アラートポリシー + 通知チャネル(Pub/Sub)
 - incident-agent 用サービスアカウント(§7のIAMロール。`roles/aiplatform.user`を含む)
 - incident-agent 用Cloud Run 2サービス(ingest/slack)。デプロイパイプラインはアプリと分離
@@ -348,10 +375,10 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 
 | # | issue | 依存 | ファイル境界 | 受け入れ条件シード |
 | --- | --- | --- | --- | --- |
-| I1 | opsスキーマ+incidents/alert_deliveries/slack_events/budget_usageテーブル | なし | `services/incident-agent/db/**` | Pub/Sub messageId/owner状態、295秒lease、RCA review、Slack task、段階予算を含むDDL/制約/権限分離 |
-| I2 | 受け口(Pub/Sub push受信+L1〜L4ノイズ制御+自己除外+コストブレーカー) | I1, §14 | `services/incident-agent/app/**` | messageIdを最初にdedupe。別deliveryは1回集約+2xx、owner再送だけlease回復。L3排他、段階予算、fallback、認証/秘匿化 |
+| I1 | opsスキーマ+incidents/alert_deliveries/slack_events/outbox/budget_usage | なし | `services/incident-agent/db/**` | delivery状態、lease、Slack複合UNIQUE、RCA review、outbox idempotency、段階予算を含むDDL |
+| I2 | 受け口(Pub/Sub push受信+L1〜L4ノイズ制御+自己除外+コストブレーカー) | I1, §14 | `services/incident-agent/app/**` | receivedは再開可能。incident+owner確定を同一transaction。CASでtoken再発行。fallbackはincident escalated+delivery completed |
 | I3 | LoopAgent+3ツール+プレイブック注入 | I2 | `services/incident-agent/agent/**`, `playbooks/**` | 過去事例はresolved+rca_reviewedのみ。resource固定、playbook固定map+containment。LLM/受信値による対象拡大を拒否 |
-| I4 | 出力(Slack通知+GitHub Issue起票+ops保存)+RCAレビューCLI | I3 | `services/incident-agent/app/**`, `services/incident-agent/scripts/**` | 安全なSlack/Issue出力、予約行をanalyzedへ遷移。review_incident CLIのみが人間確認後にresolved+rca_reviewedへ更新 |
+| I4 | outbox出力(Slack+GitHub)+RCAレビューCLI | I3, §14 | `services/incident-agent/app/**`, `services/incident-agent/scripts/**` | 分析+outbox+analyzedを原子的保存。workerはlease/idempotencyで送信。review CLIのみresolved+rca_reviewedへ更新 |
 | I5 | otel_to_cloud+圧縮率メトリクス(受信アラート→インシデント→Issue) | I4 | `services/incident-agent/**`(設定のみ) | Cloud Traceにマスキング済み要約/メタデータのみ送出(生ログ・ツール結果・プロンプト禁止)。圧縮率がダッシュボードで見える |
 | I6 | Slack対話型二次切り分け(app_mention→session=incident UUID→追調査→スレッド返信+issueコメント追記) | I4, §14 | `services/incident-agent/app/**` | 耐久Task+lease。ingest共有日次予算、incident排他、user+threadレート。incident UUID session、未解決/default-deny/サニタイズ |
 
