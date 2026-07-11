@@ -97,11 +97,12 @@ CREATE TABLE ops.incidents (
   slack_team     text,
   slack_channel  text,
   slack_thread   text,                   -- thread_ts。I6のsession_idはincidentのidを使う
-  embedding      vector(768) NOT NULL,   -- I2の調査予約時に保存。gemini-embedding-001 / output_dimensionality=768
+  embedding      vector(768),            -- 通常調査は必須。embedding失敗escalationのみNULL
   created_at     timestamptz NOT NULL DEFAULT now(),
   resolved_at    timestamptz,
   CHECK ((status = 'resolved') = (resolved_at IS NOT NULL)),
-  CHECK ((status = 'merged') = (merged_into IS NOT NULL))
+  CHECK ((status = 'merged') = (merged_into IS NOT NULL)),
+  CHECK (status IN ('escalated', 'merged') OR embedding IS NOT NULL)
 );
 CREATE INDEX ON ops.incidents USING hnsw (embedding vector_cosine_ops);
 CREATE INDEX ON ops.incidents (created_at DESC);
@@ -120,10 +121,19 @@ CREATE UNIQUE INDEX incidents_open_slack_thread
 
 CREATE TABLE ops.alert_deliveries (
   message_id  text PRIMARY KEY,          -- Pub/Sub message.messageId
+  resource    text NOT NULL,
+  incident_key text NOT NULL,
+  sanitized_alert jsonb NOT NULL,
   incident_id uuid REFERENCES ops.incidents(id),
   is_owner    boolean NOT NULL DEFAULT false,
   status      text NOT NULL DEFAULT 'received'
-    CHECK (status IN ('received', 'processing', 'completed')),
+    CHECK (status IN ('received', 'embedding', 'processing', 'completed')),
+  work_token  uuid NOT NULL DEFAULT gen_random_uuid(),
+  work_lease_expires_at timestamptz,
+  embedding_reserved boolean NOT NULL DEFAULT false,
+  embedding_attempt_count int NOT NULL DEFAULT 0
+    CHECK (embedding_attempt_count BETWEEN 0 AND 3),
+  embedding vector(768),
   received_at timestamptz NOT NULL DEFAULT now(),
   completed_at timestamptz
 );
@@ -302,14 +312,15 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 
 ノイズ制御の判定と新規調査の開始を分離すると、Issue作成前の同時アラートがすべて「既存なし」と判定して重複調査を開始する。これを防ぐため、I2はDB状態遷移を短いトランザクションとadvisory lockで強制する(API呼び出し中にDB transactionを保持しない)。
 
-1. 認証後、Pub/Sub `message.messageId`を`status='received'`で原子的に挿入する。既存messageIdなら`alert_count`を更新しない。`completed`は2xx、`processing AND is_owner=true`はlease回復へ進み、`received`はowner確定前にクラッシュした処理としてノイズ制御を再開する。既存incidentへ集約した場合はincident更新とdelivery completedを同一transactionで行う。新規incident作成時は、incident挿入とdeliveryの`incident_id`/`is_owner=true`/`status='processing'`更新を同一transactionで行い、owner未確定の中間状態を残さない。
+1. 認証・resource検証・マスキング後、Pub/Sub `messageId`と`resource`/`incident_key`/`sanitized_alert`を`status='received'`で原子的に挿入する。再送はDB保存値を正としてpayloadを再解釈しない。completedは2xx、embeddingは専用lease回復、processing ownerは調査lease回復、receivedはノイズ制御を再開する。
 2. リソース単位のtransaction advisory lock内でL1/L2を再チェックする。別messageIdがヒットした場合だけ対象incidentの`alert_count`/`last_seen_at`を更新し、そのdeliveryをcompletedにして2xxを返す。
 3. L3閾値に達したら通常フローから**排他的にストーム分岐**する。時間bucket+共通属性の`storm_key`でadvisory lockを取得し、同bucketのストーム行があれば集約して終了する。なければ1件だけがembedding/調査予算を予約してストーム用`investigating`行を作り、共通調査を開始する。L3ヒット後はL4検索・個別行作成へ進まない。
-4. L1〜L3がすべて非該当の場合だけ、`embedding_count`を原子的に予約してembeddingを生成する。
-5. embedding生成後、L4用advisory lockを取得した**同一transaction内**で未解決類似を再検索する。ヒット時は集約+delivery completed。非該当時はlockを保持したまま`investigation_count`予約、embedding入りincident挿入、deliveryのowner processing更新まで完了してからcommitする。これにより2件が同時にL4非該当から個別行を作らない。
-6. 別messageIdを集約する際、incidentがinvestigatingなら`alert_count`だけ更新し、初回Issue本文に反映する。analyzed/escalatedなら`alert_count`更新と`github_comment` outbox作成を同一transactionで行う。`github_issue`が未設定ならworkerはcommentを送らずpendingのまま待ち、Issue outbox成功後に再実行する。idempotency keyへmessageIdを含めて1回だけコメントする。
-7. owner deliveryはtoken+300秒leaseを持つ。アプリdeadlineは270秒で、制御可能なtimeoutはleaseを即時失効させる。期限切れ時はCASでtoken再発行、lease延長、attempt+1を同時更新し、新tokenを得た1件だけが引き継ぐ。古いtokenの書き込みを拒否する。
-8. 成功時は分析結果、サニタイズ済みSlack/GitHub outbox、incidentの`analyzed`遷移、owner delivery completedを同一transactionで永続化する。3回失敗時も固定文outbox、incident `escalated`、delivery completedを同一transactionで保存する。
+4. L1〜L3非該当時、短いtransactionで`embedding_reserved=false`なら`embedding_count`を1回だけ予約し、deliveryを`embedding`、attempt+1、新work_token、60秒leaseへCAS更新する。API成功時はtoken一致条件でembedding保存+`received`へ戻す。クラッシュ時はlease後にtokenを再発行してAPIだけ再試行し、予算を二重計上しない。
+5. deliveryにembeddingが保存された後、L4用lockの同一transaction内で再検索する。hitは集約+completed。missは調査予算予約、incident挿入、delivery owner processingまで原子的に行う。
+6. embedding予算超過、embedding API 3回失敗、または調査予算超過時はLoopAgentを呼ばない。`status='escalated'`のincident(embedding取得失敗時のみNULL可)+固定文outbox+delivery completedを同一transactionで作り、必ず記録・通知経路へ収束させる。
+7. 別messageId集約時、investigatingはcountだけ更新。analyzed/escalatedはcount+messageId付きcomment outboxを原子的に作り、Issue ref未設定ならpendingで待つ。
+8. owner deliveryはtoken+300秒leaseを持つ。app deadlineは270秒。期限切れ時はCASでtoken再発行、lease延長、attempt+1を同時更新し、古いtokenの書き込みを拒否する。
+9. 成功時は分析+outbox+analyzed+delivery completedを同一transactionで保存する。3回調査失敗時も固定文outbox+escalated+delivery completedを原子的に保存する。
 
 ## 10. Issue起票のタイミングとライフサイクル
 
@@ -376,8 +387,8 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 
 | # | issue | 依存 | ファイル境界 | 受け入れ条件シード |
 | --- | --- | --- | --- | --- |
-| I1 | opsスキーマ+incidents/alert_deliveries/slack_events/outbox/budget_usage | なし | `services/incident-agent/db/**` | delivery状態、300秒lease、Slack複合UNIQUE、RCA review、outbox idempotency、段階予算を含むDDL |
-| I2 | 受け口(Pub/Sub push受信+L1〜L4ノイズ制御+自己除外+コストブレーカー) | I1, §14 | `services/incident-agent/app/**` | app deadline 270秒/lease 300秒。L4原子確保。analyzed集約はIssue未送信でも依存付きcomment outboxへ保存 |
+| I1 | opsスキーマ+incidents/alert_deliveries/slack_events/outbox/budget_usage | なし | `services/incident-agent/db/**` | deliveryにsanitized入力/embedding checkpoint/lease、incident embedding条件、outbox/予算/各制約 |
+| I2 | 受け口(Pub/Sub push受信+L1〜L4ノイズ制御+自己除外+コストブレーカー) | I1, §14 | `services/incident-agent/app/**` | embedding予算1回予約+60秒lease checkpoint。各予算/API失敗はescalated+outboxへ収束。L4/owner/集約冪等化 |
 | I3 | LoopAgent+3ツール+プレイブック注入 | I2 | `services/incident-agent/agent/**`, `playbooks/**` | 過去事例はresolved+rca_reviewedのみ。resource固定、playbook固定map+containment。LLM/受信値による対象拡大を拒否 |
 | I4 | outbox出力(Slack+GitHub)+RCAレビューCLI | I3, §14 | `services/incident-agent/app/**`, `services/incident-agent/scripts/**` | private workerが送信し、成功refをincidentへ原子的反映。I6はSlack/GitHub ref完備まで拒否。review CLIのみRCA承認 |
 | I5 | otel_to_cloud+圧縮率メトリクス(受信アラート→インシデント→Issue) | I4 | `services/incident-agent/**`(設定のみ) | Cloud Traceにマスキング済み要約/メタデータのみ送出(生ログ・ツール結果・プロンプト禁止)。圧縮率がダッシュボードで見える |
