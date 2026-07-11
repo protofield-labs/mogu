@@ -75,15 +75,24 @@
 
 # ERD / API への影響
 
-## ERD: **変更なし(追加テーブルゼロ)**
+## ERD: **エージェント関連 2 テーブル追加(#153/#66)**
 
-チャット(2b)の会話状態はCloud SQLに置かず、**Vertex AI Sessions(Agent Engine)**に置く。
+チャット(2b)の**進行中の短期文脈**は Cloud SQL に置かず、**Vertex AI Sessions(Agent Engine)** に置く。一方、**相談履歴の永続化**と **SSE 再接続用イベント**のため、Cloud SQL に次の 2 テーブルを追加した。
 
-- 短期文脈(会話中の聞き返し・絞り込み)= Sessions。TTLで自動失効し、使い捨て
-- 長期記憶(嗜好・人格)= Memory Bank(既存計画)。**同一のAgent Engineインスタンスで両方賄える**
-- ファクト(スポット/コレクション/友達/フラグ)= Cloud SQL(既存ERDのまま)
+| 置き場所 | 役割 |
+| --- | --- |
+| **Vertex AI Sessions** | 進行中セッションの短期文脈(聞き返し・絞り込み)。TTL で自動失効 |
+| **`agent_consultations`** | 相談履歴スナップショット(一覧・再開用)。`entries`(JSONB) に表示用トランスクリプト。`vertex_session_id` と 1:1 |
+| **`agent_session_events`** | 思考進行イベントのインスタンス間リレー(SSE/ポーリング再接続) |
+| **Memory Bank** | 長期記憶(嗜好・人格)。既存計画。**同一 Agent Engine インスタンスで Sessions と両立** |
+| **既存 ERD** | ファクト(スポット/コレクション/友達/フラグ)。変更なし |
 
-理由: Cloud RunスケールでInMemoryは不可。DatabaseSessionService(Cloud SQL相乗り)も可能だが、ADKがスキーマを所有しバージョン更新で移行が発生するため、自前ERDと混ぜない方が安全。Memory Bank用に作るAgent Engineがセッションストアを兼ねるので追加コストほぼゼロ、かつ「Sessions+Memory Bankの使い分け」自体がGoogle Cloudらしい構成として記事の一節になる。
+- 短期文脈(会話中)= **Sessions のみ**。ADK がスキーマを所有するため、進行中の会話状態は自前 ERD に混ぜない
+- 相談履歴・イベントリプレイ= **Cloud SQL**(`agent_consultations`, `agent_session_events`)。ユーザー向け一覧/再開と SSE リレーは自前スキーマで RLS 管理
+- 長期記憶(嗜好・人格)= Memory Bank(既存計画)
+- ファクト(スポット/コレクション/友達/フラグ)= Cloud SQL(既存 ERD のまま)
+
+理由: Cloud Run スケールで InMemory は不可。DatabaseSessionService(Cloud SQL 相乗り)も可能だが、**ADK 所有の進行中会話**と**自前で永続化したい相談履歴**は分ける。Sessions で短期文脈、Cloud SQL で履歴スナップショットとイベントリレー、Memory Bank で長期記憶、という使い分けが Google Cloud らしい構成として記事の一節になる。
 
 マイページ3aの統計行(コレクションn/スポットn/友達n)もすべて既存テーブルのCOUNTで賄えるため、カラム追加なし。
 
