@@ -91,7 +91,7 @@ CREATE TABLE ops.incidents (
   last_seen_at   timestamptz NOT NULL DEFAULT now(),
   merged_into    uuid REFERENCES ops.incidents(id),
   investigation_token uuid NOT NULL DEFAULT gen_random_uuid(),
-  lease_expires_at timestamptz NOT NULL DEFAULT (now() + interval '295 seconds'),
+  lease_expires_at timestamptz NOT NULL DEFAULT (now() + interval '300 seconds'),
   attempt_count  int NOT NULL DEFAULT 1 CHECK (attempt_count BETWEEN 1 AND 3),
   github_issue   text,
   slack_team     text,
@@ -262,7 +262,7 @@ playbooks/
 3. **多層ノイズ制御**: §9参照。Issue数をインシデント数に収束させる。
 4. **コストサーキットブレーカー**: ingestとSlack workerは`ops.budget_usage`を共有する。L1〜L3通過後かつembedding API前に`embedding_count`を、L4非該当後かつLoopAgent前に`investigation_count`を行ロック下で別々に予約する。各日次上限と1調査トークン上限を強制し、予約失敗時は高価な処理を呼ばずfail-closed。I6は`investigation_count`を共有し、incident排他+user/thread時間レートも適用する。
 5. **ログはデータとして扱う**: ログ本文内の指示には従わない旨をシステムプロンプトに明記。書き込み権限がない(1.)ことで実害を構造遮断。
-6. **タイムアウトと再試行**: Cloud Runの300sが1回の調査上限。Pub/Sub ingestは分析結果とサニタイズ済みoutbox行を同一transactionで永続化してから2xxを返す。外部Slack/GitHub APIはtransaction内で呼ばず、Cloud Tasks駆動のoutbox workerがidempotency key+leaseで送信する。過渡障害は各workerの再試行に委ね、3回調査失敗時も固定文outboxを永続化して`escalated`へ遷移する。
+6. **タイムアウトと再試行**: Cloud Runは300秒、アプリの調査deadlineは270秒、owner leaseは300秒とする。通常のdeadline到達時は処理を中止してleaseを即時失効させ5xxを返す。プロセスクラッシュ時はleaseが先に切れるまで再送が待つため並行ownerを作らない。分析結果とoutboxは同一transactionで永続化後に2xx。外部APIはCloud Tasks workerがidempotency key+leaseで送信する。
 7. **本番不変**: 環境を変更するツールを持たせない。緩和は推奨としてissueに書くだけ。実行は人間(Phase BでもToolConfirmationによる人間承認を必須とする)。
 8. **Slack対話(I6)の追加ガード**: 署名+5分timestampを検証後、`event_id`と決定論的Cloud Tasks名を原子的に登録し、Task enqueue後だけ200 ACKする。workerはlease+最大3回で処理する。許可主体は設定値`ALLOWED_SLACK_TEAM_IDS` / `ALLOWED_SLACK_CHANNEL_IDS` / `ALLOWED_SLACK_USER_IDS`の3つすべてに一致する場合のみとし、未設定・空・不一致は拒否する。channel allowlistは一次通知先と一致させ、user allowlistはon-call/運用担当だけを登録する。workerはSlack複合キー、未解決状態、GitHub Issue、3 allowlist、incidentのresource allowlistを実行直前に再検証する。
 9. **受信エンドポイントの認証**: `incident-agent-ingest` はunauthenticated禁止。Pub/Sub pushはOIDC JWTの署名・issuer・audience(ingestのCloud Run URL)を検証し、push用SAのみ `run.invoker`。受信した`resource`は監視対象allowlist(Phase Aでは`cloud_run/dev-web`等の明示設定値)に一致する場合のみ許可し、不一致はfail-closed。`incident-alerts`へのpublish権限はCloud Monitoring通知サービスエージェントのみに付与する。`incident-agent-slack` はSlack Events到達のため公開するが、§7-8の署名検証をアプリ層の必須境界とする。
@@ -283,9 +283,9 @@ playbooks/
 | 層 | 判定 | コスト | ヒット時の動作 |
 | --- | --- | --- | --- |
 | **L1 ハッシュ完全一致** | Pub/Sub `messageId`を冪等化後、canonical JSONの`incident_key`が未解決行と一致か | ほぼ無料 | 別messageIdは1回だけ集約して2xx。同じowner messageIdの再送だけをlease回復へ回す。解決済みとの一致は再発として新規調査 |
-| **L2 グルーピング窓** | 同一リソースの直近15分に未解決インシデント(`resolved_at IS NULL AND status <> 'merged'`)があるか | 無料 | 新規調査せず既存行へ集約。Issue作成済みならコメント、調査中ならDBの集約数へ反映 |
+| **L2 グルーピング窓** | 同一リソースの直近15分に未解決インシデント(`resolved_at IS NULL AND status <> 'merged'`)があるか | 無料 | investigatingは件数へ反映。analyzed/escalatedはIssue参照の有無にかかわらず依存付きcomment outboxを作成 |
 | **L3 ストームブレーカー** | 全体レートが閾値超か(例: 5分で10件超) | 無料 | ストームモード。個別調査を全停止し、共通属性に対し調査1回・「ストーム宣言」issue 1本・Slack 1スレッドのみ。ストーム時こそLLM調査が高コストになるため、コスト制御(§7-4)と同一スイッチ |
-| **L4 embedding類似**(Phase A) | 新アラートのembeddingが直近の未解決インシデント(`resolved_at IS NULL AND status <> 'merged'`)とcos類似か(閾値超) | 中(埋込計算) | 既存行へ集約。Issue作成済みならコメント、調査中ならDBの集約数へ反映 |
+| **L4 embedding類似**(Phase A) | 新アラートのembeddingが直近の未解決インシデント(`resolved_at IS NULL AND status <> 'merged'`)とcos類似か(閾値超) | 中(埋込計算) | L2と同じ集約処理。新規調査・Issueは作らない |
 | すり抜け = 新規障害 | 上記すべて非該当 | 高(LoopAgent) | §4の一次切り分け → §10で新規Issue起票 |
 | (Phase B) トポロジー抑制 | `component_deps`+再帰CTEで親障害中の下流か | 低 | 子として親issueに吸収 |
 
@@ -307,8 +307,8 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 3. L3閾値に達したら通常フローから**排他的にストーム分岐**する。時間bucket+共通属性の`storm_key`でadvisory lockを取得し、同bucketのストーム行があれば集約して終了する。なければ1件だけがembedding/調査予算を予約してストーム用`investigating`行を作り、共通調査を開始する。L3ヒット後はL4検索・個別行作成へ進まない。
 4. L1〜L3がすべて非該当の場合だけ、`embedding_count`を原子的に予約してembeddingを生成する。
 5. embedding生成後、L4用advisory lockを取得した**同一transaction内**で未解決類似を再検索する。ヒット時は集約+delivery completed。非該当時はlockを保持したまま`investigation_count`予約、embedding入りincident挿入、deliveryのowner processing更新まで完了してからcommitする。これにより2件が同時にL4非該当から個別行を作らない。
-6. 調査中の行へ別messageIdのアラートが集約された場合はDBの`alert_count`へ1回だけ記録し、Issue作成時に集約数を本文へ反映する。
-7. owner deliveryの調査オーナーはtoken+leaseを持つ。leaseはリクエスト開始から295秒で切れる。期限切れ時は`WHERE investigation_token=:old AND lease_expires_at<=now()`のCASで`investigation_token=gen_random_uuid()`、lease延長、attempt+1を同時更新し、新tokenを得た1件だけが引き継ぐ。古いtokenの書き込みを拒否する。
+6. 別messageIdを集約する際、incidentがinvestigatingなら`alert_count`だけ更新し、初回Issue本文に反映する。analyzed/escalatedなら`alert_count`更新と`github_comment` outbox作成を同一transactionで行う。`github_issue`が未設定ならworkerはcommentを送らずpendingのまま待ち、Issue outbox成功後に再実行する。idempotency keyへmessageIdを含めて1回だけコメントする。
+7. owner deliveryはtoken+300秒leaseを持つ。アプリdeadlineは270秒で、制御可能なtimeoutはleaseを即時失効させる。期限切れ時はCASでtoken再発行、lease延長、attempt+1を同時更新し、新tokenを得た1件だけが引き継ぐ。古いtokenの書き込みを拒否する。
 8. 成功時は分析結果、サニタイズ済みSlack/GitHub outbox、incidentの`analyzed`遷移、owner delivery completedを同一transactionで永続化する。3回失敗時も固定文outbox、incident `escalated`、delivery completedを同一transactionで保存する。
 
 ## 10. Issue起票のタイミングとライフサイクル
@@ -376,8 +376,8 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 
 | # | issue | 依存 | ファイル境界 | 受け入れ条件シード |
 | --- | --- | --- | --- | --- |
-| I1 | opsスキーマ+incidents/alert_deliveries/slack_events/outbox/budget_usage | なし | `services/incident-agent/db/**` | delivery状態、lease、Slack複合UNIQUE、RCA review、outbox idempotency、段階予算を含むDDL |
-| I2 | 受け口(Pub/Sub push受信+L1〜L4ノイズ制御+自己除外+コストブレーカー) | I1, §14 | `services/incident-agent/app/**` | L4 lock内で再検索→予算→incident+ownerを原子的確保。received再開、token CAS、fallback。push ack deadline 600秒 |
+| I1 | opsスキーマ+incidents/alert_deliveries/slack_events/outbox/budget_usage | なし | `services/incident-agent/db/**` | delivery状態、300秒lease、Slack複合UNIQUE、RCA review、outbox idempotency、段階予算を含むDDL |
+| I2 | 受け口(Pub/Sub push受信+L1〜L4ノイズ制御+自己除外+コストブレーカー) | I1, §14 | `services/incident-agent/app/**` | app deadline 270秒/lease 300秒。L4原子確保。analyzed集約はIssue未送信でも依存付きcomment outboxへ保存 |
 | I3 | LoopAgent+3ツール+プレイブック注入 | I2 | `services/incident-agent/agent/**`, `playbooks/**` | 過去事例はresolved+rca_reviewedのみ。resource固定、playbook固定map+containment。LLM/受信値による対象拡大を拒否 |
 | I4 | outbox出力(Slack+GitHub)+RCAレビューCLI | I3, §14 | `services/incident-agent/app/**`, `services/incident-agent/scripts/**` | private workerが送信し、成功refをincidentへ原子的反映。I6はSlack/GitHub ref完備まで拒否。review CLIのみRCA承認 |
 | I5 | otel_to_cloud+圧縮率メトリクス(受信アラート→インシデント→Issue) | I4 | `services/incident-agent/**`(設定のみ) | Cloud Traceにマスキング済み要約/メタデータのみ送出(生ログ・ツール結果・プロンプト禁止)。圧縮率がダッシュボードで見える |
