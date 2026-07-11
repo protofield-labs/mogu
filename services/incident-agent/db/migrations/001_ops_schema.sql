@@ -134,6 +134,7 @@ CREATE TABLE ops.outbox (
     CHECK (status IN ('pending', 'sending', 'sent', 'failed')),
   attempt_count   int NOT NULL DEFAULT 0 CHECK (attempt_count BETWEEN 0 AND 10),
   lease_expires_at timestamptz,
+  delivery_token  uuid NOT NULL DEFAULT gen_random_uuid(),
   external_ref    text,
   created_at      timestamptz NOT NULL DEFAULT now(),
   sent_at         timestamptz,

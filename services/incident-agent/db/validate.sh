@@ -38,19 +38,22 @@ run_sql "$ROOT/migrations/002_budget_primitives.sql"
 
 # Production creates these LOGIN users through Terraform I0 before applying
 # role grants. Reproduce that prerequisite in the disposable database.
-docker exec "$CONTAINER" psql -v ON_ERROR_STOP=1 -U postgres -d mogu_ops_validate <<'SQL'
+docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -U postgres -d mogu_ops_validate <<'SQL'
 CREATE ROLE ops_ingest LOGIN;
 CREATE ROLE ops_slack_ingress LOGIN;
 CREATE ROLE ops_worker LOGIN;
 CREATE ROLE ops_dispatcher LOGIN;
+CREATE ROLE ops_operator LOGIN;
+CREATE ROLE ops_reviewer LOGIN;
 SQL
 
 run_sql "$ROOT/migrations/003_ops_roles.sql"
 run_sql "$ROOT/migrations/004_incident_review_gate.sql"
+run_sql "$ROOT/migrations/005_outbox_delivery_token.sql"
 run_sql "$ROOT/seeds/001_sample_incidents.sql"
 
 echo "==> Structural checks"
-docker exec "$CONTAINER" psql -v ON_ERROR_STOP=1 -U postgres -d mogu_ops_validate <<'SQL'
+docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -U postgres -d mogu_ops_validate <<'SQL'
 DO $$
 BEGIN
   IF (
@@ -78,8 +81,8 @@ BEGIN
      WHERE schemaname = 'ops'
        AND tablename = 'incidents'
        AND indexname LIKE 'incidents_open_%'
-  ) <> 4 THEN
-    RAISE EXCEPTION 'expected four open-incident partial indexes';
+  ) <> 5 THEN
+    RAISE EXCEPTION 'expected five open-incident partial indexes';
   END IF;
 
   IF NOT EXISTS (
@@ -112,7 +115,7 @@ if [ "$check_status" -eq 0 ]; then
   exit 1
 fi
 
-docker exec "$CONTAINER" psql -v ON_ERROR_STOP=1 -U postgres -d mogu_ops_validate <<'SQL'
+docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -U postgres -d mogu_ops_validate <<'SQL'
 -- Budget reservation primitive
 BEGIN;
 DO $$
@@ -175,6 +178,18 @@ BEGIN
      OR NOT has_table_privilege('ops_worker', 'ops.outbox', 'INSERT')
      OR has_table_privilege('ops_ingest', 'ops.budget_usage', 'UPDATE') THEN
     RAISE EXCEPTION 'component role permission matrix is incorrect';
+  END IF;
+
+  IF NOT has_table_privilege('ops_reviewer', 'ops.incidents', 'SELECT')
+     OR NOT has_column_privilege('ops_reviewer', 'ops.incidents', 'rca_reviewed', 'UPDATE')
+     OR has_table_privilege('ops_reviewer', 'ops.outbox', 'SELECT') THEN
+    RAISE EXCEPTION 'reviewer permission matrix is incorrect';
+  END IF;
+
+  IF NOT has_table_privilege('ops_operator', 'ops.outbox', 'SELECT')
+     OR NOT has_column_privilege('ops_operator', 'ops.outbox', 'dispatch_generation', 'UPDATE')
+     OR has_table_privilege('ops_operator', 'ops.incidents', 'SELECT') THEN
+    RAISE EXCEPTION 'operator permission matrix is incorrect';
   END IF;
 END
 $$;

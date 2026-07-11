@@ -22,6 +22,7 @@ from app.db import (
 from app.deadline import RequestDeadline, lease_expires_at, new_token
 from app.embedding import EmbeddingClient
 from app.keys import compute_incident_key, compute_storm_key
+from app.owner import create_storm_merge_outboxes
 
 
 @dataclass(frozen=True)
@@ -1035,18 +1036,24 @@ class NoiseOrchestrator:
             ).fetchone()
 
         incident_id = incident_row["id"]
-        conn.execute(
-            """
-            INSERT INTO ops.outbox (incident_id, destination, idempotency_key, payload)
-            VALUES (%s, 'slack', %s, %s::jsonb)
-            ON CONFLICT (idempotency_key) DO NOTHING
-            """,
-            (
-                incident_id,
-                f"escalation:slack:{incident_id}",
-                json.dumps(FIXED_ESCALATION_OUTBOX),
-            ),
-        )
+        for destination in ("slack", "github_issue"):
+            conn.execute(
+                """
+                INSERT INTO ops.outbox (
+                    incident_id, destination, idempotency_key, payload
+                )
+                VALUES (%s, %s, %s, %s::jsonb)
+                ON CONFLICT (idempotency_key) DO NOTHING
+                """,
+                (
+                    incident_id,
+                    destination,
+                    f"escalation:{destination}:{incident_id}",
+                    json.dumps(FIXED_ESCALATION_OUTBOX),
+                ),
+            )
+        if kind == "storm":
+            create_storm_merge_outboxes(conn, storm_id=incident_id)
         conn.execute(
             """
             UPDATE ops.alert_deliveries

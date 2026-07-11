@@ -151,7 +151,7 @@ def save_owner_analysis(
 
     with db.transaction() as conn:
         incident = conn.execute(
-            "SELECT status, merged_into FROM ops.incidents WHERE id = %s",
+            "SELECT status, merged_into, incident_kind FROM ops.incidents WHERE id = %s",
             (incident_id,),
         ).fetchone()
         delivery = conn.execute(
@@ -260,7 +260,81 @@ def save_owner_analysis(
                 ),
             )
 
+        if incident and incident["incident_kind"] == "storm":
+            create_storm_merge_outboxes(conn, storm_id=incident_id)
+
     return SaveAnalysisResult(success=True, status_code=200, incident_id=incident_id)
+
+
+def create_storm_merge_outboxes(
+    conn: psycopg.Connection[Any],
+    *,
+    storm_id: UUID,
+) -> None:
+    """Create old-issue comment→close chains after the storm Issue outbox."""
+    issue_outbox = conn.execute(
+        """
+        SELECT id
+          FROM ops.outbox
+         WHERE incident_id = %s
+           AND destination = 'github_issue'
+         ORDER BY created_at ASC
+         LIMIT 1
+        """,
+        (storm_id,),
+    ).fetchone()
+    if not issue_outbox:
+        raise RuntimeError("storm GitHub Issue outbox is required")
+    merged_rows = conn.execute(
+        """
+        SELECT id
+          FROM ops.incidents
+         WHERE merged_into = %s
+           AND status = 'merged'
+           AND github_issue IS NOT NULL
+         ORDER BY id
+        """,
+        (storm_id,),
+    ).fetchall()
+    for merged in merged_rows:
+        comment_key = f"storm-merge-comment:{merged['id']}:{storm_id}"
+        comment = conn.execute(
+            """
+            INSERT INTO ops.outbox (
+                incident_id, destination, idempotency_key, payload, depends_on
+            )
+            VALUES (%s, 'github_comment', %s, %s::jsonb, %s)
+            ON CONFLICT (idempotency_key) DO UPDATE
+              SET idempotency_key = EXCLUDED.idempotency_key
+            RETURNING id
+            """,
+            (
+                merged["id"],
+                comment_key,
+                json.dumps(
+                    {
+                        "kind": "storm_merge",
+                        "text": "This incident was consolidated into a storm incident.",
+                    }
+                ),
+                issue_outbox["id"],
+            ),
+        ).fetchone()
+        conn.execute(
+            """
+            INSERT INTO ops.outbox (
+                incident_id, destination, idempotency_key, payload, depends_on
+            )
+            VALUES (%s, 'github_close', %s, %s::jsonb, %s)
+            ON CONFLICT (idempotency_key) DO NOTHING
+            """,
+            (
+                merged["id"],
+                f"storm-merge-close:{merged['id']}:{storm_id}",
+                json.dumps({"kind": "storm_merge_close"}),
+                comment["id"],
+            ),
+        )
 
 
 def save_final_escalation(
@@ -272,12 +346,8 @@ def save_final_escalation(
     work_token: UUID,
 ) -> SaveAnalysisResult:
     """Step 9: attempt=3 failure — fixed outbox + escalated."""
-    fixed_outbox = {
-        "destination": "slack",
-        "idempotency_key": f"final-escalation:{incident_id}",
-        "payload": {
-            "text": "Automated investigation failed after maximum attempts. Manual review required."
-        },
+    payload = {
+        "text": "Automated investigation failed after maximum attempts. Manual review required."
     }
     return save_owner_analysis(
         db,
@@ -286,6 +356,17 @@ def save_final_escalation(
         investigation_token=investigation_token,
         work_token=work_token,
         analysis={"severity": "high", "rca_hypothesis": "Investigation exhausted"},
-        outbox_entries=[fixed_outbox],
+        outbox_entries=[
+            {
+                "destination": "slack",
+                "idempotency_key": f"final-escalation:slack:{incident_id}",
+                "payload": payload,
+            },
+            {
+                "destination": "github_issue",
+                "idempotency_key": f"final-escalation:github:{incident_id}",
+                "payload": payload,
+            },
+        ],
         escalate=True,
     )

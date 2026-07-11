@@ -256,7 +256,14 @@ class InvestigationService:
                             f"investigation-safety-escalation:{ready.incident_id}"
                         ),
                         "payload": FIXED_SAFETY_OUTBOX,
-                    }
+                    },
+                    {
+                        "destination": "github_issue",
+                        "idempotency_key": (
+                            f"investigation-safety-github:{ready.incident_id}"
+                        ),
+                        "payload": FIXED_SAFETY_OUTBOX,
+                    },
                 ],
                 escalate=True,
             )

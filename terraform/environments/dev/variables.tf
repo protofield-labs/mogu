@@ -248,6 +248,33 @@ variable "incident_agent_slack_bot_token" {
   type        = string
   sensitive   = true
   default     = ""
+
+  validation {
+    condition     = !var.enable_incident_agent || length(trimspace(var.incident_agent_slack_bot_token)) > 0
+    error_message = "incident_agent_slack_bot_token is required when enable_incident_agent is true."
+  }
+}
+
+variable "incident_agent_slack_channel_id" {
+  description = "Slack channel ID for incident-agent primary notifications."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = !var.enable_incident_agent || can(regex("^[CG][A-Z0-9]+$", var.incident_agent_slack_channel_id))
+    error_message = "incident_agent_slack_channel_id must be a Slack C/G-prefixed channel ID when incident-agent is enabled."
+  }
+}
+
+variable "incident_agent_slack_team_id" {
+  description = "Slack workspace/team ID for incident-agent primary notifications."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = !var.enable_incident_agent || can(regex("^T[A-Z0-9]+$", var.incident_agent_slack_team_id))
+    error_message = "incident_agent_slack_team_id must be a Slack T-prefixed team ID when incident-agent is enabled."
+  }
 }
 
 variable "incident_agent_github_token" {
@@ -255,4 +282,9 @@ variable "incident_agent_github_token" {
   type        = string
   sensitive   = true
   default     = ""
+
+  validation {
+    condition     = !var.enable_incident_agent || length(trimspace(var.incident_agent_github_token)) > 0
+    error_message = "incident_agent_github_token is required when enable_incident_agent is true."
+  }
 }
