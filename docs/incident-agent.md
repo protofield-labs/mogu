@@ -323,6 +323,20 @@ playbooks/
 | すり抜け = 新規障害 | 上記すべて非該当 | 高(LoopAgent) | §4の一次切り分け → §10で新規Issue起票 |
 | (Phase B) トポロジー抑制 | `component_deps`+再帰CTEで親障害中の下流か | 低 | 子として親issueに吸収 |
 
+### 受信JSONの正規化allowlist
+
+Cloud Monitoring payloadをそのまま`raw_alert`へ残さず、対応する通知schema versionごとに固定adapterを実装し、次の内部schemaだけを生成する。入力pathは`incident.policy_name`、`incident.resource_name`、`incident.resource.type`、`incident.resource.labels.{project_id,location,region,zone,service_name,service,host,instance_name,instance_id}`、`incident.summary`、`incident.condition_name`、`incident.incident_id`、`incident.state`、`incident.started_at`だけを許可し、それ以外のtop-level/nested fieldは再帰的に破棄する。
+
+- `alert_policy`: `incident.policy_name`を設定済みpolicy allowlistの正規値へ変換(必須)
+- `resource`: `incident.resource_name`または`resource.type`+識別用labelsを、設定済みresource allowlistの正規値へ変換(必須)
+- `service`: `resource.labels.service_name`→`resource.labels.service`の順。無ければ`null`
+- `host`: `resource.labels.host`→`instance_name`→`instance_id`の順。無ければ`null`
+- `message`: マスキング済み`incident.summary`。無ければ`null`
+- `condition` / `source_incident_id` / `source_state` / `started_at`: 対応する上記pathを型・長さ検証後に格納。無ければ`null`
+- `v`: 内部schema versionの整数`1`
+
+`sanitized_alert`/`raw_alert`はこの内部schemaと完全一致させ、L1はその`host/message/resource/service`だけから算出する。embedding/LoopAgentにもこの内部schemaだけを渡す。対応外schema version、必須値の欠落、型/長さ違反、resource/policy allowlist不一致、adapter例外は§7-10のマスキング失敗経路へfail-closedする。adapterの各許可path・優先順位・未知field破棄をfixtureで固定し、Monitoring payload変更でL1 fieldが無言で`null`化しないよう契約テストする。
+
 ### L1(ハッシュ)とL4(embedding)の違い
 
 同じ「重複判定」でも方式が2段階ある。判定内容は「これは既存と同じ障害か」で、その精度とコストが異なる。
