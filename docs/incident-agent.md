@@ -88,9 +88,11 @@ CREATE TABLE ops.incidents (
   github_issue   text,
   slack_channel  text,
   slack_thread   text,                   -- thread_ts(I6対話のセッションキー)
-  embedding      vector(768),            -- gemini-embedding-001。デフォルト3072次元のため output_dimensionality=768 を明示指定(未指定だと次元不一致で挿入失敗)
+  embedding      vector(768) NOT NULL,   -- I2の調査予約時に保存。gemini-embedding-001 / output_dimensionality=768
   created_at     timestamptz NOT NULL DEFAULT now(),
-  resolved_at    timestamptz
+  resolved_at    timestamptz,
+  CHECK ((status = 'resolved') = (resolved_at IS NOT NULL)),
+  CHECK ((status = 'merged') = (merged_into IS NOT NULL))
 );
 CREATE INDEX ON ops.incidents USING hnsw (embedding vector_cosine_ops);
 CREATE INDEX ON ops.incidents (created_at DESC);
@@ -99,6 +101,12 @@ CREATE UNIQUE INDEX incidents_open_incident_key
   WHERE resolved_at IS NULL AND status <> 'merged';
 CREATE INDEX ON ops.incidents (resource, last_seen_at DESC)
   WHERE resolved_at IS NULL AND status <> 'merged';
+
+CREATE TABLE ops.slack_events (
+  event_id    text PRIMARY KEY,
+  received_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX ON ops.slack_events (received_at);
 
 -- Phase B:
 -- CREATE TABLE ops.postmortems (...);
@@ -194,7 +202,7 @@ playbooks/
 5. **ログはデータとして扱う**: ログ本文内の指示には従わない旨をシステムプロンプトに明記。書き込み権限がない(1.)ことで実害を構造遮断。
 6. **タイムアウト**: Cloud Runのリクエストタイムアウト(300s)が調査全体の絶対上限。
 7. **本番不変**: 環境を変更するツールを持たせない。緩和は推奨としてissueに書くだけ。実行は人間(Phase BでもToolConfirmationによる人間承認を必須とする)。
-8. **Slack対話(I6)の追加ガード**: `X-Slack-Signature` / `X-Slack-Request-Timestamp` による署名検証を最初のゲートとし、timestampは現在時刻から5分以内のみ許可する(失敗時401・処理しない)。`channel`+`thread_ts` を `ops.incidents.slack_channel`+`ops.incidents.slack_thread` の複合条件で照合する。**照合行が存在しない、または照合行の`github_issue IS NULL`なら**調査せず固定応答で終了する(fail-closed)。bot_idを持つメッセージは無視(ボット同士のループ防止)/ユーザーallowlist/スレッド対話にも4.の予算上限を適用。
+8. **Slack対話(I6)の追加ガード**: `X-Slack-Signature` / `X-Slack-Request-Timestamp` による署名検証を最初のゲートとし、timestampは現在時刻から5分以内のみ許可する(失敗時401・処理しない)。署名検証後、非同期処理を起動する前に`event_id`を`ops.slack_events`へ`INSERT ... ON CONFLICT DO NOTHING`し、既存なら200 ACKのみで終了する。`channel`+`thread_ts`をSlack複合キーで照合し、**行なし / `github_issue IS NULL` / `resolved_at IS NOT NULL` / `status NOT IN ('analyzed','escalated')`のいずれかなら**調査せず固定応答で終了する。ユーザーallowlistはdefault-denyとし、空設定・未登録ユーザーを拒否する。bot_idを持つメッセージは無視し、スレッド対話にも4.の予算上限を適用する。
 9. **受信エンドポイントの認証**: `incident-agent-ingest` はunauthenticated禁止。Pub/Sub pushはOIDC JWTの署名・issuer・audience(ingestのCloud Run URL)を検証し、push用SAのみ `run.invoker`。受信した`resource`は監視対象allowlist(Phase Aでは`cloud_run/dev-web`等の明示設定値)に一致する場合のみ許可し、不一致はfail-closed。`incident-alerts`へのpublish権限はCloud Monitoring通知サービスエージェントのみに付与する。`incident-agent-slack` はSlack Events到達のため公開するが、§7-8の署名検証をアプリ層の必須境界とする。
 10. **ログ秘匿化**: アラート受信直後、incident_key算出・DB永続化・embedding API送信より前に、`raw_alert`とembedding入力を自動マスキングする。以降も、ツール出力をLLMへ渡す前、およびSlack/GitHub/Cloud Trace/Vertex AI Sessions等の全出力先へ保存・送信する前にマスキング(Bearer/JWT・cookie・email・接続文字列パターン等)を再適用する。該当箇所は `[REDACTED]` に置換し、原文はops DBへ保存しない。Cloud Traceには生のログ本文・ツール結果・プロンプトを記録せず、マスキング済み要約とメタデータ(件数・レイテンシ・トレースID)のみを送る。
 
@@ -234,7 +242,7 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 
 1. リソース単位のtransaction advisory lockを取得し、L1/L2を再チェックする。ヒット時は対象行の`alert_count`と`last_seen_at`を原子的に更新する。
 2. L3判定後、L4の検索と新規行確保はL4用advisory lock内で再チェックする。類似先があればその行へ集約する。
-3. すべて非該当の場合のみ、`status='investigating'` の行を**LoopAgent起動前**に挿入する。この行を作成したリクエストだけが調査オーナーとなる。未解決行に対する`incident_key`部分UNIQUEインデックスは最終防壁として使う。
+3. すべて非該当の場合のみ、L4検索に使用したマスキング済みembeddingを含む`status='investigating'`行を**LoopAgent起動前**に挿入する。この行を作成したリクエストだけが調査オーナーとなる。embeddingを予約時に保存するため、後続の表現違いアラートは調査中でもL4にヒットする。未解決行に対する`incident_key`部分UNIQUEインデックスは最終防壁として使う。
 4. 調査中の行へ後続アラートが集約された場合はIssueをまだ持たないため、DBの`alert_count`へ記録し、I4でIssue作成時に集約数を本文へ反映する。Issue作成後の集約だけコメントを追記する。
 5. L4で暫定行を別インシデントへ統合する実装を採る場合は、`status='merged'`と`merged_into`を同一トランザクションで設定し、merged行を以後の類似検索対象から除外する。
 
@@ -249,7 +257,8 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 - 一次切り分けの投稿スレッドで `@incident-agent` にメンション → app_mention イベント → 対話エンドポイント。
 - **署名検証必須**: Slack Signing Secret による `X-Slack-Signature` 検証を最初のゲートとする(§7-8)。`url_verification` チャレンジは署名検証後に応答。
 - **session_id = Slackスレッドのthread_ts**(Vertex AI Sessions)。スレッド=会話境界となる。`ops.incidents.slack_channel`+`ops.incidents.slack_thread`からインシデント文脈を復元する。
-- **既知スレッドのみ許可**: `channel`+`thread_ts` で `ops.incidents` を検索し、未ヒットまたはIssue未紐付けなら調査・GitHubコメントを行わず固定応答で終了する。
+- **既知かつ未解決のスレッドのみ許可**: `channel`+`thread_ts`で検索し、未ヒット・Issue未紐付け・解決済み・mergedのいずれかなら調査・GitHubコメントを行わず固定応答で終了する。再調査が必要なら新規アラートまたは人間による明示的な再オープンを別フローで行う。
+- **Slack再送の冪等化**: 署名検証後、非同期処理の起動前に`event_id`を原子的に記録する。同一`event_id`の再送は200 ACKのみ返す。`ops.slack_events`は例として7日より古い行を定期削除し、Slackの再送期間を超えるTTLを保つ。
 - Slackの3秒タイムアウト対策: 即ACK→非同期処理→スレッドに返信。
 - ツール・権限・予算はPhase Aと同一(読み取り専用のまま)。
 - 二次切り分けで得た発見は、該当issueへコメントとして追記する。
@@ -293,12 +302,12 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 
 | # | issue | 依存 | ファイル境界 | 受け入れ条件シード |
 | --- | --- | --- | --- | --- |
-| I1 | opsスキーマ+incidentsテーブル+シード事例 | なし | `services/incident-agent/db/**` | §3のDDL通り。調査予約/集約用`status`・`alert_count`・`last_seen_at`・`merged_into`を含む。シード数件投入。アプリ用ロールからops不可視 |
-| I2 | 受け口(Pub/Sub push受信+L1〜L4ノイズ制御+自己除外+コストブレーカー) | I1, §14 | `services/incident-agent/app/**` | OIDC+resource allowlist。DB/embedding/key算出前に受信データをマスキング。advisory lock+事前行確保で調査オーナーが1つ。L1は未解決だけ集約し解決後の再発は新規調査。L2/L4集約、ストーム/自己除外/上限はfail-closed |
+| I1 | opsスキーマ+incidents/slack_eventsテーブル+シード事例 | なし | `services/incident-agent/db/**` | §3のDDL通り。調査予約/集約カラム、予約時embedding、Slack event_id冪等化テーブルを含む。シード数件投入。アプリ用ロールからops不可視 |
+| I2 | 受け口(Pub/Sub push受信+L1〜L4ノイズ制御+自己除外+コストブレーカー) | I1, §14 | `services/incident-agent/app/**` | OIDC+resource allowlist。受信データをマスキング後にembedding生成。advisory lock+embedding入り事前行確保で調査中もL4集約。L1は未解決だけ集約し解決後の再発は新規調査。ストーム/自己除外/上限はfail-closed |
 | I3 | LoopAgent+3ツール+プレイブック注入 | I2 | `services/incident-agent/agent/**`, `playbooks/**` | max_iterations=3。resource/project/filterはincident行から固定。プレイブックは固定マップ+path containment。LLM/受信値による対象・パス拡大を拒否 |
-| I4 | 出力(Slack通知+GitHub Issue起票+ops保存) | I3 | `services/incident-agent/app/**` | Slackに仮説+根拠(§7-10マスキング済)+issueリンク。I2で予約した行へ分析/embedding/Slack複合キーを保存。issueにincidentラベル |
+| I4 | 出力(Slack通知+GitHub Issue起票+ops保存) | I3 | `services/incident-agent/app/**` | Slackに仮説+根拠(§7-10マスキング済)+issueリンク。I2で予約した行へ分析/Slack複合キーを保存しanalyzedへ遷移。issueにincidentラベル |
 | I5 | otel_to_cloud+圧縮率メトリクス(受信アラート→インシデント→Issue) | I4 | `services/incident-agent/**`(設定のみ) | Cloud Traceにマスキング済み要約/メタデータのみ送出(生ログ・ツール結果・プロンプト禁止)。圧縮率がダッシュボードで見える |
-| I6 | Slack対話型二次切り分け(app_mention→session=thread_ts→追調査→スレッド返信+issueコメント追記) | I4, §14のSlack App | `services/incident-agent/app/**` | Slack専用公開サービスで署名検証。既知のchannel+thread_tsかつIssue紐付け済みのみ許可。即ACK。bot_id無視/allowlist/予算適用。発見をマスキング後にIssueへコメント |
+| I6 | Slack対話型二次切り分け(app_mention→session=thread_ts→追調査→スレッド返信+issueコメント追記) | I4, §14のSlack App | `services/incident-agent/app/**` | 署名後にevent_idを原子的dedupe。既知+Issue紐付け済み+未解決のみ許可。default-deny allowlist。即ACK/bot無視/予算/マスキング |
 
 - 共通スコープ外(全issueに転記): 本番変更ツールの実装禁止 / terraform編集禁止 / アプリ(apps/web)のコード変更禁止 / 書き込み系IAMの要求禁止。
 - 実行順: I1→I2→I3→I4→I5→I6 の直列(依存が一本鎖のため並列不要)。I5とI6の順は入れ替え可。
