@@ -22,6 +22,9 @@ assert(eventsRoute.includes("AGENT_SSE_POLL_MS"), "events route polls shared sto
 assert(eventsRoute.includes("listBufferedAgentEvents"), "events route replays from store");
 
 const messageClient = readSource("lib/agent/message-client.ts");
-assert(messageClient.includes("await publishAgentEvent"), "message client awaits persisted publish");
+const agentStreamQuery = readSource("lib/agent/agent-stream-query.ts");
+assert(messageClient.includes("executeAgentStreamQuery"), "message client delegates stream execution");
+assert(agentStreamQuery.includes("publishAgentEvent"), "stream query publishes agent events");
+assert(agentStreamQuery.includes("await publishChain"), "stream query awaits persisted publish");
 
 console.log("PASS: agent event relay wiring verified");

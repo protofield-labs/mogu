@@ -85,22 +85,24 @@ assert(
 
 const agentChat = readSource("components/search/agent-chat.tsx");
 const agentChatHook = readSource("lib/agent/use-agent-chat.ts");
+const agentSessionHook = readSource("lib/agent/use-agent-session.ts");
+const agentSendHook = readSource("lib/agent/use-agent-send.ts");
 assert(agentChat.includes("AgentConsultationHistorySheet"), "agent chat renders history sheet");
 assert(
   agentChatHook.includes("applyConsultationDetail"),
   "agent chat hook resumes consultations",
 );
 assert(
-  agentChatHook.includes("persistConsultationChainRef"),
-  "agent chat serializes initial consultation sync",
+  agentSessionHook.includes("persistConsultationChainRef"),
+  "agent session serializes initial consultation sync",
 );
 assert(
-  agentChatHook.includes("persistConsultationEntries(id, initialEntries)"),
-  "agent chat syncs only initial session entries",
+  agentSessionHook.includes("persistConsultationEntries(id, initialEntries)"),
+  "agent session syncs only initial session entries",
 );
-const applySendTurnResultBlock = agentChatHook.slice(
-  agentChatHook.indexOf("const applySendTurnResult"),
-  agentChatHook.indexOf("const resumeInflightTurn"),
+const applySendTurnResultBlock = agentSendHook.slice(
+  agentSendHook.indexOf("const applySendTurnResult"),
+  agentSendHook.indexOf("const sendMessage"),
 );
 assert(
   !applySendTurnResultBlock.includes("persistConsultationEntries"),

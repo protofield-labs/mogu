@@ -223,13 +223,14 @@ assert(
 // --- wiring --------------------------------------------------------------
 
 const messageClient = readSource("lib/agent/message-client.ts");
+const resolveAgentTurn = readSource("lib/agent/resolve-agent-turn.ts");
 assert(
-  messageClient.includes("extractCandidateSpotMarkers"),
-  "message client strips candidate markers",
+  resolveAgentTurn.includes("extractCandidateSpotMarkers"),
+  "turn resolver strips candidate markers",
 );
 assert(
-  messageClient.includes("buildAgentCandidateSpots"),
-  "message client builds candidate spot DTOs",
+  resolveAgentTurn.includes("buildAgentCandidateSpots"),
+  "turn resolver builds candidate spot DTOs",
 );
 assert(
   messageClient.includes("getCandidatePinContext"),
@@ -244,51 +245,51 @@ assert(
   "candidate taps never fall back to the #264 recommendation pin",
 );
 assert(
-  messageClient.includes("useCandidateCards") &&
-    messageClient.includes("resolvedTextMarkers.length > 0"),
+  resolveAgentTurn.includes("useCandidateCards") &&
+    resolveAgentTurn.includes("resolvedTextMarkers.length > 0"),
   "resolved-text markers always route to candidate cards",
 );
 assert(
-  messageClient.includes("hasMinedOnlyMarkers"),
+  resolveAgentTurn.includes("hasMinedOnlyMarkers"),
   "persona/orchestrator-only markers keep candidate card routing (#317)",
 );
 assert(
-  messageClient.includes("hasCandidateMarkers && !isAgentAssertionTurn(text)"),
+  resolveAgentTurn.includes("hasCandidateMarkers && !isAgentAssertionTurn(text)"),
   "mined-only markers become cards on non-assertive turns (#313)",
 );
 assert(
-  messageClient.includes("!useCandidateCards && isAgentAssertionTurn(text)"),
+  resolveAgentTurn.includes("!useCandidateCards && isAgentAssertionTurn(text)"),
   "assertive turns without candidate markers use DB-backed recommendations",
 );
 assert(
-  messageClient.includes("CANDIDATE_RESOLUTION_FAILED_TEXT"),
-  "message client replaces prose when no candidate markers resolve",
+  resolveAgentTurn.includes("CANDIDATE_RESOLUTION_FAILED_TEXT"),
+  "turn resolver replaces prose when no candidate markers resolve",
 );
 assert(
-  messageClient.includes("CANDIDATE_ONLY_REPLY_TEXT"),
+  resolveAgentTurn.includes("CANDIDATE_ONLY_REPLY_TEXT"),
   "candidate card turns use generic reply text, not model shop names",
 );
 assert(
-  messageClient.includes("RECOMMENDATION_RESOLUTION_FAILED_TEXT"),
+  resolveAgentTurn.includes("RECOMMENDATION_RESOLUTION_FAILED_TEXT"),
   "assertion turns without DB pick use safe fallback text",
 );
 assert(
-  messageClient.includes("displayText = recommendation.assertion"),
+  resolveAgentTurn.includes("recommendation.assertion"),
   "assertion turns show DB-backed assertion text, not model shop names",
 );
 assert(
-  messageClient.includes("mergeCandidateSpotMarkers"),
-  "message client merges markers across stream authors (#313)",
+  resolveAgentTurn.includes("mergeCandidateSpotMarkers"),
+  "turn resolver merges markers across stream authors (#313)",
 );
 assert(
-  messageClient.includes("streamResult.personaText") &&
-    messageClient.includes("streamResult.orchestratorText"),
-  "message client mines markers from persona and orchestrator raw texts (#313)",
+  resolveAgentTurn.includes("streamResult.personaText") &&
+    resolveAgentTurn.includes("streamResult.orchestratorText"),
+  "turn resolver mines markers from persona and orchestrator raw texts (#313)",
 );
 assert(
-  messageClient.includes("agent candidate markers dropped during DB resolution") &&
-    messageClient.includes("agent candidate spot resolution failed"),
-  "message client logs marker drop reasons for triage (#313)",
+  resolveAgentTurn.includes("agent candidate markers dropped during DB resolution") &&
+    resolveAgentTurn.includes("agent candidate spot resolution failed"),
+  "turn resolver logs marker drop reasons for triage (#313)",
 );
 
 const candidateSpots = readSource("lib/agent/candidate-spots.ts");

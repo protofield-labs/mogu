@@ -134,17 +134,26 @@ function main() {
   );
 
   const parser = readFileSync(
+    join(process.cwd(), "src/lib/agent/reply-sanitizer.ts"),
+    "utf8",
+  );
+  assert(parser.includes("stripLeakedThinkingText"), "sanitizer strips leaked thinking");
+  assert(parser.includes("stripDelegationNarration"), "sanitizer strips delegation narration");
+  assert(parser.includes("stripPersonaReferenceLines"), "sanitizer strips persona reference lines");
+  assert(parser.includes("inferPersonaTasteEvidence"), "sanitizer infers persona taste evidence");
+  assert(
+    parser.includes("thinking\\s*process"),
+    "sanitizer matches thinking process label",
+  );
+
+  const streamParser = readFileSync(
     join(process.cwd(), "src/lib/agent/stream-parser.ts"),
     "utf8",
   );
-  assert(parser.includes("stripLeakedThinkingText"), "parser strips leaked thinking");
-  assert(parser.includes("stripDelegationNarration"), "parser strips delegation narration");
-  assert(parser.includes("stripPersonaReferenceLines"), "parser strips persona reference lines");
-  assert(parser.includes("inferPersonaTasteEvidence"), "parser infers persona taste evidence");
-  assert(parser.includes("PERSONA_AUTHORS"), "parser skips persona author text");
+  assert(streamParser.includes("PERSONA_AUTHORS"), "parser skips persona author text");
   assert(
-    parser.includes("thinking\\s*process"),
-    "parser matches thinking process label",
+    streamParser.includes("drainJsonObjects"),
+    "parser extracts JSON stream objects",
   );
 
   assert(
