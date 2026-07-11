@@ -213,7 +213,7 @@ playbooks/
 5. **ログはデータとして扱う**: ログ本文内の指示には従わない旨をシステムプロンプトに明記。書き込み権限がない(1.)ことで実害を構造遮断。
 6. **タイムアウトと再試行**: Cloud Runのリクエストタイムアウト(300s)が1回の調査上限。Pub/Sub ingestは分析+出力の永続化完了後にのみ2xxを返し、早期ACKしない。過渡障害は5xxでPub/Sub再送に委ね、期限切れleaseを原子的に引き継ぐ。3回失敗時はLLMなしの固定文でSlack/Issueへエスカレーションし、通知永続化まで5xxを返す。
 7. **本番不変**: 環境を変更するツールを持たせない。緩和は推奨としてissueに書くだけ。実行は人間(Phase BでもToolConfirmationによる人間承認を必須とする)。
-8. **Slack対話(I6)の追加ガード**: 署名+5分timestampを検証後、`event_id`と決定論的Cloud Tasks名を`ops.slack_events`へ原子的に登録する。`incident-agent-slack`は同名TaskをOIDC付きで`incident-agent-ingest`の非公開workerへenqueueできた後だけ200 ACKする。DB登録後enqueue前に失敗した再送はpending行を再利用し、Cloud Tasksの同名重複排除で二重実行を防ぐ。workerはleaseを取得し、成功時completed、過渡障害時はCloud Tasks再試行、3回失敗時は固定文エスカレーション後failedとする。`team_id`+`channel`+`thread_ts`の照合、未解決状態、default-deny allowlistもworker実行前に再検証する。
+8. **Slack対話(I6)の追加ガード**: 署名+5分timestampを検証後、`event_id`と決定論的Cloud Tasks名を原子的に登録し、Task enqueue後だけ200 ACKする。workerはlease+最大3回で処理する。許可主体は設定値`ALLOWED_SLACK_TEAM_IDS` / `ALLOWED_SLACK_CHANNEL_IDS` / `ALLOWED_SLACK_USER_IDS`の3つすべてに一致する場合のみとし、未設定・空・不一致は拒否する。channel allowlistは一次通知先と一致させ、user allowlistはon-call/運用担当だけを登録する。workerはSlack複合キー、未解決状態、GitHub Issue、3 allowlist、incidentのresource allowlistを実行直前に再検証する。
 9. **受信エンドポイントの認証**: `incident-agent-ingest` はunauthenticated禁止。Pub/Sub pushはOIDC JWTの署名・issuer・audience(ingestのCloud Run URL)を検証し、push用SAのみ `run.invoker`。受信した`resource`は監視対象allowlist(Phase Aでは`cloud_run/dev-web`等の明示設定値)に一致する場合のみ許可し、不一致はfail-closed。`incident-alerts`へのpublish権限はCloud Monitoring通知サービスエージェントのみに付与する。`incident-agent-slack` はSlack Events到達のため公開するが、§7-8の署名検証をアプリ層の必須境界とする。
 10. **出力サニタイズ**: アラート受信直後、incident_key算出・DB永続化・embedding API送信より前に、`raw_alert`とembedding入力を自動マスキングする。以降も、全出力先への保存・送信前にBearer/JWT・cookie・email・接続文字列等を`[REDACTED]`へ置換する。Slack/GitHubへ出すURLは設定済みallowlist(例: `console.cloud.google.com`、対象GitHubリポジトリ、レビュー済みrunbookドメイン)だけをリンク化し、ログ・モデル出力由来の未知URLは`[LINK REMOVED]`へ置換する。Slack mrkdwn/GitHub Markdownのリンク構文もサニタイズし、表示ラベルと遷移先の不一致を許可しない。Cloud Traceには生ログ・ツール結果・プロンプトを記録しない。
 
@@ -256,7 +256,7 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 3. すべて非該当の場合のみ、L4検索に使用したマスキング済みembeddingを含む`status='investigating'`行を**LoopAgent起動前**に挿入する。この行を作成したリクエストだけが調査オーナーとなる。embeddingを予約時に保存するため、後続の表現違いアラートは調査中でもL4にヒットする。未解決行に対する`incident_key`部分UNIQUEインデックスは最終防壁として使う。
 4. 調査中の行へ後続アラートが集約された場合はIssueをまだ持たないため、DBの`alert_count`へ記録し、I4でIssue作成時に集約数を本文へ反映する。Issue作成後の集約だけコメントを追記する。
 5. L4で暫定行を別インシデントへ統合する実装を採る場合は、`status='merged'`と`merged_into`を同一トランザクションで設定し、merged行を以後の類似検索対象から除外する。
-6. 調査オーナーは`investigation_token`と`lease_expires_at`を持つ。後続リクエストが`status='investigating'`かつ期限切れleaseを見つけたら、compare-and-swapでtoken更新・lease延長・`attempt_count + 1`し、成功した1件だけが再調査を引き継ぐ。古いtokenの完了書き込みは拒否する。
+6. 調査オーナーは`investigation_token`と`lease_expires_at`を持つ。leaseはCloud Run上限(300s)+再送余裕(60s)の6分とする。後続リクエストが`status='investigating'`かつ期限切れleaseを見つけたら、compare-and-swapでtoken更新・lease延長・`attempt_count + 1`し、成功した1件だけが再調査を引き継ぐ。**lease有効中の同一アラート再送は2xxで握りつぶさず5xxを返し、Pub/Sub再送をlease期限後まで維持する。** 元オーナーが完了すれば次回再送は集約済みとして2xx、クラッシュしていれば期限後に引き継ぐ。古いtokenの完了書き込みは拒否する。
 7. `attempt_count=3`で再失敗した場合は、LoopAgentを再実行せず「自動調査失敗」の固定文Issue/Slack通知を作成して`status='escalated'`へ遷移する。これによりinvestigating行を永久に残さない。
 
 ## 10. Issue起票のタイミングとライフサイクル
@@ -271,6 +271,7 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 - **署名検証必須**: Slack Signing Secret による `X-Slack-Signature` 検証を最初のゲートとする(§7-8)。`url_verification` チャレンジは署名検証後に応答。
 - **session_id = ops.incidents.id**(Vertex AI Sessions)。`team_id`+`channel`+`thread_ts`の複合キーでインシデントを照合し、そのUUIDをセッション境界にする。
 - **既知かつ未解決のスレッドのみ許可**: Slack複合キーで検索し、未ヒット・Issue未紐付け・解決済み・mergedのいずれかなら調査・GitHubコメントを行わず固定応答で終了する。
+- **主体allowlist**: team/channel/userの3種類を設定で明示し、すべてdefault-denyとする。通知先channelとon-callユーザーだけを許可し、workerでも再検証する。incidentのresource allowlistも再検証する。
 - **Slack再送の冪等化と永続実行**: `event_id`由来の決定論的Task名を使い、Cloud Tasksへenqueue完了後にSlackへACKする。同一eventがpendingならenqueueを再試行、processing/completedならACKのみ。workerはlease+最大3回で実行し、`ops.slack_events`は完了後7日を超えた行を定期削除する。
 - Slackの3秒タイムアウト対策: 即ACK→非同期処理→スレッドに返信。
 - ツール・権限・予算はPhase Aと同一(読み取り専用のまま)。
@@ -308,7 +309,7 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 - incident-agent 用Cloud Run 2サービス(ingest/slack)。デプロイパイプラインはアプリと分離
 - Cloud SQLに ops スキーマ用DBロール
 - Slack App作成(I6用): Bot Token Scopes(app_mentions:read, chat:write)+ Events APIのリクエストURL設定
-- 既存のBudget通知で使用中のSlack投稿基盤(`terraform/environments/dev/budget_slack.tf` + `terraform/functions/budget-slack-notifier` のWebhook/認証情報)は、再利用できる部分があれば再利用する方針。ただし双方向の対話(I6)はEvents API受信の新規実装を要する。
+- incident-agent専用Slack App / Bot Token / Signing Secret / Webhookを作成し、Budget通知用の認証情報と共有しない。Secret Manager secretとsecretAccessor IAMもサービス単位で分離する。
 
 ## 15. 実装WBS(Phase A)
 
