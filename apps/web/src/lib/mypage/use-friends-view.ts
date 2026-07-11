@@ -11,32 +11,43 @@ import {
   fetchOutgoingFriendRequests,
   rejectFriendRequest,
   removeFriend,
-  searchUsers,
   sendFriendRequest,
 } from "@/lib/mypage/browser-api";
 import { useMe } from "@/lib/mypage/me-provider";
 import { friendshipPairIdFromUserIds } from "@/lib/friends/pair-id";
 import {
-  findDuplicateDisplayNames,
   formatFriendRequestError,
   isAlreadyFriend,
   isIncomingPending,
   isOutgoingPending,
 } from "@/lib/mypage/friend-request-ui";
+import { useFriendSearch } from "@/lib/mypage/use-friend-search";
 import type { FriendListItem, FriendRequest, FriendUser } from "@/lib/mypage/types";
+import { formatLoadError } from "@/lib/ui/load-error";
+import { useAsyncLoadEffect } from "@/lib/ui/use-async-load";
 
 type RequestAction = "accept" | "reject" | "cancel";
+
+const REQUEST_ERROR_MESSAGES: Record<RequestAction, string> = {
+  accept: "承認に失敗しました",
+  reject: "拒否に失敗しました",
+  cancel: "取り消しに失敗しました",
+};
+
+const REQUEST_ACTIONS: Record<
+  RequestAction,
+  (pairId: string) => Promise<void>
+> = {
+  accept: acceptFriendRequest,
+  reject: rejectFriendRequest,
+  cancel: cancelFriendRequest,
+};
 
 export function useFriendsView() {
   const { me, loading: meLoading } = useMe();
   const [friends, setFriends] = useState<FriendListItem[]>([]);
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [outgoingRequests, setOutgoingRequests] = useState<FriendRequest[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<FriendUser[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [busyPairId, setBusyPairId] = useState<string | null>(null);
   const [busyRequestAction, setBusyRequestAction] = useState<RequestAction | null>(
@@ -46,7 +57,17 @@ export function useFriendsView() {
   const [unfriendTarget, setUnfriendTarget] = useState<FriendListItem | null>(null);
   const [unfriendBusy, setUnfriendBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [searchError, setSearchError] = useState<string | null>(null);
+
+  const {
+    searchQuery,
+    searchResults,
+    searching,
+    searchError,
+    duplicateSearchNames,
+    trimmedQuery,
+    showSearchEmpty,
+    handleSearchQueryChange,
+  } = useFriendSearch();
 
   const friendIds = useMemo(
     () => new Set(friends.map((friend) => friend.id)),
@@ -59,10 +80,6 @@ export function useFriendsView() {
   const incomingUserIds = useMemo(
     () => new Set(requests.map((request) => request.from.id)),
     [requests],
-  );
-  const duplicateSearchNames = useMemo(
-    () => findDuplicateDisplayNames(searchResults),
-    [searchResults],
   );
 
   const friendCount = friends.length;
@@ -79,119 +96,50 @@ export function useFriendsView() {
     setFriends(nextFriends);
   }, []);
 
-  useEffect(() => {
-    if (meLoading) {
-      return;
-    }
+  const {
+    loading,
+    error: loadError,
+    setLoading,
+    setError: setLoadError,
+  } = useAsyncLoadEffect(
+    async () => {
+      await loadFriendsData();
+    },
+    [loadFriendsData, reloadToken],
+    { enabled: !meLoading },
+  );
 
-    let cancelled = false;
-
-    async function load() {
+  const runFriendRequestAction = useCallback(
+    async (action: RequestAction, pairId: string) => {
+      setBusyPairId(pairId);
+      setBusyRequestAction(action);
+      setError(null);
       try {
+        await REQUEST_ACTIONS[action](pairId);
+        notifyBadgesUpdated();
         await loadFriendsData();
       } catch (err) {
-        if (!cancelled) {
-          setLoadError(
-            err instanceof Error ? err.message : "読み込みに失敗しました",
-          );
-        }
+        setError(formatLoadError(err, REQUEST_ERROR_MESSAGES[action]));
       } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        setBusyPairId(null);
+        setBusyRequestAction(null);
       }
-    }
+    },
+    [loadFriendsData],
+  );
 
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [loadFriendsData, meLoading, reloadToken]);
-
-  useEffect(() => {
-    const query = searchQuery.trim();
-    if (query.length === 0) {
-      return;
-    }
-
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      setSearching(true);
-      void searchUsers(query)
-        .then((results) => {
-          if (!cancelled) {
-            setSearchResults(results);
-            setSearchError(null);
-          }
-        })
-        .catch((err) => {
-          if (!cancelled) {
-            setSearchError(
-              err instanceof Error ? err.message : "検索に失敗しました",
-            );
-            setSearchResults([]);
-          }
-        })
-        .finally(() => {
-          if (!cancelled) {
-            setSearching(false);
-          }
-        });
-    }, 300);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [searchQuery]);
-
-  async function handleAccept(pairId: string) {
-    setBusyPairId(pairId);
-    setBusyRequestAction("accept");
-    setError(null);
-    try {
-      await acceptFriendRequest(pairId);
-      notifyBadgesUpdated();
-      await loadFriendsData();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "承認に失敗しました");
-    } finally {
-      setBusyPairId(null);
-      setBusyRequestAction(null);
-    }
-  }
-
-  async function handleReject(pairId: string) {
-    setBusyPairId(pairId);
-    setBusyRequestAction("reject");
-    setError(null);
-    try {
-      await rejectFriendRequest(pairId);
-      notifyBadgesUpdated();
-      await loadFriendsData();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "拒否に失敗しました");
-    } finally {
-      setBusyPairId(null);
-      setBusyRequestAction(null);
-    }
-  }
-
-  async function handleCancel(pairId: string) {
-    setBusyPairId(pairId);
-    setBusyRequestAction("cancel");
-    setError(null);
-    try {
-      await cancelFriendRequest(pairId);
-      notifyBadgesUpdated();
-      await loadFriendsData();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "取り消しに失敗しました");
-    } finally {
-      setBusyPairId(null);
-      setBusyRequestAction(null);
-    }
-  }
+  const handleAccept = useCallback(
+    (pairId: string) => runFriendRequestAction("accept", pairId),
+    [runFriendRequestAction],
+  );
+  const handleReject = useCallback(
+    (pairId: string) => runFriendRequestAction("reject", pairId),
+    [runFriendRequestAction],
+  );
+  const handleCancel = useCallback(
+    (pairId: string) => runFriendRequestAction("cancel", pairId),
+    [runFriendRequestAction],
+  );
 
   async function handleConfirmUnfriend() {
     if (!unfriendTarget || !meId) {
@@ -206,7 +154,7 @@ export function useFriendsView() {
       setUnfriendTarget(null);
       await loadFriendsData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "友達解除に失敗しました");
+      setError(formatLoadError(err, "友達解除に失敗しました"));
     } finally {
       setUnfriendBusy(false);
     }
@@ -250,27 +198,11 @@ export function useFriendsView() {
     }
   }
 
-  function handleSearchQueryChange(nextQuery: string) {
-    setSearchQuery(nextQuery);
-    if (nextQuery.trim().length === 0) {
-      setSearchResults([]);
-      setSearching(false);
-      setSearchError(null);
-    }
-  }
-
   function handleRetryLoad() {
     setLoading(true);
     setLoadError(null);
     setReloadToken((current) => current + 1);
   }
-
-  const trimmedQuery = searchQuery.trim();
-  const showSearchEmpty =
-    trimmedQuery.length > 0 &&
-    !searching &&
-    !searchError &&
-    searchResults.length === 0;
 
   return {
     friends,

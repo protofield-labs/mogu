@@ -20,8 +20,12 @@ const friendsHook = readSource("lib/mypage/use-friends-view.ts");
 assert(friendsView.includes("friendsBackNavigation"), "friends view resolves contextual back link");
 assert(friendsView.includes("fromHome"), "friends view accepts home entry context");
 assert(
-  friendsHook.includes("cancelFriendRequest"),
-  "friends hook cancels outgoing requests",
+  friendsHook.includes("runFriendRequestAction"),
+  "friends hook consolidates request actions",
+);
+assert(
+  friendsHook.includes("useFriendSearch"),
+  "friends hook delegates search",
 );
 assert(
   friendsHook.includes("removeFriend"),

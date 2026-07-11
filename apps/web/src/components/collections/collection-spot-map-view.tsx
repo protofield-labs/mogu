@@ -31,6 +31,9 @@ import { usePlaceLocations } from "@/lib/places/use-place-locations";
 import { useUserLocation } from "@/lib/places/use-user-location";
 import type { UserGeoPoint } from "@/lib/places/use-user-location";
 import { userLocationMarkerIcon } from "@/lib/places/user-location-marker";
+import {
+  encodeMapMarkerKey,
+} from "@/lib/places/map-marker-points";
 import type { PlaceLocationDTO } from "@/lib/places/types";
 import type { Spot } from "@/lib/spots/browser-api";
 import { cn } from "@/lib/utils";
@@ -90,31 +93,24 @@ function computeMapViewport(points: Array<{ lat: number; lng: number }>): {
 }
 
 function FitMapViewport({
-  markerKey,
+  points,
   enabled,
 }: {
-  markerKey: string;
+  points: GeoPoint[];
   enabled: boolean;
 }) {
   const map = useMap();
+  const markerKey = encodeMapMarkerKey(points);
 
   useEffect(() => {
-    if (!enabled || !map || markerKey.length === 0) {
-      return;
-    }
-
-    const points = markerKey.split("|").map((entry) => {
-      const [lat, lng] = entry.split(",").map(Number);
-      return { lat, lng };
-    });
-    if (points.length === 0 || points.some((point) => Number.isNaN(point.lat))) {
+    if (!enabled || !map || points.length === 0) {
       return;
     }
 
     const viewport = computeMapViewport(points);
     map.setCenter(viewport.center);
     map.setZoom(viewport.zoom);
-  }, [map, markerKey, enabled]);
+  }, [map, markerKey, enabled, points]);
 
   return null;
 }
@@ -175,12 +171,8 @@ export function CollectionSpotMapView({
     () => buildMarkerSpots(spots, locations),
     [spots, locations],
   );
-  const markerKey = useMemo(
-    () =>
-      markers
-        .map(({ location }) => `${location.lat},${location.lng}`)
-        .sort()
-        .join("|"),
+  const markerPoints = useMemo(
+    () => markers.map(({ location }) => ({ lat: location.lat, lng: location.lng })),
     [markers],
   );
   const locationPoints = useMemo(
@@ -326,7 +318,7 @@ export function CollectionSpotMapView({
               onClick={onClearSelection}
               onLoadError={handleMapsLoadError}
             >
-              <FitMapViewport markerKey={markerKey} enabled={!focusUserLocation} />
+              <FitMapViewport points={markerPoints} enabled={!focusUserLocation} />
               <PanMapToTarget target={panTarget} />
               {markers.map(({ spot, location }) => (
                 <Marker

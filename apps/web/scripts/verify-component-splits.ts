@@ -1,5 +1,5 @@
 /**
- * Large component split verification (#113 / #336).
+ * Large component split verification (#113 / #336 / #338).
  * Run via: pnpm exec tsx scripts/verify-component-splits.ts
  */
 import { assertExportedFunction } from "./test-helpers/module-exports";
@@ -15,12 +15,14 @@ import * as useAgentSend from "../src/lib/agent/use-agent-send";
 import * as useAgentSession from "../src/lib/agent/use-agent-session";
 import * as useConnectGeneration from "../src/lib/agent/use-connect-generation";
 import * as useConsultationHistory from "../src/lib/agent/use-consultation-history";
+import * as useFriendSearch from "../src/lib/mypage/use-friend-search";
 import * as useFriendsView from "../src/lib/mypage/use-friends-view";
 import * as useMypageCollections from "../src/lib/mypage/use-mypage-collections";
 
 async function main() {
   assertExportedFunction(spotList, "SpotList", "spot list extracted");
   assertExportedFunction(useFriendsView, "useFriendsView", "friends hook extracted");
+  assertExportedFunction(useFriendSearch, "useFriendSearch", "friend search hook extracted");
   assertExportedFunction(
     useMypageCollections,
     "useMypageCollections",

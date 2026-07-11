@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { AvatarRow, FeedFilterChip } from "@/components/home/avatar-row";
 import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
@@ -38,6 +38,8 @@ import type { FeedItem, FeedPage, Recommendation } from "@/lib/home/types";
 import { fetchFriends } from "@/lib/mypage/browser-api";
 import { useMe } from "@/lib/mypage/me-provider";
 import type { FriendUser } from "@/lib/mypage/types";
+import { formatLoadError } from "@/lib/ui/load-error";
+import { useAsyncLoadEffect } from "@/lib/ui/use-async-load";
 
 type RecommendationState =
   | { status: "loading" }
@@ -72,6 +74,29 @@ async function loadFeedForRings(
   return { items, nextCursor: page.nextCursor };
 }
 
+type HomeData = {
+  storedLastReadAt: Date | null;
+  friendList: FriendUser[];
+  feed: { items: FeedItem[]; nextCursor: string | null };
+  homeRecommendation: RecommendationState;
+};
+
+async function fetchHomeRecommendationState(): Promise<RecommendationState> {
+  return fetchHomeRecommendation()
+    .then((value): RecommendationState => ({ status: "ready", value }))
+    .catch((): RecommendationState => ({ status: "error" }));
+}
+
+async function loadHomeData(): Promise<HomeData> {
+  const storedLastReadAt = getLastReadFeedAt();
+  const [friendList, feed, homeRecommendation] = await Promise.all([
+    fetchFriends(),
+    loadFeedForRings(storedLastReadAt),
+    fetchHomeRecommendationState(),
+  ]);
+  return { storedLastReadAt, friendList, feed, homeRecommendation };
+}
+
 export function HomeView() {
   const { me, loading: meLoading, error: meError, refreshMe } = useMe();
   const [friends, setFriends] = useState<FriendUser[]>([]);
@@ -83,10 +108,8 @@ export function HomeView() {
   const [lastReadAt, setLastReadAt] = useState<Date | null>(null);
   const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
   const [feedViewMode, setFeedViewMode] = useState<CollectionSpotViewMode>("list");
-  const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [initialFeedCount, setInitialFeedCount] = useState<number | null>(null);
   const [openRecommendation, setOpenRecommendation] =
@@ -98,53 +121,42 @@ export function HomeView() {
     selectedFriendIdRef.current = selectedFriendId;
   }, [selectedFriendId]);
 
-  useEffect(() => {
-    if (meLoading) {
-      return;
-    }
-
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const storedLastReadAt = getLastReadFeedAt();
-        const [friendList, feed, homeRecommendation] = await Promise.all([
-          fetchFriends(),
-          loadFeedForRings(storedLastReadAt),
-          fetchHomeRecommendation()
-            .then(
-              (value): RecommendationState => ({ status: "ready", value }),
-            )
-            .catch((): RecommendationState => ({ status: "error" })),
-        ]);
-
-        if (cancelled) {
-          return;
-        }
-
-        setFriends(friendList);
-        setFeedItems(feed.items);
-        setNextCursor(feed.nextCursor);
-        setInitialFeedCount((current) => current ?? feed.items.length);
-        setRecommendation(homeRecommendation);
-        setLastReadAt(storedLastReadAt);
-        feedViewedRef.current = true;
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "読み込みに失敗しました");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+  const applyHomeData = useCallback(
+    (
+      data: HomeData,
+      isCancelled: () => boolean,
+      options?: { captureInitialFeedCount?: boolean },
+    ) => {
+      if (isCancelled()) {
+        return;
       }
-    }
 
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [meLoading, reloadToken]);
+      setFriends(data.friendList);
+      setFeedItems(data.feed.items);
+      setNextCursor(data.feed.nextCursor);
+      if (options?.captureInitialFeedCount) {
+        setInitialFeedCount((current) => current ?? data.feed.items.length);
+      }
+      setRecommendation(data.homeRecommendation);
+      setLastReadAt(data.storedLastReadAt);
+      feedViewedRef.current = true;
+    },
+    [],
+  );
+
+  const {
+    loading,
+    error,
+    setLoading,
+    setError,
+  } = useAsyncLoadEffect(
+    async (isCancelled) => {
+      const data = await loadHomeData();
+      applyHomeData(data, isCancelled, { captureInitialFeedCount: true });
+    },
+    [reloadToken, applyHomeData],
+    { enabled: !meLoading },
+  );
 
   useEffect(() => {
     return () => {
@@ -162,26 +174,10 @@ export function HomeView() {
     setRefreshing(true);
     setError(null);
     try {
-      const storedLastReadAt = getLastReadFeedAt();
-      const [, friendList, feed, homeRecommendation] = await Promise.all([
-        refreshMe(),
-        fetchFriends(),
-        loadFeedForRings(storedLastReadAt),
-        fetchHomeRecommendation()
-          .then(
-            (value): RecommendationState => ({ status: "ready", value }),
-          )
-          .catch((): RecommendationState => ({ status: "error" })),
-      ]);
-
-      setFriends(friendList);
-      setFeedItems(feed.items);
-      setNextCursor(feed.nextCursor);
-      setRecommendation(homeRecommendation);
-      setLastReadAt(storedLastReadAt);
-      feedViewedRef.current = true;
+      const [, data] = await Promise.all([refreshMe(), loadHomeData()]);
+      applyHomeData(data, () => false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "更新に失敗しました");
+      setError(formatLoadError(err, "更新に失敗しました"));
     } finally {
       setRefreshing(false);
     }
@@ -198,7 +194,7 @@ export function HomeView() {
       setFeedItems((current) => [...current, ...page.items]);
       setNextCursor(page.nextCursor);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "続きを読み込めませんでした");
+      setError(formatLoadError(err, "続きを読み込めませんでした"));
     } finally {
       setLoadingMore(false);
     }
