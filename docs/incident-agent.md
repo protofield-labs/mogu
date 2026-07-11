@@ -91,7 +91,7 @@ CREATE TABLE ops.incidents (
   last_seen_at   timestamptz NOT NULL DEFAULT now(),
   merged_into    uuid REFERENCES ops.incidents(id),
   investigation_token uuid NOT NULL DEFAULT gen_random_uuid(),
-  lease_expires_at timestamptz NOT NULL DEFAULT (now() + interval '6 minutes'),
+  lease_expires_at timestamptz NOT NULL DEFAULT (now() + interval '295 seconds'),
   attempt_count  int NOT NULL DEFAULT 1 CHECK (attempt_count BETWEEN 1 AND 3),
   github_issue   text,
   slack_team     text,
@@ -110,6 +110,17 @@ CREATE UNIQUE INDEX incidents_open_incident_key
   WHERE resolved_at IS NULL AND status <> 'merged';
 CREATE INDEX ON ops.incidents (resource, last_seen_at DESC)
   WHERE resolved_at IS NULL AND status <> 'merged';
+
+CREATE TABLE ops.alert_deliveries (
+  message_id  text PRIMARY KEY,          -- Pub/Sub message.messageId
+  incident_id uuid REFERENCES ops.incidents(id),
+  is_owner    boolean NOT NULL DEFAULT false,
+  status      text NOT NULL DEFAULT 'processing'
+    CHECK (status IN ('processing', 'completed')),
+  received_at timestamptz NOT NULL DEFAULT now(),
+  completed_at timestamptz
+);
+CREATE INDEX ON ops.alert_deliveries (incident_id, received_at);
 
 CREATE TABLE ops.slack_events (
   event_id    text PRIMARY KEY,
@@ -247,7 +258,7 @@ playbooks/
 
 | 層 | 判定 | コスト | ヒット時の動作 |
 | --- | --- | --- | --- |
-| **L1 ハッシュ完全一致** | §9のcanonical JSONから算出した`incident_key`が未解決行(`resolved_at IS NULL AND status <> 'merged'`)と一致か | ほぼ無料 | analyzed/escalated行は集約して2xx。investigating行はlease有効なら集約+5xx、期限切れなら§9.6の引継ぎ。解決済みとの一致は再発として新規調査 |
+| **L1 ハッシュ完全一致** | Pub/Sub `messageId`を冪等化後、canonical JSONの`incident_key`が未解決行と一致か | ほぼ無料 | 別messageIdは1回だけ集約して2xx。同じowner messageIdの再送だけをlease回復へ回す。解決済みとの一致は再発として新規調査 |
 | **L2 グルーピング窓** | 同一リソースの直近15分に未解決インシデント(`resolved_at IS NULL AND status <> 'merged'`)があるか | 無料 | 新規調査せず既存行へ集約。Issue作成済みならコメント、調査中ならDBの集約数へ反映 |
 | **L3 ストームブレーカー** | 全体レートが閾値超か(例: 5分で10件超) | 無料 | ストームモード。個別調査を全停止し、共通属性に対し調査1回・「ストーム宣言」issue 1本・Slack 1スレッドのみ。ストーム時こそLLM調査が高コストになるため、コスト制御(§7-4)と同一スイッチ |
 | **L4 embedding類似**(Phase A) | 新アラートのembeddingが直近の未解決インシデント(`resolved_at IS NULL AND status <> 'merged'`)とcos類似か(閾値超) | 中(埋込計算) | 既存行へ集約。Issue作成済みならコメント、調査中ならDBの集約数へ反映 |
@@ -265,15 +276,16 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 
 ### 同時着信時の調査オーナー確保
 
-ノイズ制御の判定と新規調査の開始を分離すると、Issue作成前の同時アラートがすべて「既存なし」と判定して重複調査を開始する。これを防ぐため、I2は次をトランザクション内で強制する。
+ノイズ制御の判定と新規調査の開始を分離すると、Issue作成前の同時アラートがすべて「既存なし」と判定して重複調査を開始する。これを防ぐため、I2はDB状態遷移を短いトランザクションとadvisory lockで強制する(API呼び出し中にDB transactionを保持しない)。
 
-1. リソース単位のtransaction advisory lockを取得し、L1/L2を再チェックする。ヒット時は対象行の`alert_count`と`last_seen_at`を原子的に更新する。
-2. L3閾値に達したら通常フローから**排他的にストーム分岐**する。時間bucket+共通属性の`storm_key`でadvisory lockを取得し、同bucketのストーム行があれば集約して終了する。なければ1件だけがembedding/調査予算を予約してストーム用`investigating`行を作り、共通調査を開始する。L3ヒット後はL4検索・個別行作成へ進まない。
-3. L1〜L3がすべて非該当の場合だけ、`embedding_count`を原子的に予約してembeddingを生成する。L4の検索と新規行確保はL4用advisory lock内で再チェックし、類似先があれば集約して終了する。
-4. L4も非該当の場合だけ`investigation_count`を原子的に予約し、embeddingを含む`status='investigating'`行を**LoopAgent起動前**に挿入する。この行を作成したリクエストだけが調査オーナーとなる。embeddingを予約時に保存するため、後続の表現違いアラートは調査中でもL4にヒットする。未解決行に対する`incident_key`部分UNIQUEインデックスは最終防壁として使う。
-5. 調査中の行へ後続アラートが集約された場合はDBの`alert_count`へ記録し、Issue作成時に集約数を本文へ反映する。
-6. 調査オーナーはtoken+leaseを持つ。期限切れ時はCASで1件だけがattemptを増やして引き継ぐ。lease有効中の再送は5xxで維持し、古いtokenの完了書き込みを拒否する。
-7. 3回失敗時は固定文Issue/Slack通知を作成して`escalated`へ遷移する。
+1. 認証後、Pub/Sub `message.messageId`を`ops.alert_deliveries`へ原子的に挿入する。既存messageIdなら`alert_count`を更新しない。`completed`なら2xx、`processing AND is_owner=true`なら対応incidentのlease回復判定へ進む。初回messageIdが既存incidentへL1/L2/L4集約された場合は件数を1回だけ更新してdeliveryをcompletedにし2xx。新規incidentを作るmessageIdだけ`is_owner=true`として分析完了までprocessingに保つ。
+2. リソース単位のtransaction advisory lock内でL1/L2を再チェックする。別messageIdがヒットした場合だけ対象incidentの`alert_count`/`last_seen_at`を更新し、そのdeliveryをcompletedにして2xxを返す。
+3. L3閾値に達したら通常フローから**排他的にストーム分岐**する。時間bucket+共通属性の`storm_key`でadvisory lockを取得し、同bucketのストーム行があれば集約して終了する。なければ1件だけがembedding/調査予算を予約してストーム用`investigating`行を作り、共通調査を開始する。L3ヒット後はL4検索・個別行作成へ進まない。
+4. L1〜L3がすべて非該当の場合だけ、`embedding_count`を原子的に予約してembeddingを生成する。L4用lock内で再チェックし、類似先があれば集約して終了する。
+5. L4も非該当の場合だけ`investigation_count`を予約し、embedding入り`investigating`行をLoopAgent前に挿入する。このmessageIdをowner deliveryとしてincidentへ紐付ける。
+6. 調査中の行へ別messageIdのアラートが集約された場合はDBの`alert_count`へ1回だけ記録し、Issue作成時に集約数を本文へ反映する。
+7. owner deliveryの調査オーナーはtoken+leaseを持つ。leaseはリクエスト開始から295秒で切れ、300秒上限直前に引継ぎ可能にする。期限切れ時はCASで1件だけがattemptを増やす。lease有効中の同じowner message再送だけ5xxで維持し、古いtokenの書き込みを拒否する。
+8. 分析+出力永続化または3回失敗fallback完了時にowner deliveryをcompletedへ更新して2xxを返す。これ以後の同一messageId再送は即2xxとなる。
 
 ## 10. Issue起票のタイミングとライフサイクル
 
@@ -336,8 +348,8 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 
 | # | issue | 依存 | ファイル境界 | 受け入れ条件シード |
 | --- | --- | --- | --- | --- |
-| I1 | opsスキーマ+incidents/slack_events/budget_usageテーブル+シード事例 | なし | `services/incident-agent/db/**` | 調査lease、RCA review、Slack task/主体、embedding_count+investigation_count共有日次予算を含むDDL |
-| I2 | 受け口(Pub/Sub push受信+L1〜L4ノイズ制御+自己除外+コストブレーカー) | I1, §14 | `services/incident-agent/app/**` | L1〜L3→embedding予算→L4→調査予算の順。L3はstorm専用分岐から戻らない。lease中5xx/期限後CAS、fallback、認証/秘匿化 |
+| I1 | opsスキーマ+incidents/alert_deliveries/slack_events/budget_usageテーブル | なし | `services/incident-agent/db/**` | Pub/Sub messageId/owner状態、295秒lease、RCA review、Slack task、段階予算を含むDDL/制約/権限分離 |
+| I2 | 受け口(Pub/Sub push受信+L1〜L4ノイズ制御+自己除外+コストブレーカー) | I1, §14 | `services/incident-agent/app/**` | messageIdを最初にdedupe。別deliveryは1回集約+2xx、owner再送だけlease回復。L3排他、段階予算、fallback、認証/秘匿化 |
 | I3 | LoopAgent+3ツール+プレイブック注入 | I2 | `services/incident-agent/agent/**`, `playbooks/**` | 過去事例はresolved+rca_reviewedのみ。resource固定、playbook固定map+containment。LLM/受信値による対象拡大を拒否 |
 | I4 | 出力(Slack通知+GitHub Issue起票+ops保存)+RCAレビューCLI | I3 | `services/incident-agent/app/**`, `services/incident-agent/scripts/**` | 安全なSlack/Issue出力、予約行をanalyzedへ遷移。review_incident CLIのみが人間確認後にresolved+rca_reviewedへ更新 |
 | I5 | otel_to_cloud+圧縮率メトリクス(受信アラート→インシデント→Issue) | I4 | `services/incident-agent/**`(設定のみ) | Cloud Traceにマスキング済み要約/メタデータのみ送出(生ログ・ツール結果・プロンプト禁止)。圧縮率がダッシュボードで見える |
