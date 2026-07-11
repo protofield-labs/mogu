@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from app.config import Settings
 from app.main import _to_response, create_app
-from app.noise import InvestigationReady
+from app.noise import IngestResult, InvestigationReady
 from app.self_exclude import is_self_excluded
 
 
@@ -66,3 +66,48 @@ def test_investigation_ready_is_not_acked_before_analysis_commit() -> None:
     response = _to_response(result)
 
     assert response.status_code == 503
+
+
+def test_pubsub_route_runs_investigation_before_ack(monkeypatch) -> None:
+    token = uuid.uuid4()
+    ready = InvestigationReady(
+        incident_id=uuid.uuid4(),
+        delivery_message_id="message-2",
+        investigation_token=token,
+        work_token=token,
+        alert={"v": 1},
+        embedding=[0.0] * 768,
+        playbook_hint=None,
+        loop_budget_seconds=120,
+    )
+
+    class FakeIngestService:
+        def __init__(self, db, settings):
+            pass
+
+        def handle_pubsub(self, body, deadline):
+            return ready
+
+    class FakeInvestigationService:
+        called = False
+
+        async def investigate(self, result, deadline):
+            assert result is ready
+            self.called = True
+            return IngestResult(200, {"action": "analyzed"})
+
+    monkeypatch.setenv("SERVICE_MODE", "ingest")
+    monkeypatch.setenv("INGEST_SKIP_AUTH", "true")
+    monkeypatch.setattr("app.main.IngestService", FakeIngestService)
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    investigations = FakeInvestigationService()
+    client = TestClient(create_app(investigations))
+
+    response = client.post("/pubsub/alerts", json={"message": {}})
+
+    assert response.status_code == 200
+    assert response.json() == {"action": "analyzed"}
+    assert investigations.called is True
+    get_settings.cache_clear()

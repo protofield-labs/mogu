@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+from agent.service import InvestigationService
 from app.auth import verify_pubsub_oidc
 from app.config import get_settings
 from app.db import Database
@@ -16,11 +17,14 @@ from app.noise import IngestResult, InvestigationReady
 logger = logging.getLogger(__name__)
 
 
-def create_app() -> FastAPI:
+def create_app(
+    investigation_service: InvestigationService | None = None,
+) -> FastAPI:
     settings = get_settings()
     app = FastAPI(title="incident-agent", version="0.1.0")
     db = Database(settings.dsn)
     ingest_service = IngestService(db, settings)
+    investigations = investigation_service or InvestigationService(db, settings)
 
     @app.get("/health")
     async def health() -> dict[str, str]:
@@ -40,6 +44,8 @@ def create_app() -> FastAPI:
 
             try:
                 result = ingest_service.handle_pubsub(body, deadline)
+                if isinstance(result, InvestigationReady):
+                    result = await investigations.investigate(result, deadline)
             except DeadlineExceeded:
                 return JSONResponse(status_code=503, content={"error": "deadline exceeded"})
 
