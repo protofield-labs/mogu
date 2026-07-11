@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import uuid
+
 from fastapi.testclient import TestClient
 
 from app.config import Settings
-from app.main import create_app
+from app.main import _to_response, create_app
+from app.noise import InvestigationReady
 from app.self_exclude import is_self_excluded
 
 
@@ -45,3 +48,21 @@ def test_slack_route_returns_404_in_ingest_mode(monkeypatch) -> None:
     assert client.post("/slack/events").status_code == 404
     assert client.post("/tasks/outbox").status_code == 404
     get_settings.cache_clear()
+
+
+def test_investigation_ready_is_not_acked_before_analysis_commit() -> None:
+    token = uuid.uuid4()
+    result = InvestigationReady(
+        incident_id=uuid.uuid4(),
+        delivery_message_id="message-1",
+        investigation_token=token,
+        work_token=token,
+        alert={"v": 1},
+        embedding=[0.0] * 768,
+        playbook_hint=None,
+        loop_budget_seconds=120,
+    )
+
+    response = _to_response(result)
+
+    assert response.status_code == 503

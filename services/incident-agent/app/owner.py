@@ -66,12 +66,19 @@ def renew_owner_lease(
                SET work_token = %s,
                    work_lease_expires_at = %s
              WHERE message_id = %s
+               AND incident_id = %s
                AND work_token = %s
                AND status = 'processing'
                AND is_owner = true
              RETURNING message_id
             """,
-            (new_tok, new_lease, delivery_message_id, work_token),
+            (
+                new_tok,
+                new_lease,
+                delivery_message_id,
+                incident_id,
+                work_token,
+            ),
         ).fetchone()
 
         if not delivery:
@@ -103,11 +110,21 @@ def save_owner_analysis(
             (incident_id,),
         ).fetchone()
         delivery = conn.execute(
-            "SELECT status, is_owner FROM ops.alert_deliveries WHERE message_id = %s",
+            """
+            SELECT status, is_owner, incident_id
+              FROM ops.alert_deliveries
+             WHERE message_id = %s
+            """,
             (delivery_message_id,),
         ).fetchone()
 
-        if incident and incident["status"] == "merged" and delivery and delivery["status"] == "completed":
+        if (
+            incident
+            and incident["status"] == "merged"
+            and delivery
+            and delivery["status"] == "completed"
+            and delivery["incident_id"] == incident_id
+        ):
             return SaveAnalysisResult(success=True, status_code=200, incident_id=incident_id)
 
         updated = conn.execute(
@@ -143,7 +160,11 @@ def save_owner_analysis(
                 "SELECT status FROM ops.incidents WHERE id = %s", (incident_id,)
             ).fetchone()
             delivery = conn.execute(
-                "SELECT status FROM ops.alert_deliveries WHERE message_id = %s",
+                """
+                SELECT status, incident_id
+                  FROM ops.alert_deliveries
+                 WHERE message_id = %s
+                """,
                 (delivery_message_id,),
             ).fetchone()
             if (
@@ -151,6 +172,7 @@ def save_owner_analysis(
                 and incident["status"] == "merged"
                 and delivery
                 and delivery["status"] == "completed"
+                and delivery["incident_id"] == incident_id
             ):
                 return SaveAnalysisResult(success=True, status_code=200, incident_id=incident_id)
             return SaveAnalysisResult(
@@ -165,12 +187,13 @@ def save_owner_analysis(
                    completed_at = now(),
                    work_lease_expires_at = NULL
              WHERE message_id = %s
+               AND incident_id = %s
                AND work_token = %s
                AND status = 'processing'
                AND is_owner = true
              RETURNING message_id
             """,
-            (delivery_message_id, work_token),
+            (delivery_message_id, incident_id, work_token),
         ).fetchone()
 
         if not delivery_updated:

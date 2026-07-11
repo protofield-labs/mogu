@@ -9,8 +9,8 @@ from typing import Any
 from app.adapter import AdapterError, adapt_monitoring_payload
 from app.config import Settings
 from app.db import Database
-from app.deadline import DeadlineExceeded, RequestDeadline
-from app.embedding import DeterministicEmbeddingClient, EmbeddingClient
+from app.deadline import RequestDeadline, lease_expires_at
+from app.embedding import DeterministicEmbeddingClient, EmbeddingClient, VertexEmbeddingClient
 from app.keys import compute_fallback_incident_key, compute_incident_key
 from app.masking import MaskingError, mask_alert
 from app.noise import DeliveryRow, IngestResult, InvestigationReady, NoiseOrchestrator, _row_to_delivery
@@ -30,7 +30,16 @@ class IngestService:
     ):
         self._db = db
         self._settings = settings
-        self._embedding = embedding_client or DeterministicEmbeddingClient()
+        if embedding_client is not None:
+            self._embedding = embedding_client
+        elif settings.embedding_backend == "deterministic":
+            self._embedding = DeterministicEmbeddingClient()
+        else:
+            self._embedding = VertexEmbeddingClient(
+                project_id=settings.google_cloud_project,
+                location=settings.vertex_location,
+                model=settings.embedding_model,
+            )
         self._orchestrator = NoiseOrchestrator(db, settings, self._embedding)
 
     def handle_pubsub(self, body: dict[str, Any], deadline: RequestDeadline) -> IngestResult:
@@ -39,7 +48,7 @@ class IngestService:
             return IngestResult(400, {"error": "invalid pubsub envelope"})
 
         message_id = message.get("messageId") or message.get("message_id")
-        if not message_id or not _MESSAGE_ID_RE.match(message_id):
+        if not isinstance(message_id, str) or not _MESSAGE_ID_RE.fullmatch(message_id):
             return IngestResult(400, {"error": "invalid messageId"})
 
         data_b64 = message.get("data", "")
@@ -47,6 +56,8 @@ class IngestService:
             raw_payload = json.loads(base64.b64decode(data_b64))
         except Exception:
             return IngestResult(400, {"error": "invalid message data"})
+        if not isinstance(raw_payload, dict):
+            raw_payload = {}
 
         # Step 1: checkpoint before masking
         checkpoint = self._checkpoint(message_id, raw_payload)
@@ -67,13 +78,8 @@ class IngestService:
             # Lease expired — retry step 4
             if delivery.sanitized_alert.get("masking_pending"):
                 return IngestResult(500, {"error": "inconsistent embedding state"})
-            result = self._orchestrator._ensure_embedding(
+            return self._orchestrator.resume_embedding(
                 delivery, delivery.sanitized_alert, deadline
-            )
-            if isinstance(result, IngestResult):
-                return result
-            return self._orchestrator._post_embedding_phase(
-                delivery, delivery.sanitized_alert, result, deadline
             )
 
         if (
@@ -87,6 +93,11 @@ class IngestService:
             if is_new:
                 return self._mask_and_continue(delivery, raw_payload, deadline)
             # Redelivery: do not re-interpret raw payload (§9 step 1)
+            if (
+                delivery.work_lease_expires_at
+                and delivery.work_lease_expires_at > datetime.now(timezone.utc)
+            ):
+                return IngestResult(503, {"error": "masking in progress"})
             return self._masking_failure_escalation(delivery)
 
         if delivery.status == "received" and not delivery.sanitized_alert.get("masking_pending"):
@@ -124,12 +135,20 @@ class IngestService:
                 inserted = conn.execute(
                     """
                     INSERT INTO ops.alert_deliveries (
-                        message_id, resource, alert_policy, incident_key, sanitized_alert
-                    ) VALUES (%s, %s, %s, %s, %s::jsonb)
+                        message_id, resource, alert_policy, incident_key, sanitized_alert,
+                        work_lease_expires_at
+                    ) VALUES (%s, %s, %s, %s, %s::jsonb, %s)
                     ON CONFLICT (message_id) DO NOTHING
                     RETURNING message_id
                     """,
-                    (message_id, resource, policy, fallback_key, json.dumps(PLACEHOLDER_ALERT)),
+                    (
+                        message_id,
+                        resource,
+                        policy,
+                        fallback_key,
+                        json.dumps(PLACEHOLDER_ALERT),
+                        lease_expires_at(self._settings.embedding_lease_seconds),
+                    ),
                 ).fetchone()
                 row = conn.execute(
                     "SELECT * FROM ops.alert_deliveries WHERE message_id = %s",
@@ -139,9 +158,7 @@ class IngestService:
                 delivery = _row_to_delivery(row)
                 if delivery.status == "completed":
                     return IngestResult(200, {"action": "already_completed"})
-                if inserted is None:
-                    return self._masking_failure_escalation(delivery)
-                return delivery, True
+                return delivery, inserted is not None
             return IngestResult(500, {"error": "adapter checkpoint failed"})
 
         if is_self_excluded(adapted.resource, self._settings):
@@ -161,8 +178,9 @@ class IngestService:
             inserted = conn.execute(
                 """
                 INSERT INTO ops.alert_deliveries (
-                    message_id, resource, alert_policy, incident_key, sanitized_alert
-                ) VALUES (%s, %s, %s, %s, %s::jsonb)
+                    message_id, resource, alert_policy, incident_key, sanitized_alert,
+                    work_lease_expires_at
+                ) VALUES (%s, %s, %s, %s, %s::jsonb, %s)
                 ON CONFLICT (message_id) DO NOTHING
                 RETURNING message_id
                 """,
@@ -172,6 +190,7 @@ class IngestService:
                     adapted.alert_policy,
                     fallback_key,
                     json.dumps(PLACEHOLDER_ALERT),
+                    lease_expires_at(self._settings.embedding_lease_seconds),
                 ),
             ).fetchone()
             row = conn.execute(
@@ -206,9 +225,12 @@ class IngestService:
                 UPDATE ops.alert_deliveries
                    SET incident_key = %s,
                        sanitized_alert = %s::jsonb,
-                       status = 'received'
+                       status = 'received',
+                       work_lease_expires_at = NULL
                  WHERE message_id = %s
+                   AND status = 'received'
                    AND sanitized_alert = %s::jsonb
+                   AND work_token = %s
                  RETURNING *
                 """,
                 (
@@ -216,6 +238,7 @@ class IngestService:
                     json.dumps(alert),
                     delivery.message_id,
                     json.dumps(PLACEHOLDER_ALERT),
+                    delivery.work_token,
                 ),
             ).fetchone()
             if not updated:
@@ -257,6 +280,18 @@ class IngestService:
         )
 
         with self._db.transaction() as conn:
+            current = conn.execute(
+                "SELECT * FROM ops.alert_deliveries WHERE message_id = %s FOR UPDATE",
+                (delivery.message_id,),
+            ).fetchone()
+            if not current:
+                return IngestResult(500, {"error": "masking delivery missing"})
+            current_delivery = _row_to_delivery(current)
+            if current_delivery.status == "completed":
+                return IngestResult(200, {"action": "already_completed"})
+            if not current_delivery.sanitized_alert.get("masking_pending"):
+                return IngestResult(503, {"error": "masking state advanced"})
+
             incident = conn.execute(
                 """
                 INSERT INTO ops.incidents (
@@ -293,7 +328,9 @@ class IngestService:
                        incident_key = %s,
                        sanitized_alert = %s::jsonb,
                        incident_id = %s,
-                       completed_at = now()
+                       completed_at = now(),
+                       work_token = gen_random_uuid(),
+                       work_lease_expires_at = NULL
                  WHERE message_id = %s
                 """,
                 (
@@ -330,6 +367,8 @@ class IngestService:
 
         if lease_valid:
             return IngestResult(503, {"error": "owner lease active"})
+        if deadline.loop_agent_budget_seconds() <= 0:
+            return IngestResult(503, {"error": "insufficient investigation deadline"})
 
         renewed = renew_owner_lease(
             self._db,
@@ -343,14 +382,19 @@ class IngestService:
             if incident_row["attempt_count"] >= 3:
                 from app.owner import save_final_escalation
 
-                save_final_escalation(
+                final = save_final_escalation(
                     self._db,
                     incident_id=delivery.incident_id,
                     delivery_message_id=delivery.message_id,
                     investigation_token=incident_row["investigation_token"],
                     work_token=delivery.work_token,
                 )
-                return IngestResult(200, {"action": "owner_exhausted"})
+                if final.success:
+                    return IngestResult(200, {"action": "owner_exhausted"})
+                return IngestResult(
+                    final.status_code,
+                    {"error": final.reason or "owner escalation cas failed"},
+                )
             return IngestResult(503, {"error": "owner lease renew failed"})
 
         alert = delivery.sanitized_alert

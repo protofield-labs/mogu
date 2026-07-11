@@ -20,6 +20,7 @@ export INGEST_SKIP_AUTH=true   # ローカル開発のみ
 export DB_HOST=localhost DB_NAME=mogu DB_USER=ops_ingest DB_PASSWORD=...
 export ALLOWED_RESOURCES=cloud_run/dev-web
 export ALLOWED_ALERT_POLICIES=dev-web-latency
+export EMBEDDING_BACKEND=deterministic # ローカル開発のみ。本番はvertex固定
 uvicorn app.main:app --host 0.0.0.0 --port 8080
 ```
 
@@ -30,4 +31,5 @@ cd services/incident-agent
 python -m pytest tests/ -q
 ```
 
-Docker PG が利用可能な場合は統合テストも実行されます。
+統合テストは、migration 適用済みの Docker PostgreSQL を起動したうえで
+`INCIDENT_AGENT_INTEGRATION=1` を設定した場合に実行されます。

@@ -23,6 +23,16 @@ def test_loop_agent_budget_capped_at_270() -> None:
     assert d.loop_agent_budget_seconds() <= 270
 
 
+def test_loop_agent_budget_preserves_commit_buffer() -> None:
+    d = RequestDeadline(started_at=time.monotonic() - 30, absolute_deadline_seconds=100)
+    assert 39 < d.loop_agent_budget_seconds() <= 40
+
+
+def test_loop_agent_budget_is_zero_inside_commit_buffer() -> None:
+    d = RequestDeadline(started_at=time.monotonic() - 80, absolute_deadline_seconds=100)
+    assert d.loop_agent_budget_seconds() == 0
+
+
 def test_ensure_not_expired_raises() -> None:
     d = RequestDeadline(started_at=time.monotonic() - 600, absolute_deadline_seconds=10)
     with pytest.raises(DeadlineExceeded):

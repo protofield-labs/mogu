@@ -33,6 +33,10 @@ class Settings:
     absolute_deadline_seconds: int
     lease_seconds: int
     embedding_lease_seconds: int
+    google_cloud_project: str = ""
+    vertex_location: str = "asia-northeast1"
+    embedding_model: str = "text-embedding-005"
+    embedding_backend: str = "vertex"
 
     @property
     def dsn(self) -> str:
@@ -44,6 +48,16 @@ class Settings:
 
 @lru_cache
 def get_settings() -> Settings:
+    node_env = os.environ.get("NODE_ENV", "").lower()
+    default_embedding_backend = "vertex" if node_env == "production" else "deterministic"
+    embedding_backend = os.environ.get(
+        "EMBEDDING_BACKEND", default_embedding_backend
+    ).lower()
+    if embedding_backend not in {"deterministic", "vertex"}:
+        raise ValueError("EMBEDDING_BACKEND must be deterministic or vertex")
+    if node_env == "production" and embedding_backend != "vertex":
+        raise ValueError("production requires EMBEDDING_BACKEND=vertex")
+
     return Settings(
         service_mode=os.environ.get("SERVICE_MODE", "ingest"),
         db_host=os.environ.get("DB_HOST", "localhost"),
@@ -55,7 +69,7 @@ def get_settings() -> Settings:
         pubsub_audience=os.environ.get("PUBSUB_AUDIENCE", ""),
         pubsub_push_sa_email=os.environ.get("PUBSUB_PUSH_SA_EMAIL", ""),
         ingest_skip_auth=os.environ.get("INGEST_SKIP_AUTH", "").lower() == "true"
-        and os.environ.get("NODE_ENV", "").lower() != "production",
+        and node_env != "production",
         max_embedding_budget=int(os.environ.get("MAX_EMBEDDING_BUDGET", "100")),
         max_investigation_budget=int(os.environ.get("MAX_INVESTIGATION_BUDGET", "50")),
         l4_cosine_threshold=float(os.environ.get("L4_COSINE_THRESHOLD", "0.85")),
@@ -70,4 +84,8 @@ def get_settings() -> Settings:
         absolute_deadline_seconds=int(os.environ.get("ABSOLUTE_DEADLINE_SECONDS", "540")),
         lease_seconds=int(os.environ.get("LEASE_SECONDS", "600")),
         embedding_lease_seconds=int(os.environ.get("EMBEDDING_LEASE_SECONDS", "60")),
+        google_cloud_project=os.environ.get("GOOGLE_CLOUD_PROJECT", ""),
+        vertex_location=os.environ.get("VERTEX_LOCATION", "asia-northeast1"),
+        embedding_model=os.environ.get("EMBEDDING_MODEL", "text-embedding-005"),
+        embedding_backend=embedding_backend,
     )

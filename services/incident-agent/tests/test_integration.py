@@ -109,6 +109,140 @@ class TestNoiseControlIntegration:
             ).fetchone()
         assert row["cnt"] == 1
 
+    def test_active_masking_checkpoint_returns_retry(
+        self, db_available: bool
+    ) -> None:
+        if not db_available:
+            pytest.skip("test database not reachable")
+
+        settings = _test_settings()
+        db = Database(settings.dsn)
+        service = IngestService(db, settings, DeterministicEmbeddingClient())
+        msg_id = f"masking-{uuid.uuid4()}"
+        body = _pubsub_envelope(msg_id, _base_incident())
+        raw_payload = {"incident": _base_incident()}
+
+        checkpoint = service._checkpoint(msg_id, raw_payload)
+        assert isinstance(checkpoint, tuple)
+        _, is_new = checkpoint
+        assert is_new
+
+        concurrent = service.handle_pubsub(body, RequestDeadline.create())
+
+        assert concurrent.status_code == 503
+        assert concurrent.body == {"error": "masking in progress"}
+
+    def test_l3_embedding_budget_failure_creates_storm(
+        self, db_available: bool
+    ) -> None:
+        if not db_available:
+            pytest.skip("test database not reachable")
+
+        suffix = uuid.uuid4().hex
+        resource = f"cloud_run/{suffix}"
+        policy = f"policy-{suffix}"
+        settings = _test_settings(
+            allowed_resources=frozenset({resource}),
+            allowed_alert_policies=frozenset({policy}),
+            l3_storm_threshold=0,
+            max_embedding_budget=0,
+        )
+        db = Database(settings.dsn)
+        service = IngestService(db, settings, DeterministicEmbeddingClient())
+        msg_id = f"storm-budget-{suffix}"
+        body = _pubsub_envelope(
+            msg_id,
+            _base_incident(
+                policy_name=policy,
+                resource_name=resource,
+                resource={
+                    "type": "cloud_run_revision",
+                    "labels": {"service_name": suffix},
+                },
+            ),
+        )
+
+        result = service.handle_pubsub(body, RequestDeadline.create())
+
+        assert result.status_code == 200
+        assert result.body["action"] == "escalated"
+        with db.connection() as conn:
+            incident = conn.execute(
+                """
+                SELECT i.incident_kind, i.status, i.storm_key, d.status AS delivery_status
+                  FROM ops.alert_deliveries d
+                  JOIN ops.incidents i ON i.id = d.incident_id
+                 WHERE d.message_id = %s
+                """,
+                (msg_id,),
+            ).fetchone()
+        assert incident["incident_kind"] == "storm"
+        assert incident["status"] == "escalated"
+        assert incident["storm_key"] is not None
+        assert incident["delivery_status"] == "completed"
+
+    def test_completed_delivery_cannot_be_reclaimed_as_owner(
+        self, db_available: bool
+    ) -> None:
+        if not db_available:
+            pytest.skip("test database not reachable")
+
+        suffix = uuid.uuid4().hex
+        resource = f"cloud_run/{suffix}"
+        policy = f"policy-{suffix}"
+        settings = _test_settings(
+            allowed_resources=frozenset({resource}),
+            allowed_alert_policies=frozenset({policy}),
+        )
+        db = Database(settings.dsn)
+        service = IngestService(db, settings, DeterministicEmbeddingClient())
+        msg_id = f"completed-{suffix}"
+        embedding = [0.0] * 768
+        alert = {
+            "v": 1,
+            "alert_policy": policy,
+            "resource": resource,
+            "service": suffix,
+            "host": None,
+            "message": "completed delivery",
+        }
+
+        with db.transaction() as conn:
+            row = conn.execute(
+                """
+                INSERT INTO ops.alert_deliveries (
+                    message_id, resource, alert_policy, incident_key, sanitized_alert,
+                    status, completed_at, embedding
+                ) VALUES (%s, %s, %s, %s, %s::jsonb, 'completed', now(), %s::vector)
+                RETURNING *
+                """,
+                (
+                    msg_id,
+                    resource,
+                    policy,
+                    compute_incident_key(alert),
+                    json.dumps(alert),
+                    "[" + ",".join(["0"] * 768) + "]",
+                ),
+            ).fetchone()
+        from app.noise import _row_to_delivery
+
+        result = service._orchestrator._post_embedding_phase(
+            _row_to_delivery(row),
+            alert,
+            embedding,
+            RequestDeadline.create(),
+        )
+
+        assert result.status_code == 200
+        assert result.body == {"action": "already_completed"}
+        with db.connection() as conn:
+            count = conn.execute(
+                "SELECT COUNT(*) AS cnt FROM ops.incidents WHERE resource = %s",
+                (resource,),
+            ).fetchone()
+        assert count["cnt"] == 0
+
 
 @requires_docker_pg
 @skip_no_db
@@ -283,3 +417,69 @@ class TestOwnerCAS:
             work_token=token,
         )
         assert not stale_renew.success
+
+    def test_save_owner_analysis_rejects_cross_incident_delivery(
+        self, db_available: bool
+    ) -> None:
+        if not db_available:
+            pytest.skip("test database not reachable")
+
+        settings = _test_settings()
+        db = Database(settings.dsn)
+        incident_a = uuid.uuid4()
+        incident_b = uuid.uuid4()
+        token_a = uuid.uuid4()
+        token_b = uuid.uuid4()
+        message_b = f"owner-cross-{uuid.uuid4()}"
+
+        with db.transaction() as conn:
+            for incident_id, key, token in (
+                (incident_a, f"key-{incident_a}", token_a),
+                (incident_b, f"key-{incident_b}", token_b),
+            ):
+                conn.execute(
+                    """
+                    INSERT INTO ops.incidents (
+                        id, incident_key, alert_policy, resource, raw_alert, status,
+                        embedding, investigation_token, lease_expires_at
+                    ) VALUES (
+                        %s, %s, 'dev-web-latency', 'cloud_run/dev-web', '{}',
+                        'investigating', %s::vector, %s, now() + interval '600 seconds'
+                    )
+                    """,
+                    (
+                        incident_id,
+                        key,
+                        "[" + ",".join(["0"] * 768) + "]",
+                        token,
+                    ),
+                )
+            conn.execute(
+                """
+                INSERT INTO ops.alert_deliveries (
+                    message_id, resource, alert_policy, incident_key, sanitized_alert,
+                    incident_id, is_owner, status, work_token
+                ) VALUES (
+                    %s, 'cloud_run/dev-web', 'dev-web-latency', %s, '{}',
+                    %s, true, 'processing', %s
+                )
+                """,
+                (message_b, f"key-{incident_b}", incident_b, token_b),
+            )
+
+        with pytest.raises(RuntimeError, match="delivery cas failed"):
+            save_owner_analysis(
+                db,
+                incident_id=incident_a,
+                delivery_message_id=message_b,
+                investigation_token=token_a,
+                work_token=token_b,
+                analysis={"severity": "high", "rca_hypothesis": "crossed context"},
+            )
+
+        with db.connection() as conn:
+            incident = conn.execute(
+                "SELECT status FROM ops.incidents WHERE id = %s",
+                (incident_a,),
+            ).fetchone()
+        assert incident["status"] == "investigating"

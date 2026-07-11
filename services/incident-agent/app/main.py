@@ -73,12 +73,11 @@ def _make_stub_route(path: str):
 def _to_response(result: IngestResult | InvestigationReady) -> JSONResponse:
     if isinstance(result, InvestigationReady):
         return JSONResponse(
-            status_code=200,
+            status_code=503,
             content={
-                "action": "investigation_ready",
+                "error": "investigation handler unavailable",
                 "incident_id": str(result.incident_id),
                 "delivery_message_id": result.delivery_message_id,
-                "loop_budget_seconds": result.loop_budget_seconds,
             },
         )
     return JSONResponse(status_code=result.status_code, content=result.body)

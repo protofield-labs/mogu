@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from contextlib import ExitStack
 import json
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -285,11 +286,30 @@ def aggregate_to_incident(
            SET status = 'completed',
                is_owner = false,
                completed_at = now(),
-               incident_id = %s
+               incident_id = %s,
+               work_token = gen_random_uuid(),
+               work_lease_expires_at = NULL
          WHERE message_id = %s
         """,
         (incident.id, delivery.message_id),
     )
+
+
+def lock_claimable_delivery(
+    conn: psycopg.Connection[Any], message_id: str
+) -> DeliveryRow | IngestResult:
+    row = conn.execute(
+        "SELECT * FROM ops.alert_deliveries WHERE message_id = %s FOR UPDATE",
+        (message_id,),
+    ).fetchone()
+    if not row:
+        return IngestResult(500, {"error": "delivery missing"})
+    delivery = _row_to_delivery(row)
+    if delivery.status == "completed":
+        return IngestResult(200, {"action": "already_completed"})
+    if delivery.status != "received":
+        return IngestResult(503, {"error": "delivery is not claimable"})
+    return delivery
 
 
 def merge_normals_into_storm(
@@ -346,6 +366,68 @@ class NoiseOrchestrator:
         self._settings = settings
         self._embedding = embedding_client
 
+    def resume_embedding(
+        self,
+        delivery: DeliveryRow,
+        alert: dict[str, Any],
+        deadline: RequestDeadline,
+    ) -> IngestResult | InvestigationReady:
+        """Resume an expired embedding lease without losing the L3 storm branch."""
+        storm_key: str | None = None
+        with self._db.transaction() as conn:
+            with resource_advisory_lock(conn, delivery.resource, delivery.alert_policy):
+                row = conn.execute(
+                    "SELECT * FROM ops.alert_deliveries WHERE message_id = %s FOR UPDATE",
+                    (delivery.message_id,),
+                ).fetchone()
+                if not row:
+                    return IngestResult(500, {"error": "delivery missing"})
+                current = _row_to_delivery(row)
+                if current.status == "completed":
+                    return IngestResult(200, {"action": "already_completed"})
+                if current.status != "embedding":
+                    return IngestResult(503, {"error": "embedding state advanced"})
+                delivery = current
+
+                storm = find_open_storm(
+                    conn, delivery.resource, delivery.alert_policy
+                )
+                if storm:
+                    aggregate_to_incident(
+                        conn,
+                        incident=storm,
+                        message_id=delivery.message_id,
+                        delivery=delivery,
+                    )
+                    return IngestResult(
+                        200,
+                        {
+                            "action": "aggregated_storm_resume",
+                            "incident_id": str(storm.id),
+                        },
+                    )
+
+                rate = count_recent_deliveries(
+                    conn,
+                    resource=delivery.resource,
+                    alert_policy=delivery.alert_policy,
+                    window_seconds=self._settings.l3_storm_window_seconds,
+                )
+                if rate > self._settings.l3_storm_threshold:
+                    storm_key = compute_storm_key(
+                        alert_policy=delivery.alert_policy,
+                        resource=delivery.resource,
+                    )
+
+        embedding = self._ensure_embedding(
+            delivery, alert, deadline, storm_key=storm_key
+        )
+        if isinstance(embedding, IngestResult):
+            return embedding
+        if storm_key:
+            return self._handle_storm_branch(delivery, alert, deadline)
+        return self._post_embedding_phase(delivery, alert, embedding, deadline)
+
     def run_after_masking(
         self,
         delivery: DeliveryRow,
@@ -358,6 +440,10 @@ class NoiseOrchestrator:
         # Phase 1: pre-embedding (steps 2-3)
         with self._db.transaction() as conn:
             with resource_advisory_lock(conn, delivery.resource, delivery.alert_policy):
+                current = lock_claimable_delivery(conn, delivery.message_id)
+                if isinstance(current, IngestResult):
+                    return current
+                delivery = current
                 storm = find_open_storm(conn, delivery.resource, delivery.alert_policy)
                 if storm:
                     aggregate_to_incident(
@@ -379,7 +465,7 @@ class NoiseOrchestrator:
                     alert_policy=delivery.alert_policy,
                     window_seconds=self._settings.l3_storm_window_seconds,
                 )
-                l3_hit = rate >= self._settings.l3_storm_threshold
+                l3_hit = rate > self._settings.l3_storm_threshold
 
                 if l3_hit:
                     pass  # proceed to storm branch outside lock
@@ -411,106 +497,148 @@ class NoiseOrchestrator:
         alert: dict[str, Any],
         deadline: RequestDeadline,
     ) -> IngestResult | InvestigationReady:
+        deadline.ensure_not_expired()
         storm_key = compute_storm_key(
             alert_policy=delivery.alert_policy, resource=delivery.resource
         )
 
         with self._db.transaction() as conn:
-            with storm_advisory_lock(conn, storm_key):
-                existing = conn.execute(
-                    """
-                    SELECT * FROM ops.incidents
-                     WHERE storm_key = %s
-                       AND resolved_at IS NULL
-                       AND status <> 'merged'
-                     LIMIT 1
-                    """,
-                    (storm_key,),
-                ).fetchone()
-                if existing:
-                    incident = _row_to_incident(existing)
-                    aggregate_to_incident(
-                        conn, incident=incident, message_id=delivery.message_id, delivery=delivery
-                    )
-                    return IngestResult(
-                        200, {"action": "aggregated_storm_key", "incident_id": str(incident.id)}
-                    )
+            with resource_advisory_lock(conn, delivery.resource, delivery.alert_policy):
+                with storm_advisory_lock(conn, storm_key):
+                    current = lock_claimable_delivery(conn, delivery.message_id)
+                    if isinstance(current, IngestResult):
+                        return current
+                    delivery = current
+                    existing = conn.execute(
+                        """
+                        SELECT * FROM ops.incidents
+                         WHERE storm_key = %s
+                           AND resolved_at IS NULL
+                           AND status <> 'merged'
+                         LIMIT 1
+                        """,
+                        (storm_key,),
+                    ).fetchone()
+                    if existing:
+                        incident = _row_to_incident(existing)
+                        aggregate_to_incident(
+                            conn,
+                            incident=incident,
+                            message_id=delivery.message_id,
+                            delivery=delivery,
+                        )
+                        return IngestResult(
+                            200,
+                            {
+                                "action": "aggregated_storm_key",
+                                "incident_id": str(incident.id),
+                            },
+                        )
 
-        embedding = self._ensure_embedding(delivery, alert, deadline)
+        embedding = self._ensure_embedding(
+            delivery, alert, deadline, storm_key=storm_key
+        )
         if isinstance(embedding, IngestResult):
-            return self._create_storm_escalation(delivery, alert, storm_key, embedding)
+            return embedding
 
         with self._db.transaction() as conn:
-            with storm_advisory_lock(conn, storm_key):
-                existing = conn.execute(
-                    """
-                    SELECT * FROM ops.incidents
-                     WHERE storm_key = %s
-                       AND resolved_at IS NULL
-                       AND status <> 'merged'
-                     LIMIT 1
-                    """,
-                    (storm_key,),
-                ).fetchone()
-                if existing:
-                    incident = _row_to_incident(existing)
-                    aggregate_to_incident(
-                        conn, incident=incident, message_id=delivery.message_id, delivery=delivery
+            with resource_advisory_lock(conn, delivery.resource, delivery.alert_policy):
+                with storm_advisory_lock(conn, storm_key):
+                    current = lock_claimable_delivery(conn, delivery.message_id)
+                    if isinstance(current, IngestResult):
+                        return current
+                    delivery = current
+                    existing = conn.execute(
+                        """
+                        SELECT * FROM ops.incidents
+                         WHERE storm_key = %s
+                           AND resolved_at IS NULL
+                           AND status <> 'merged'
+                         LIMIT 1
+                        """,
+                        (storm_key,),
+                    ).fetchone()
+                    if existing:
+                        incident = _row_to_incident(existing)
+                        aggregate_to_incident(
+                            conn,
+                            incident=incident,
+                            message_id=delivery.message_id,
+                            delivery=delivery,
+                        )
+                        return IngestResult(
+                            200,
+                            {
+                                "action": "aggregated_storm_race",
+                                "incident_id": str(incident.id),
+                            },
+                        )
+
+                    if deadline.loop_agent_budget_seconds() <= 0:
+                        return IngestResult(
+                            503, {"error": "insufficient investigation deadline"}
+                        )
+                    if not reserve_investigation_budget(
+                        conn, self._settings.max_investigation_budget
+                    ):
+                        return self._escalate_in_transaction(
+                            conn,
+                            delivery,
+                            alert,
+                            embedding,
+                            storm_key=storm_key,
+                            kind="storm",
+                        )
+
+                    token = new_token()
+                    lease = lease_expires_at(self._settings.lease_seconds)
+                    vec = vector_to_pg(embedding)
+
+                    storm_row = conn.execute(
+                        """
+                        INSERT INTO ops.incidents (
+                            incident_key, incident_kind, storm_key, alert_policy, resource,
+                            raw_alert, status, embedding, investigation_token, lease_expires_at
+                        ) VALUES (%s, 'storm', %s, %s, %s, %s::jsonb, 'investigating', %s::vector, %s, %s)
+                        RETURNING *
+                        """,
+                        (
+                            storm_key,
+                            storm_key,
+                            delivery.alert_policy,
+                            delivery.resource,
+                            json.dumps(alert),
+                            vec,
+                            token,
+                            lease,
+                        ),
+                    ).fetchone()
+                    storm_id = storm_row["id"]
+
+                    merge_normals_into_storm(
+                        conn,
+                        storm_id=storm_id,
+                        resource=delivery.resource,
+                        alert_policy=delivery.alert_policy,
+                        new_token=token,
                     )
-                    return IngestResult(
-                        200, {"action": "aggregated_storm_race", "incident_id": str(incident.id)}
-                    )
 
-                if not reserve_investigation_budget(conn, self._settings.max_investigation_budget):
-                    return self._escalate_in_transaction(
-                        conn, delivery, alert, embedding, storm_key=storm_key, kind="storm"
-                    )
-
-                token = new_token()
-                lease = lease_expires_at(self._settings.lease_seconds)
-                vec = vector_to_pg(embedding)
-
-                storm_row = conn.execute(
-                    """
-                    INSERT INTO ops.incidents (
-                        incident_key, incident_kind, storm_key, alert_policy, resource,
-                        raw_alert, status, embedding, investigation_token, lease_expires_at
-                    ) VALUES (%s, 'storm', %s, %s, %s, %s::jsonb, 'investigating', %s::vector, %s, %s)
-                    RETURNING *
-                    """,
-                    (
-                        storm_key,
-                        storm_key,
-                        delivery.alert_policy,
-                        delivery.resource,
-                        json.dumps(alert),
-                        vec,
-                        token,
-                        lease,
-                    ),
-                ).fetchone()
-                storm_id = storm_row["id"]
-
-                merge_normals_into_storm(
-                    conn,
-                    storm_id=storm_id,
-                    resource=delivery.resource,
-                    alert_policy=delivery.alert_policy,
-                    new_token=token,
-                )
-
-                conn.execute(
-                    """
-                    UPDATE ops.alert_deliveries
-                       SET status = 'processing',
-                           is_owner = true,
-                           incident_id = %s,
-                           work_token = %s,
-                           work_lease_expires_at = %s
-                     WHERE message_id = %s
-                    """,
-                    (storm_id, token, lease, delivery.message_id),
-                )
+                    claimed = conn.execute(
+                        """
+                        UPDATE ops.alert_deliveries
+                           SET status = 'processing',
+                               is_owner = true,
+                               incident_id = %s,
+                               work_token = %s,
+                               work_lease_expires_at = %s
+                         WHERE message_id = %s
+                           AND status = 'received'
+                         RETURNING message_id
+                        """,
+                        (storm_id, token, lease, delivery.message_id),
+                    ).fetchone()
+                    if not claimed:
+                        raise RuntimeError("storm owner claim lost after row lock")
 
         return InvestigationReady(
             incident_id=storm_id,
@@ -528,32 +656,81 @@ class NoiseOrchestrator:
         delivery: DeliveryRow,
         alert: dict[str, Any],
         deadline: RequestDeadline,
+        *,
+        storm_key: str | None = None,
     ) -> list[float] | IngestResult:
         if delivery.embedding:
             return delivery.embedding
 
         with self._db.transaction() as conn:
-            row = conn.execute(
-                "SELECT * FROM ops.alert_deliveries WHERE message_id = %s FOR UPDATE",
-                (delivery.message_id,),
-            ).fetchone()
-            if not row:
-                return IngestResult(500, {"error": "delivery missing"})
-            current = _row_to_delivery(row)
-            if current.embedding:
-                return current.embedding
-
-            if not current.embedding_reserved:
-                if not reserve_embedding_budget(conn, self._settings.max_embedding_budget):
-                    return self._escalate_delivery(conn, current, alert)
-                conn.execute(
-                    """
-                    UPDATE ops.alert_deliveries
-                       SET embedding_reserved = true
-                     WHERE message_id = %s
-                    """,
+            with ExitStack() as locks:
+                if storm_key:
+                    locks.enter_context(
+                        resource_advisory_lock(
+                            conn, delivery.resource, delivery.alert_policy
+                        )
+                    )
+                    locks.enter_context(storm_advisory_lock(conn, storm_key))
+                row = conn.execute(
+                    "SELECT * FROM ops.alert_deliveries WHERE message_id = %s FOR UPDATE",
                     (delivery.message_id,),
-                )
+                ).fetchone()
+                if not row:
+                    return IngestResult(500, {"error": "delivery missing"})
+                current = _row_to_delivery(row)
+                if current.status == "completed":
+                    return IngestResult(200, {"action": "already_completed"})
+                if current.status not in ("received", "embedding"):
+                    return IngestResult(503, {"error": "embedding state advanced"})
+                if current.embedding:
+                    return current.embedding
+                if storm_key:
+                    existing = conn.execute(
+                        """
+                        SELECT * FROM ops.incidents
+                         WHERE storm_key = %s
+                           AND resolved_at IS NULL
+                           AND status <> 'merged'
+                         LIMIT 1
+                        """,
+                        (storm_key,),
+                    ).fetchone()
+                    if existing:
+                        incident = _row_to_incident(existing)
+                        aggregate_to_incident(
+                            conn,
+                            incident=incident,
+                            message_id=current.message_id,
+                            delivery=current,
+                        )
+                        return IngestResult(
+                            200,
+                            {
+                                "action": "aggregated_storm_embedding_race",
+                                "incident_id": str(incident.id),
+                            },
+                        )
+
+                if not current.embedding_reserved:
+                    if not reserve_embedding_budget(
+                        conn, self._settings.max_embedding_budget
+                    ):
+                        return self._escalate_in_transaction(
+                            conn,
+                            current,
+                            alert,
+                            None,
+                            storm_key=storm_key,
+                            kind="storm" if storm_key else "normal",
+                        )
+                    conn.execute(
+                        """
+                        UPDATE ops.alert_deliveries
+                           SET embedding_reserved = true
+                         WHERE message_id = %s
+                        """,
+                        (delivery.message_id,),
+                    )
 
         deadline.ensure_not_expired()
         token = new_token()
@@ -589,12 +766,58 @@ class NoiseOrchestrator:
             vec = self._embedding.embed(alert)
         except Exception:
             with self._db.transaction() as conn:
-                row = conn.execute(
-                    "SELECT embedding_attempt_count FROM ops.alert_deliveries WHERE message_id = %s",
-                    (delivery.message_id,),
-                ).fetchone()
-                if row and row["embedding_attempt_count"] >= 3:
-                    return self._escalate_delivery(conn, _row_to_delivery(updated), alert)
+                with ExitStack() as locks:
+                    if storm_key:
+                        locks.enter_context(
+                            resource_advisory_lock(
+                                conn, delivery.resource, delivery.alert_policy
+                            )
+                        )
+                        locks.enter_context(storm_advisory_lock(conn, storm_key))
+                    row = conn.execute(
+                        """
+                        SELECT * FROM ops.alert_deliveries
+                         WHERE message_id = %s
+                         FOR UPDATE
+                        """,
+                        (delivery.message_id,),
+                    ).fetchone()
+                    if storm_key:
+                        existing = conn.execute(
+                            """
+                            SELECT * FROM ops.incidents
+                             WHERE storm_key = %s
+                               AND resolved_at IS NULL
+                               AND status <> 'merged'
+                             LIMIT 1
+                            """,
+                            (storm_key,),
+                        ).fetchone()
+                        if existing and row:
+                            incident = _row_to_incident(existing)
+                            current = _row_to_delivery(row)
+                            aggregate_to_incident(
+                                conn,
+                                incident=incident,
+                                message_id=current.message_id,
+                                delivery=current,
+                            )
+                            return IngestResult(
+                                200,
+                                {
+                                    "action": "aggregated_storm_embedding_failure_race",
+                                    "incident_id": str(incident.id),
+                                },
+                            )
+                    if row and row["embedding_attempt_count"] >= 3:
+                        return self._escalate_in_transaction(
+                            conn,
+                            _row_to_delivery(row),
+                            alert,
+                            None,
+                            storm_key=storm_key,
+                            kind="storm" if storm_key else "normal",
+                        )
             return IngestResult(500, {"error": "embedding api failed"})
 
         with self._db.transaction() as conn:
@@ -606,6 +829,7 @@ class NoiseOrchestrator:
                        work_lease_expires_at = NULL
                  WHERE message_id = %s
                    AND work_token = %s
+                   AND status = 'embedding'
                  RETURNING embedding
                 """,
                 (vector_to_pg(vec), delivery.message_id, token),
@@ -621,9 +845,14 @@ class NoiseOrchestrator:
         embedding: list[float],
         deadline: RequestDeadline,
     ) -> IngestResult | InvestigationReady:
+        deadline.ensure_not_expired()
         l3_hit = False
         with self._db.transaction() as conn:
             with resource_advisory_lock(conn, delivery.resource, delivery.alert_policy):
+                current = lock_claimable_delivery(conn, delivery.message_id)
+                if isinstance(current, IngestResult):
+                    return current
+                delivery = current
                 storm = find_open_storm(conn, delivery.resource, delivery.alert_policy)
                 if storm:
                     aggregate_to_incident(
@@ -644,7 +873,7 @@ class NoiseOrchestrator:
                     alert_policy=delivery.alert_policy,
                     window_seconds=self._settings.l3_storm_window_seconds,
                 )
-                l3_hit = rate >= self._settings.l3_storm_threshold
+                l3_hit = rate > self._settings.l3_storm_threshold
 
                 if l3_hit:
                     pass
@@ -664,6 +893,10 @@ class NoiseOrchestrator:
 
         with self._db.transaction() as conn:
             with resource_advisory_lock(conn, delivery.resource, delivery.alert_policy):
+                current = lock_claimable_delivery(conn, delivery.message_id)
+                if isinstance(current, IngestResult):
+                    return current
+                delivery = current
                 l4 = search_open_similar_incidents(
                     conn,
                     resource=delivery.resource,
@@ -677,8 +910,16 @@ class NoiseOrchestrator:
                     )
                     return IngestResult(200, {"action": "aggregated_l4", "incident_id": str(l4.id)})
 
-                if not reserve_investigation_budget(conn, self._settings.max_investigation_budget):
-                    return self._escalate_in_transaction(conn, delivery, alert, embedding)
+                if deadline.loop_agent_budget_seconds() <= 0:
+                    return IngestResult(
+                        503, {"error": "insufficient investigation deadline"}
+                    )
+                if not reserve_investigation_budget(
+                    conn, self._settings.max_investigation_budget
+                ):
+                    return self._escalate_in_transaction(
+                        conn, delivery, alert, embedding
+                    )
 
                 token = new_token()
                 lease = lease_expires_at(self._settings.lease_seconds)
@@ -702,7 +943,7 @@ class NoiseOrchestrator:
                     ),
                 ).fetchone()
 
-                conn.execute(
+                claimed = conn.execute(
                     """
                     UPDATE ops.alert_deliveries
                        SET status = 'processing',
@@ -711,9 +952,13 @@ class NoiseOrchestrator:
                            work_token = %s,
                            work_lease_expires_at = %s
                      WHERE message_id = %s
+                       AND status = 'received'
+                     RETURNING message_id
                     """,
                     (incident_row["id"], token, lease, delivery.message_id),
-                )
+                ).fetchone()
+                if not claimed:
+                    raise RuntimeError("normal owner claim lost after row lock")
 
         return InvestigationReady(
             incident_id=incident_row["id"],
@@ -725,11 +970,6 @@ class NoiseOrchestrator:
             playbook_hint=delivery.alert_policy,
             loop_budget_seconds=deadline.loop_agent_budget_seconds(),
         )
-
-    def _escalate_delivery(
-        self, conn: psycopg.Connection[Any], delivery: DeliveryRow, alert: dict[str, Any]
-    ) -> IngestResult:
-        return self._escalate_in_transaction(conn, delivery, alert, delivery.embedding)
 
     def _escalate_in_transaction(
         self,
@@ -813,23 +1053,11 @@ class NoiseOrchestrator:
                SET status = 'completed',
                    is_owner = false,
                    completed_at = now(),
-                   incident_id = %s
+                   incident_id = %s,
+                   work_token = gen_random_uuid(),
+                   work_lease_expires_at = NULL
              WHERE message_id = %s
             """,
             (incident_id, delivery.message_id),
         )
         return IngestResult(200, {"action": "escalated", "incident_id": str(incident_id)})
-
-    def _create_storm_escalation(
-        self,
-        delivery: DeliveryRow,
-        alert: dict[str, Any],
-        storm_key: str,
-        result: IngestResult,
-    ) -> IngestResult:
-        if result.status_code == 200:
-            return result
-        with self._db.transaction() as conn:
-            return self._escalate_in_transaction(
-                conn, delivery, alert, None, storm_key=storm_key, kind="storm"
-            )
