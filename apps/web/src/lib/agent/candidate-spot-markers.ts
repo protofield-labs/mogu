@@ -33,11 +33,19 @@ export const RECOMMENDATION_RESOLUTION_FAILED_TEXT =
 const CANDIDATE_MARKER_PATTERN =
   /\[\[\s*候補\s+spot_id=([^\s\]]+)\s+place_id=([^\s\]]+)\s*\]\]/g;
 
+const CANDIDATE_MARKER_LINE_TEST =
+  /\[\[\s*候補\s+spot_id=([^\s\]]+)\s+place_id=([^\s\]]+)\s*\]\]/;
+
+/** Documented marker line prefix — keep in sync with agents/mogu/personas/_base.py (#333 / #336). */
+export const CANDIDATE_MARKER_LINE_PREFIX = "[[候補 spot_id=";
+
+/** Canonical sample for cross-language contract tests (#333 / #336). */
+export const CANONICAL_CANDIDATE_MARKER_SAMPLE =
+  "[[候補 spot_id=22222222-2222-4222-8222-222222222303 place_id=ChIJN1t_tDeuEmsRUsoyG83frY4]]";
+
 /** Contract check for verify-agent-instructions (#333). */
 export function matchesCandidateMarkerLine(line: string): boolean {
-  return /\[\[\s*候補\s+spot_id=([^\s\]]+)\s+place_id=([^\s\]]+)\s*\]\]/.test(
-    line,
-  );
+  return CANDIDATE_MARKER_LINE_TEST.test(line);
 }
 
 export type ExtractedCandidateMarkers = {

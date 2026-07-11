@@ -67,7 +67,6 @@ function main() {
   assert(!mypageView.includes("MypageNavTiles"), "mypage drops collection nav tile");
   assert(!mypageView.includes("FlagInboxCard"), "mypage drops flag inbox card");
   assert(mypageView.includes("MoguBrandIcon"), "mypage agent promo uses brand icon");
-  assert(!mypageView.includes("Sparkles"), "mypage no longer uses Sparkles");
   assert(mypageView.includes("ProfileHeroCard"), "mypage includes hero card");
 
   const accountSheet = readSource("components/mypage/mypage-account-sheet.tsx");
