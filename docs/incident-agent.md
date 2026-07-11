@@ -132,6 +132,7 @@ CREATE UNIQUE INDEX incidents_open_slack_thread
 CREATE TABLE ops.alert_deliveries (
   message_id  text PRIMARY KEY,          -- Pub/Sub message.messageId
   resource    text NOT NULL,
+  alert_policy text NOT NULL,
   incident_key text NOT NULL,
   sanitized_alert jsonb NOT NULL,
   incident_id uuid REFERENCES ops.incidents(id),
@@ -148,6 +149,7 @@ CREATE TABLE ops.alert_deliveries (
   completed_at timestamptz
 );
 CREATE INDEX ON ops.alert_deliveries (incident_id, received_at);
+CREATE INDEX ON ops.alert_deliveries (resource, alert_policy, received_at);
 
 CREATE TABLE ops.slack_events (
   event_id    text PRIMARY KEY,
@@ -304,7 +306,7 @@ playbooks/
 | --- | --- | --- | --- |
 | **L1 ハッシュ完全一致** | Pub/Sub `messageId`を冪等化後、canonical JSONの`incident_key`が未解決行と一致か | ほぼ無料 | 別messageIdは1回だけ集約して2xx。同じowner messageIdの再送だけをlease回復へ回す。解決済みとの一致は再発として新規調査 |
 | **L2 グルーピング窓** | 同一リソースの直近15分に未解決インシデント(`resolved_at IS NULL AND status <> 'merged'`)があるか | 無料 | investigatingは件数へ反映。analyzed/escalatedはIssue参照の有無にかかわらず依存付きcomment outboxを作成 |
-| **L3 ストームブレーカー** | 全体レートが閾値超か(例: 5分で10件超) | 無料 | ストームモード。個別調査を全停止し、共通属性に対し調査1回・「ストーム宣言」issue 1本・Slack 1スレッドのみ。ストーム時こそLLM調査が高コストになるため、コスト制御(§7-4)と同一スイッチ |
+| **L3 ストームブレーカー** | 同一resource+alert_policyのレートが閾値超か(例: 5分で10件超) | 無料 | ストームモード。個別調査を全停止し、共通属性に対し調査1回・「ストーム宣言」issue 1本・Slack 1スレッドのみ。ストーム時こそLLM調査が高コストになるため、コスト制御(§7-4)と同一スイッチ |
 | **L4 embedding類似**(Phase A) | 新アラートのembeddingが直近の未解決インシデント(`resolved_at IS NULL AND status <> 'merged'`)とcos類似か(閾値超) | 中(埋込計算) | L2と同じ集約処理。新規調査・Issueは作らない |
 | すり抜け = 新規障害 | 上記すべて非該当 | 高(LoopAgent) | §4の一次切り分け → §10で新規Issue起票 |
 | (Phase B) トポロジー抑制 | `component_deps`+再帰CTEで親障害中の下流か | 低 | 子として親issueに吸収 |
@@ -322,15 +324,15 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 
 ノイズ制御の判定と新規調査の開始を分離すると、Issue作成前の同時アラートがすべて「既存なし」と判定して重複調査を開始する。これを防ぐため、I2はDB状態遷移を短いトランザクションとadvisory lockで強制する(API呼び出し中にDB transactionを保持しない)。
 
-1. 認証・resource検証・マスキング後、Pub/Sub `messageId`と`resource`/`incident_key`/`sanitized_alert`を`status='received'`で原子的に挿入する。再送はDB保存値を正としてpayloadを再解釈しない。completedは2xx、embeddingは専用lease回復、processing ownerは調査lease回復、receivedはノイズ制御を再開する。
-2. リソース単位のtransaction advisory lock内でL1/L2を再チェックする。別messageIdがヒットした場合だけ対象incidentの`alert_count`/`last_seen_at`を更新し、そのdeliveryをcompletedにして2xxを返す。
-3. L3閾値に達したら通常フローから**排他的にストーム分岐**する。`{"alert_policy":<正規化値>,"bucket_start":<UTCの5分境界>,"kind":"storm","resource":<allowlist検証済み値>,"v":1}`をキー順・空白なしのcanonical JSONにしてSHA-256 hexの`storm_key`を作り、`incident_key`にも同じ値を使う。`storm_key`でadvisory lockを取得し、`incidents_open_storm_key`でも同bucketのストーム行を一意にする。既存行へは集約して終了する。新規時は手順4と同じdelivery checkpointで代表アラートのembeddingを生成し(API中はlockを保持しない)、完了後にlockを再取得して既存ストーム行を再確認する。なお非該当なら同transactionで調査予算予約、`incident_kind='storm'`行、delivery ownerを原子的に確保して共通調査を開始する。予算/API失敗は手順6へ収束する。L3ヒット後はL4検索・個別行作成へ進まない。
+1. 認証・resource検証・マスキング後、Pub/Sub `messageId`と`resource`/正規化済み`alert_policy`/`incident_key`/`sanitized_alert`を`status='received'`で原子的に挿入する。再送はDB保存値を正としてpayloadを再解釈しない。completedは2xx、embeddingは専用lease回復、processing ownerは調査lease回復、receivedはノイズ制御を再開する。
+2. リソース単位のtransaction advisory lock内でL1/L2候補を再チェックするが、まだ集約更新・delivery completed・2xxを確定しない。`ops.alert_deliveries`の一意なmessageIdをresource+alert_policy+直近5分で数え、**L1/L2候補があっても必ず手順3のL3を先に評価する**。L3非該当の場合だけ候補incidentの`alert_count`/`last_seen_at`更新とdelivery completedを同一transactionで確定して2xxを返す。候補がなければ手順4へ進む。
+3. L3閾値に達したらL1/L2候補への個別集約を行わず、通常フローから**排他的にストーム分岐**する。`{"alert_policy":<正規化値>,"bucket_start":<UTCの5分境界>,"kind":"storm","resource":<allowlist検証済み値>,"v":1}`をキー順・空白なしのcanonical JSONにしてSHA-256 hexの`storm_key`を作り、`incident_key`にも同じ値を使う。`storm_key`でadvisory lockを取得し、`incidents_open_storm_key`でも同bucketのストーム行を一意にする。既存行へは集約して終了する。新規時は手順4と同じdelivery checkpointで代表アラートのembeddingを生成し(API中はlockを保持しない)、完了後にlockを再取得して既存ストーム行を再確認する。なお非該当なら同transactionで調査予算予約、`incident_kind='storm'`行、delivery ownerを原子的に確保して共通調査を開始する。予算/API失敗は手順6へ収束する。L3ヒット後はL4検索・個別行作成へ進まない。
 4. L1〜L3非該当時、deliveryのembeddingが既にあればAPIを再実行せず直ちに手順5へ進む。未保存の場合だけ、短いtransactionで`embedding_reserved=false`なら`embedding_count`を1回予約し、deliveryを`embedding`、attempt+1、新work_token、60秒leaseへCAS更新する。API成功時はtoken一致条件でembedding保存+`received`へ戻し、次の実行は手順5へ進む。クラッシュ時はlease後にtokenを再発行してAPIだけ再試行し、予算を二重計上しない。
 5. deliveryにembeddingが保存された後、L4用lockの同一transaction内で再検索する。hitは集約+completed。missは調査予算予約、incident挿入、delivery owner processingまで原子的に行う。
 6. embedding予算超過、embedding API 3回失敗、または調査予算超過時はLoopAgentを呼ばない。`status='escalated'`のincident+固定文outbox+delivery completedを同一transactionで作り、必ず記録・通知経路へ収束させる。embedding取得不能時だけ`embedding=NULL, embedding_unavailable=true`とし、このフラグは後の`resolved`遷移でも保持する。調査予算超過時は取得済みembeddingを保存する。
 7. 別messageId集約時、investigatingはcountだけ更新。analyzed/escalatedはcount+messageId付きcomment outboxを原子的に作り、Issue ref未設定ならpendingで待つ。
-8. owner deliveryはtoken+300秒leaseを持つ。app deadlineは270秒。期限切れ時はCASでtoken再発行、lease延長、attempt+1を同時更新し、古いtokenの書き込みを拒否する。
-9. 成功時は分析+outbox+analyzed+delivery completedを同一transactionで保存する。3回調査失敗時も固定文outbox+escalated+delivery completedを原子的に保存する。
+8. owner deliveryはtoken+300秒leaseを持つ。app deadlineは270秒。期限切れ時、`attempt_count < 3`ならCASでtoken再発行、lease延長、attempt+1を同時更新し、古いtokenの書き込みを拒否する。`attempt_count = 3`なら加算せず手順9の失敗収束を同じCAS transactionで実行する。
+9. 成功時は分析+outbox+analyzed+delivery completedを同一transactionで保存する。3回目の調査失敗またはlease失効時も、`attempt_count=3`のまま固定文outbox+escalated+delivery completedを原子的に保存し、CHECK上限を超える更新を行わない。
 
 ## 10. Issue起票のタイミングとライフサイクル
 
