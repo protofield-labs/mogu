@@ -101,6 +101,7 @@ assert(personaMsg.includes("ChIJseed"), "persona block lists place_id");
 assert(personaMsg.includes("中目黒サク飲み"), "persona block lists collection");
 
 const messageClient = readSource("lib/agent/message-client.ts");
+const resolveAgentTurn = readSource("lib/agent/resolve-agent-turn.ts");
 assert(
   messageClient.includes("buildFollowUpUserMessage"),
   "message client wires follow-up context",
@@ -110,8 +111,8 @@ assert(
   "message client loads prior recommendation",
 );
 assert(
-  messageClient.includes("anchorSpotId"),
-  "message client pins assertion card spot",
+  resolveAgentTurn.includes("anchorSpotId"),
+  "turn resolver pins assertion card spot",
 );
 assert(
   messageClient.includes("seedAgentPersonaCollectionContext"),

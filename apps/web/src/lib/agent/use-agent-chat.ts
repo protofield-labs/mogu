@@ -1,75 +1,29 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import {
-  createAgentSession,
-  fetchAgentConsultation,
-  syncAgentConsultationEntries,
-} from "@/lib/agent/browser-api";
-import {
-  abortInflightAgentTurnSse,
-  getInflightAgentTurn,
-  sendAgentTurn,
-  type SendTurnResult,
-} from "@/lib/agent/send-turn";
-import {
-  createAgentEntry,
-  createUserEntry,
-  createWelcomeEntry,
-  formatAgentUserError,
-  isAgentSessionUnavailableError,
-  type ChatEntry,
-} from "@/lib/agent/chat-helpers";
-import {
-  clearAgentChatSession,
-  clearStalePendingAgentReply,
-  isAgentReplyPending,
-  loadAgentChatSession,
-  saveAgentChatSession,
-  type StoredAgentChatSession,
-} from "@/lib/agent/session-storage";
-import { recommendationToContext } from "@/lib/agent/recommendation-context-message";
-import { collectionConsultDisplayMessage } from "@/lib/agent/collection-context-message";
-import {
-  clearPendingRecommendation,
-  commitPendingRecommendation,
-  resolvePendingRecommendation,
-} from "@/lib/home/pending-recommendation";
-import {
-  clearPendingCollectionConsult,
-  commitPendingCollectionConsult,
-  resolvePendingCollectionConsult,
-} from "@/lib/mypage/pending-collection-consult";
+import type { ChatEntry } from "@/lib/agent/chat-helpers";
+import { clearAgentChatSession } from "@/lib/agent/session-storage";
+import { useAgentSend } from "@/lib/agent/use-agent-send";
+import { useAgentSession } from "@/lib/agent/use-agent-session";
+import { useConsultationHistory } from "@/lib/agent/use-consultation-history";
+import { useConnectGeneration } from "@/lib/agent/use-connect-generation";
 import type {
-  CandidateSpotRef,
-  CreateAgentSessionRequest,
-} from "@/lib/agent/types";
+  ConsultationViewMode,
+  SessionStatus,
+} from "@/lib/agent/use-agent-chat-types";
 
-export type SessionStatus = "loading" | "ready" | "error";
-export type ConsultationViewMode = "live" | "readonly" | null;
+export type { ConsultationViewMode, SessionStatus };
 
 export function useAgentChat(userId: string | null, authLoading: boolean) {
+  const connectGeneration = useConnectGeneration();
+  const sessionPersistEnabledRef = useRef(true);
+  const entriesRef = useRef<ChatEntry[]>([]);
+
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>("loading");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [entries, setEntries] = useState<ChatEntry[]>([]);
-  const [thinkingMessages, setThinkingMessages] = useState<string[]>([]);
-  const [input, setInput] = useState("");
   const [initError, setInitError] = useState<string | null>(null);
-  const [sendError, setSendError] = useState<string | null>(null);
-  const [sending, setSending] = useState(false);
-  const [retryingSession, setRetryingSession] = useState(false);
-  const [resettingConsultation, setResettingConsultation] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [consultationViewMode, setConsultationViewMode] =
-    useState<ConsultationViewMode>(null);
-  const [loadingConsultation, setLoadingConsultation] = useState(false);
-  const sendingRef = useRef(false);
-  const entriesRef = useRef<ChatEntry[]>([]);
-  const mountInitStartedRef = useRef(false);
-  const connectGenerationRef = useRef(0);
-  const sessionPersistEnabledRef = useRef(true);
-  const persistConsultationChainRef = useRef(Promise.resolve());
 
   useEffect(() => {
     entriesRef.current = entries;
@@ -80,367 +34,62 @@ export function useAgentChat(userId: string | null, authLoading: boolean) {
     sessionPersistEnabledRef.current = false;
   }, []);
 
-  const persistConsultationEntries = useCallback(
-    (vertexSessionId: string, nextEntries: ChatEntry[]) => {
-      if (!userId) {
-        return;
-      }
-      persistConsultationChainRef.current = persistConsultationChainRef.current
-        .then(async () => {
-          await syncAgentConsultationEntries(vertexSessionId, nextEntries);
-        })
-        .catch(() => {
-          // Best-effort; live chat should continue even if history sync fails.
-        });
-    },
-    [userId],
-  );
+  const send = useAgentSend({
+    userId,
+    sessionId,
+    entriesRef,
+    setEntries,
+    invalidateStoredSession,
+  });
 
-  const applyConsultationDetail = useCallback(
-    async (consultationId: string) => {
-      if (!userId || loadingConsultation) {
-        return;
-      }
+  const history = useConsultationHistory({
+    userId,
+    connectGeneration,
+    setSessionStatus,
+    setSessionId,
+    setEntries,
+    setInitError,
+    setSendError: send.setSendError,
+    setThinkingMessages: send.setThinkingMessages,
+    invalidateStoredSession,
+    sessionPersistEnabledRef,
+  });
 
-      const generation = ++connectGenerationRef.current;
-      setLoadingConsultation(true);
-      setHistoryOpen(false);
-      setSessionStatus("loading");
-      setInitError(null);
-      setSendError(null);
-      setThinkingMessages([]);
-
-      try {
-        const detail = await fetchAgentConsultation(consultationId);
-        if (generation !== connectGenerationRef.current) {
-          return;
-        }
-
-        const nextEntries =
-          detail.entries.length > 0 ? detail.entries : [createWelcomeEntry()];
-
-        if (detail.resumable) {
-          setConsultationViewMode("live");
-          setSessionId(detail.vertexSessionId);
-          setEntries(nextEntries);
-          sessionPersistEnabledRef.current = true;
-          saveAgentChatSession(userId, detail.vertexSessionId, nextEntries);
-        } else {
-          invalidateStoredSession();
-          setConsultationViewMode("readonly");
-          setSessionId(null);
-          setEntries(nextEntries);
-        }
-
-        setSessionStatus("ready");
-      } catch (err) {
-        if (generation !== connectGenerationRef.current) {
-          return;
-        }
-        setConsultationViewMode(null);
-        setSessionId(null);
-        setEntries([createWelcomeEntry()]);
-        setInitError(
-          formatAgentUserError(err, "相談履歴を開けませんでした"),
-        );
-        setSessionStatus("error");
-      } finally {
-        if (generation === connectGenerationRef.current) {
-          setLoadingConsultation(false);
-        }
-      }
-    },
-    [userId, loadingConsultation, invalidateStoredSession],
-  );
-
-  const applySendTurnResult = useCallback(
-    (result: SendTurnResult, trimmed?: string) => {
-      if (result.ok) {
-        setEntries(result.entries);
-        setSendError(null);
-        return;
-      }
-
-      setEntries(result.entries);
-      if (trimmed) {
-        setInput(trimmed);
-      }
-      if (isAgentSessionUnavailableError(result.error)) {
-        invalidateStoredSession();
-        setSendError(
-          "セッションの有効期限が切れました。「新しい相談」から再度お試しください。",
-        );
-        return;
-      }
-      setSendError(
-        formatAgentUserError(result.error, "メッセージの送信に失敗しました"),
-      );
-    },
-    [invalidateStoredSession],
-  );
-
-  const resumeInflightTurn = useCallback(
-    async (stored: StoredAgentChatSession, generation: number) => {
-      const inflight = getInflightAgentTurn(stored.userId, stored.sessionId);
-      if (!inflight) {
-        const pendingIndex = stored.entries.findIndex(
-          (entry) => entry.id === stored.pendingUserEntryId,
-        );
-        const entries =
-          pendingIndex === -1
-            ? stored.entries
-            : stored.entries.filter((_, index) => index !== pendingIndex);
-        clearStalePendingAgentReply(stored.userId, stored.sessionId, entries);
-        if (generation !== connectGenerationRef.current) {
-          return;
-        }
-        setEntries(entries);
-        setSendError("前回の送信を完了できませんでした。もう一度お試しください。");
-        return;
-      }
-
-      sendingRef.current = true;
-      setSending(true);
-      setSendError(null);
-      setThinkingMessages([]);
-
-      try {
-        const result = await inflight;
-        if (generation !== connectGenerationRef.current) {
-          return;
-        }
-        applySendTurnResult(result);
-      } finally {
-        if (generation === connectGenerationRef.current) {
-          sendingRef.current = false;
-          setSending(false);
-          setThinkingMessages([]);
-        }
-      }
-    },
-    [applySendTurnResult],
-  );
-
-  const connectAgentChatSession = useCallback(
-    async ({ isRetry = false } = {}) => {
-      const generation = ++connectGenerationRef.current;
-
-      if (isRetry) {
-        setSessionStatus("loading");
-        setInitError(null);
-        setSendError(null);
-        setConsultationViewMode(null);
-      }
-
-      const pendingRecommendation = resolvePendingRecommendation();
-      const pendingCollection = resolvePendingCollectionConsult();
-      const pendingHandoff = pendingRecommendation ?? pendingCollection;
-
-      if (pendingHandoff) {
-        clearAgentChatSession();
-      } else if (userId) {
-        const stored = loadAgentChatSession(userId);
-        if (stored && generation === connectGenerationRef.current) {
-          setConsultationViewMode("live");
-          setSessionId(stored.sessionId);
-          setEntries(stored.entries);
-          setSessionStatus("ready");
-          sessionPersistEnabledRef.current = true;
-          if (isAgentReplyPending(stored)) {
-            void resumeInflightTurn(stored, generation);
-          }
-          return;
-        }
-      }
-
-      try {
-        const sessionOptions: CreateAgentSessionRequest | undefined =
-          pendingRecommendation
-            ? { recommendationContext: recommendationToContext(pendingRecommendation) }
-            : pendingCollection
-              ? { collectionContext: pendingCollection }
-              : undefined;
-        const id = await createAgentSession(sessionOptions);
-        if (generation !== connectGenerationRef.current) {
-          return;
-        }
-        const initialEntries: ChatEntry[] =
-          pendingHandoff ? [] : [createWelcomeEntry()];
-        if (pendingRecommendation) {
-          initialEntries.push(
-            createAgentEntry({
-              text: pendingRecommendation.assertion,
-              recommendation: pendingRecommendation,
-            }),
-          );
-          commitPendingRecommendation();
-        } else if (pendingCollection) {
-          initialEntries.push(
-            createAgentEntry({
-              text: collectionConsultDisplayMessage(pendingCollection),
-            }),
-          );
-          commitPendingCollectionConsult();
-        }
-        setSessionId(id);
-        setEntries(initialEntries);
-        setConsultationViewMode("live");
-        sessionPersistEnabledRef.current = true;
-        persistConsultationEntries(id, initialEntries);
-        await persistConsultationChainRef.current;
-        if (generation !== connectGenerationRef.current) {
-          return;
-        }
-        setSessionStatus("ready");
-      } catch (err) {
-        if (generation !== connectGenerationRef.current) {
-          return;
-        }
-        setSessionId(null);
-        setInitError(
-          formatAgentUserError(err, "セッションの開始に失敗しました"),
-        );
-        setEntries([createWelcomeEntry()]);
-        setSessionStatus("error");
-      }
-    },
-    [userId, resumeInflightTurn, persistConsultationEntries],
-  );
-
-  useEffect(() => {
-    return () => {
-      if (userId && sessionId && sendingRef.current) {
-        abortInflightAgentTurnSse(userId, sessionId);
-      }
-    };
-  }, [userId, sessionId]);
-
-  useEffect(() => {
-    if (authLoading || mountInitStartedRef.current) {
-      return;
-    }
-    mountInitStartedRef.current = true;
-    queueMicrotask(() => {
-      void connectAgentChatSession();
-    });
-  }, [authLoading, connectAgentChatSession]);
-
-  useEffect(() => {
-    if (
-      !sessionPersistEnabledRef.current ||
-      sessionStatus !== "ready" ||
-      !sessionId ||
-      !userId ||
-      entries.length === 0 ||
-      sendingRef.current
-    ) {
-      return;
-    }
-    saveAgentChatSession(userId, sessionId, entries);
-  }, [sessionStatus, sessionId, userId, entries, sending]);
-
-  async function handleRetrySession() {
-    if (retryingSession) {
-      return;
-    }
-    setRetryingSession(true);
-    try {
-      await connectAgentChatSession({ isRetry: true });
-    } finally {
-      setRetryingSession(false);
-    }
-  }
-
-  async function handleNewConsultation() {
-    if (resettingConsultation || retryingSession || sending) {
-      return;
-    }
-    setResettingConsultation(true);
-    invalidateStoredSession();
-    clearPendingRecommendation();
-    clearPendingCollectionConsult();
-    try {
-      await connectAgentChatSession({ isRetry: true });
-    } finally {
-      setResettingConsultation(false);
-    }
-  }
-
-  const sendMessage = useCallback(
-    async (
-      text: string,
-      chips?: string[],
-      options?: { candidateSpot?: CandidateSpotRef },
-    ) => {
-      if (!sessionId || !userId || sendingRef.current) {
-        return;
-      }
-      const trimmed = text.trim();
-      if (!trimmed) {
-        return;
-      }
-
-      sendingRef.current = true;
-      setSending(true);
-      setSendError(null);
-      setThinkingMessages([]);
-
-      const entriesBefore = entriesRef.current;
-      const userEntry = createUserEntry(trimmed, chips);
-      if (userEntry.kind !== "user") {
-        return;
-      }
-      setEntries([...entriesBefore, userEntry]);
-      setInput("");
-
-      try {
-        const result = await sendAgentTurn({
-          userId,
-          sessionId,
-          text: trimmed,
-          chips,
-          candidateSpot: options?.candidateSpot,
-          entriesBefore,
-          userEntry,
-          onThinking: (message) => {
-            setThinkingMessages((prev) =>
-              prev.includes(message) ? prev : [...prev, message],
-            );
-          },
-        });
-        applySendTurnResult(result, trimmed);
-      } finally {
-        sendingRef.current = false;
-        setSending(false);
-        setThinkingMessages([]);
-      }
-    },
-    [sessionId, userId, applySendTurnResult],
-  );
-
-  function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    void sendMessage(input);
-  }
-
-  function handleChipSelect(chip: string) {
-    void sendMessage(chip);
-  }
+  const session = useAgentSession({
+    userId,
+    authLoading,
+    connectGeneration,
+    sessionId,
+    setSessionId,
+    sessionStatus,
+    setSessionStatus,
+    entries,
+    setEntries,
+    setInitError,
+    setSendError: send.setSendError,
+    setConsultationViewMode: history.setConsultationViewMode,
+    setThinkingMessages: send.setThinkingMessages,
+    setSending: send.setSending,
+    sendingRef: send.sendingRef,
+    applySendTurnResult: send.applySendTurnResult,
+    sessionPersistEnabledRef,
+    invalidateStoredSession,
+  });
 
   const inputDisabled =
     sessionStatus !== "ready" ||
-    sending ||
-    retryingSession ||
-    resettingConsultation ||
-    loadingConsultation ||
-    consultationViewMode === "readonly" ||
+    send.sending ||
+    session.retryingSession ||
+    session.resettingConsultation ||
+    history.loadingConsultation ||
+    history.consultationViewMode === "readonly" ||
     !sessionId;
   const showInitialSkeleton =
     sessionStatus === "loading" &&
     entries.length === 0 &&
-    !retryingSession &&
-    !resettingConsultation &&
-    !loadingConsultation;
+    !session.retryingSession &&
+    !session.resettingConsultation &&
+    !history.loadingConsultation;
   const hasUserMessages = entries.some((entry) => entry.kind === "user");
   const isWelcomeOnly =
     entries.length === 1 &&
@@ -450,34 +99,34 @@ export function useAgentChat(userId: string | null, authLoading: boolean) {
     sessionStatus === "ready" &&
     isWelcomeOnly &&
     !hasUserMessages &&
-    !sending &&
-    !resettingConsultation &&
-    consultationViewMode !== "readonly";
+    !send.sending &&
+    !session.resettingConsultation &&
+    history.consultationViewMode !== "readonly";
 
   return {
     sessionStatus,
     sessionId,
     entries,
-    thinkingMessages,
-    input,
-    setInput,
+    thinkingMessages: send.thinkingMessages,
+    input: send.input,
+    setInput: send.setInput,
     initError,
-    sendError,
-    sending,
-    retryingSession,
-    resettingConsultation,
-    historyOpen,
-    setHistoryOpen,
-    consultationViewMode,
-    loadingConsultation,
+    sendError: send.sendError,
+    sending: send.sending,
+    retryingSession: session.retryingSession,
+    resettingConsultation: session.resettingConsultation,
+    historyOpen: history.historyOpen,
+    setHistoryOpen: history.setHistoryOpen,
+    consultationViewMode: history.consultationViewMode,
+    loadingConsultation: history.loadingConsultation,
     inputDisabled,
     showInitialSkeleton,
     showStructuredChips,
-    handleRetrySession,
-    handleNewConsultation,
-    applyConsultationDetail,
-    sendMessage,
-    handleSubmit,
-    handleChipSelect,
+    handleRetrySession: session.handleRetrySession,
+    handleNewConsultation: session.handleNewConsultation,
+    applyConsultationDetail: history.applyConsultationDetail,
+    sendMessage: send.sendMessage,
+    handleSubmit: send.handleSubmit,
+    handleChipSelect: send.handleChipSelect,
   };
 }

@@ -258,7 +258,7 @@ function main() {
     "recommendation sheet includes agent consult CTA",
   );
   assert(
-    readSource("lib/agent/use-agent-chat.ts").includes("recommendationContext"),
+    readSource("lib/agent/use-agent-session.ts").includes("recommendationContext"),
     "agent chat passes recommendation context on session create",
   );
   assert(

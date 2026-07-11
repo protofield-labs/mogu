@@ -100,23 +100,25 @@ assert(
 );
 
 const agentChat = readSource("lib/agent/use-agent-chat.ts");
-assert(agentChat.includes("recommendationToContext"), "agent chat maps recommendation to context");
-assert(agentChat.includes("clearAgentChatSession"), "pending recommendation clears stored session");
+const agentSession = readSource("lib/agent/use-agent-session.ts");
+assert(agentSession.includes("recommendationToContext"), "agent session maps recommendation to context");
+assert(agentSession.includes("clearAgentChatSession"), "pending recommendation clears stored session");
 assert(
-  agentChat.includes("resolvePendingRecommendation"),
-  "agent chat resolves pending on connect",
+  agentSession.includes("resolvePendingRecommendation"),
+  "agent session resolves pending on connect",
 );
 assert(
-  agentChat.includes("commitPendingRecommendation"),
-  "agent chat commits pending after session entries apply",
+  agentSession.includes("commitPendingRecommendation"),
+  "agent session commits pending after session entries apply",
 );
 assert(
-  agentChat.includes("pendingHandoff ? [] : [createWelcomeEntry()]"),
-  "agent chat skips welcome when handoff from home",
+  agentSession.includes("pendingHandoff ? [] : [createWelcomeEntry()]"),
+  "agent session skips welcome when handoff from home",
 );
 assert(
-  !agentChat.includes("consumePendingRecommendation"),
-  "agent chat no longer consumes pending before apply",
+  !agentSession.includes("consumePendingRecommendation"),
+  "agent session no longer consumes pending before apply",
 );
+assert(agentChat.includes("export function useAgentChat"), "agent chat hook remains entry point");
 
 console.log("PASS: recommendation chat handoff verified");
