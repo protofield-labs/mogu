@@ -34,3 +34,12 @@ billing_account_id = "000000-000000-000000"
 # Budget → Slack (Pub/Sub + Cloud Function): create an Incoming Webhook for
 # #mogu-lab in your Slack app, then set:
 # slack_budget_webhook_url = "https://hooks.slack.com/services/..."
+
+# #355: incident-agent (requires enable_db_connection = true).
+# enable_incident_agent = true
+# Publish this image before enabling incident-agent; Cloud Run rejects missing images.
+# incident_agent_image = "asia-northeast1-docker.pkg.dev/mogu-501309/incident-agent/incident-agent:VERSION"
+# incident_agent_slack_domain = "incident-slack.example.com"
+# incident_agent_slack_signing_secret = "..."
+# incident_agent_slack_bot_token = "xoxb-..."
+# incident_agent_github_token = "github_pat_..."

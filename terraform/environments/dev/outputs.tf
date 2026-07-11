@@ -93,3 +93,18 @@ output "daily_reco_scheduler_name" {
   description = "Cloud Scheduler job name for the nightly daily recommendation batch (#91)."
   value       = try(google_cloud_scheduler_job.daily_reco[0].name, null)
 }
+
+output "incident_agent_ingest_url" {
+  description = "Cloud Run URL for incident-agent ingest (Pub/Sub push target)."
+  value       = try(module.incident_agent_ingest[0].uri, null)
+}
+
+output "incident_agent_slack_lb_ip" {
+  description = "External HTTPS load balancer IP for incident-agent-slack (null until domain and signing secret are set)."
+  value       = try(google_compute_global_address.incident_agent_slack[0].address, null)
+}
+
+output "incident_alerts_pubsub_topic" {
+  description = "Pub/Sub topic for Cloud Monitoring alerts to incident-agent ingest."
+  value       = try(google_pubsub_topic.incident_alerts[0].name, null)
+}

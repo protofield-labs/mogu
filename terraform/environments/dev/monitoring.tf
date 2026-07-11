@@ -17,6 +17,10 @@ locals {
   slack_notification_channel_ids = var.slack_notification_channel_id != "" ? [var.slack_notification_channel_id] : [
     for ch in google_monitoring_notification_channel.slack : ch.id
   ]
+
+  incident_alerts_pubsub_channel_ids = local.incident_agent_enabled ? [
+    google_monitoring_notification_channel.incident_alerts_pubsub[0].id
+  ] : []
 }
 
 resource "google_monitoring_notification_channel" "slack" {
@@ -30,6 +34,95 @@ resource "google_monitoring_notification_channel" "slack" {
   sensitive_labels {
     auth_token = var.slack_auth_token
   }
+
+  depends_on = [google_project_service.services]
+}
+
+resource "google_monitoring_notification_channel" "incident_alerts_pubsub" {
+  count = local.incident_agent_enabled ? 1 : 0
+
+  display_name = "incident-alerts Pub/Sub"
+  type         = "pubsub"
+  labels = {
+    topic = google_pubsub_topic.incident_alerts[0].id
+  }
+
+  depends_on = [google_project_service.services]
+}
+
+resource "google_monitoring_alert_policy" "incident_agent_cloud_run_5xx" {
+  count = length(local.incident_alerts_pubsub_channel_ids) > 0 ? 1 : 0
+
+  display_name = "${var.environment}-incident-agent-cloud-run-5xx"
+  combiner     = "OR"
+
+  conditions {
+    display_name = "Sustained 5xx on monitored Cloud Run services (incident-agent path)"
+
+    condition_threshold {
+      filter = join(" AND ", [
+        "resource.type=\"cloud_run_revision\"",
+        "resource.labels.service_name=\"${local.cloud_run_service_name}\"",
+        "resource.labels.location=\"${var.region}\"",
+        "metric.type=\"run.googleapis.com/request_count\"",
+        "metric.labels.response_code_class=\"5xx\"",
+      ])
+      duration        = "300s"
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0.05
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_RATE"
+      }
+    }
+  }
+
+  notification_channels = local.incident_alerts_pubsub_channel_ids
+
+  alert_strategy {
+    auto_close = "604800s"
+  }
+
+  user_labels = local.labels
+
+  depends_on = [google_project_service.services]
+}
+
+resource "google_monitoring_alert_policy" "incident_agent_cloud_run_latency" {
+  count = length(local.incident_alerts_pubsub_channel_ids) > 0 ? 1 : 0
+
+  display_name = "${var.environment}-incident-agent-cloud-run-latency"
+  combiner     = "OR"
+
+  conditions {
+    display_name = "p95 latency > 3s on ${local.cloud_run_service_name} (incident-agent path)"
+
+    condition_threshold {
+      filter = join(" AND ", [
+        "resource.type=\"cloud_run_revision\"",
+        "resource.labels.service_name=\"${local.cloud_run_service_name}\"",
+        "resource.labels.location=\"${var.region}\"",
+        "metric.type=\"run.googleapis.com/request_latencies\"",
+      ])
+      duration        = "300s"
+      comparison      = "COMPARISON_GT"
+      threshold_value = 3000
+      aggregations {
+        alignment_period     = "60s"
+        per_series_aligner   = "ALIGN_DELTA"
+        cross_series_reducer = "REDUCE_PERCENTILE_95"
+        group_by_fields      = ["resource.labels.service_name"]
+      }
+    }
+  }
+
+  notification_channels = local.incident_alerts_pubsub_channel_ids
+
+  alert_strategy {
+    auto_close = "604800s"
+  }
+
+  user_labels = local.labels
 
   depends_on = [google_project_service.services]
 }

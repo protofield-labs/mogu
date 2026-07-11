@@ -189,3 +189,70 @@ variable "slack_budget_channel" {
   type        = string
   default     = "#mogu-lab"
 }
+
+variable "enable_incident_agent" {
+  description = "Deploy incident-agent infrastructure (Pub/Sub, Cloud Run x3, Tasks, LB). Requires enable_db_connection."
+  type        = bool
+  default     = false
+}
+
+variable "incident_agent_image" {
+  description = "Existing container image for incident-agent services. Required when enable_incident_agent is true."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = !var.enable_incident_agent || try(length(trimspace(var.incident_agent_image)) > 0, false)
+    error_message = "incident_agent_image must reference an existing image when enable_incident_agent is true."
+  }
+}
+
+variable "incident_agent_max_instances" {
+  description = "Maximum Cloud Run instances per incident-agent service."
+  type        = number
+  default     = 2
+}
+
+variable "incident_agent_slack_domain" {
+  description = "HTTPS domain for incident-agent-slack external LB (managed cert). Requires incident_agent_slack_signing_secret when set."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.incident_agent_slack_domain == "" || var.incident_agent_slack_signing_secret != ""
+    error_message = "incident_agent_slack_signing_secret is required when incident_agent_slack_domain is set (§7-8)."
+  }
+}
+
+variable "incident_agent_slack_rate_limit_per_ip" {
+  description = "Cloud Armor per-IP requests per minute before deny (§7-12)."
+  type        = number
+  default     = 100
+}
+
+variable "incident_agent_slack_rate_limit_global_rps" {
+  description = "Cloud Armor global requests per second throttle (§7-12)."
+  type        = number
+  default     = 50
+}
+
+variable "incident_agent_slack_signing_secret" {
+  description = "Slack Signing Secret for incident-agent (separate from budget_slack). Stored in Secret Manager."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "incident_agent_slack_bot_token" {
+  description = "Slack Bot User OAuth token for incident-agent (chat:write, history scopes). Separate from budget_slack."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "incident_agent_github_token" {
+  description = "GitHub fine-grained token for incident-agent Issue operations."
+  type        = string
+  sensitive   = true
+  default     = ""
+}

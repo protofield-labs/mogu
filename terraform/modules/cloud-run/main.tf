@@ -2,7 +2,7 @@ resource "google_cloud_run_v2_service" "this" {
   name     = var.name
   project  = var.project_id
   location = var.region
-  ingress  = "INGRESS_TRAFFIC_ALL"
+  ingress  = var.ingress
 
   # dev: allow Terraform to replace the service without a manual guard.
   deletion_protection = false
@@ -11,6 +11,7 @@ resource "google_cloud_run_v2_service" "this" {
 
   template {
     service_account = var.service_account_email
+    timeout         = var.request_timeout
 
     scaling {
       min_instance_count = var.min_instances
@@ -32,7 +33,9 @@ resource "google_cloud_run_v2_service" "this" {
     }
 
     containers {
-      image = var.image
+      image   = var.image
+      command = var.command
+      args    = var.args
 
       ports {
         container_port = var.container_port
