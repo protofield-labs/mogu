@@ -293,7 +293,7 @@ playbooks/
 
 同じ「重複判定」でも方式が2段階ある。判定内容は「これは既存と同じ障害か」で、その精度とコストが異なる。
 
-- **L1 ハッシュ(完全一致)**: §7-10でマスキングした後の`{"host":<host>,"message":<message>,"service":<service>,"v":1}`をキー順・空白なしのcanonical JSON(UTF-8)にし、SHA-256 hexを`incident_key`とする。入力の欠損は空文字でなく明示的な`null`として扱う。部分UNIQUEインデックスは未解決行だけを対象にするため、同じ指紋でも解決後の再発は新規インシデントとして調査する。
+- **L1 ハッシュ(完全一致)**: §7-10でマスキングした後の`{"host":<host>,"message":<message>,"resource":<resource>,"service":<service>,"v":1}`をキー順・空白なしのcanonical JSON(UTF-8)にし、SHA-256 hexを`incident_key`とする。`resource`は§7-9のallowlist検証済み正規値を使う。入力の欠損は空文字でなく明示的な`null`として扱う。別resourceは必ず別指紋となり、解決後の同一指紋は新規インシデントとして調査する。
 - **L4 embedding(意味一致)**: アラート文をベクトル化し、意味の近さ(cos類似)で判定。共通単語がほぼ無い「payment-service 5xx spike」と「payments backend HTTP 500 surge」を同一と判定できる。弱点: 埋込計算のコスト。
 
 L1で大半を集約し、すり抜けた「表現違いの同一障害」だけをL4で捕まえる二段構え。L4はI2内部の`search_open_similar_incidents`を使い、未解決行だけを検索する。調査用toolの`search_similar_incidents`は解決済みの過去事例専用とし、両者はSQL条件を分離する。
