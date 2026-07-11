@@ -300,6 +300,7 @@ playbooks/
 8. **Slack対話(I6)の追加ガード**: 署名+5分timestampを検証後、`event_id`と決定論的Cloud Tasks名を原子的に登録し、Task enqueue後だけ200 ACKする。workerはlease+最大3回で処理する。許可主体は設定値`ALLOWED_SLACK_TEAM_IDS` / `ALLOWED_SLACK_CHANNEL_IDS` / `ALLOWED_SLACK_USER_IDS`の3つすべてに一致する場合のみとし、未設定・空・不一致は拒否する。channel allowlistは一次通知先と一致させ、user allowlistはon-call/運用担当だけを登録する。workerはSlack複合キー、未解決状態、GitHub Issue、3 allowlist、incidentのresource allowlistを実行直前に再検証する。
 9. **受信エンドポイントの認証**: `incident-agent-ingest` はunauthenticated禁止。Pub/Sub pushはOIDC JWTの署名・issuer・audience(ingestのCloud Run URL)を検証し、push用SAのみ `run.invoker`。受信した`resource`は監視対象allowlistに一致する場合のみ許可し、不一致はfail-closed。`incident-alerts`へのpublish権限はCloud Monitoring通知サービスエージェントのみに付与する。公開`incident-agent-slack`は§7-8の署名検証を必須境界とする。非公開`incident-agent-worker`もIAMだけに依存せず、全Task routeでCloud Tasks OIDC JWTの署名・issuer・audience(worker URL)・有効期限・Task用SA identityをアプリ層で検証し、不一致はbody処理前に拒否する。
 10. **出力サニタイズ**: アラート受信直後、incident_key算出・DB永続化・embedding API送信より前に、`raw_alert`とembedding入力を自動マスキングする。JSONは許可フィールドだけを再帰処理し、未知フィールドを出力へ引き継がない。ログは行単位でBearer/JWT・cookie・email・接続文字列等を`[REDACTED]`へ置換する。以降も全保存・送信前に同処理を適用する。Slackのログ由来/LLM生成本文はBlock Kit `plain_text`で送り、`<`/`>`/`&`や`<!here>`/`<@U...>`/`<#C...>`をmrkdwnとして解釈させない。リンクが必要な箇所だけ別要素でallowlist検証済みURLとescape済みlabelから構築する。GitHub MarkdownもHTML/mention/link制御文字をescapeし、未知URLは`[LINK REMOVED]`、表示ラベルと遷移先の不一致は禁止する。Cloud Traceには生ログ・ツール結果・プロンプトを記録しない。マスキング例外・必須フィールドの処理不能・出力検証失敗は必ずfail-closedとする。受信時なら生入力を破棄し、`messageId/resource/alert_policy/masking_error=true`だけの固定安全JSONからfallback incident_keyを算出して`embedding_unavailable=true,status='escalated'`行+定数だけの固定outboxへ収束させ、embedding/LoopAgentを呼ばない。ツール/Session/outbox段階なら当該内容を保存・送信せずincidentをescalatedへ遷移し、同じ固定outboxだけを使う。
+11. **サービス別secret/IAM分離**: 共有イメージへsecretを焼き込まず、Cloud Run実行SA・Secret Manager `secretAccessor`・Cloud SQL DB roleを3サービス別にする。ingestは`ops_ingest` DB role+Monitoring/Logging/Vertex権限だけで、Slack Bot/GitHub/Signing Secretを持たない。公開slackはSigning Secret+queue限定enqueuer+`ops_slack_ingress` role(`slack_events`の必要最小操作のみ)とし、Bot/GitHub token、Vertex/Monitoring/Logging権限、他ops表の更新権限を持たない。workerだけが`ops_worker` role、Bot Token、GitHub token、I6用Monitoring/Logging/Vertex権限を持ち、Signing Secretを持たない。デプロイ後に各SAから非許可secret参照と非許可DB操作が拒否されることを検証する。
 
 ## 8. 可観測性
 
@@ -405,9 +406,9 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 - Task用SAだけが非公開`incident-agent-worker`をinvoke。ingest/slackサービスへのTask送信は禁止
 - worker全Task routeでCloud Tasks OIDC JWTをアプリ層検証し、Task用SA identity/audience/issuer/expiryをデプロイ後に検証
 - Cloud Monitoring アラートポリシー + 通知チャネル(Pub/Sub)
-- incident-agent 用サービスアカウント(§7のIAMロール。`roles/aiplatform.user`を含む)
+- incident-agent 用Cloud Run実行SAをingest/slack/worker別に作成し、§7-11のIAM/secret allowlistを適用
 - incident-agent 用Cloud Run 3サービス(ingest/slack/worker)。共有イメージ・別entrypoint、デプロイパイプラインはアプリと分離
-- Cloud SQLに ops スキーマ用DBロール
+- Cloud SQLに`ops_ingest`/`ops_slack_ingress`/`ops_worker`のサービス別DB roleを作成し、slack ingressは`slack_events`必要最小操作だけに限定
 - Slack App作成(I6用): Bot Token Scopes(app_mentions:read, chat:write)+ Events APIのリクエストURL設定
 - incident-agent専用Slack App / Bot Token / Signing Secretを作成し、Incoming Webhookは作成・使用しない。Budget通知用の認証情報と共有せず、Secret Manager secretとsecretAccessor IAMもサービス単位で分離する。
 
@@ -417,12 +418,12 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 
 | # | issue | 依存 | ファイル境界 | 受け入れ条件シード |
 | --- | --- | --- | --- | --- |
-| I1 | opsスキーマ+incidents/alert_deliveries/slack_events/outbox/budget_usage | なし | `services/incident-agent/db/**` | delivery/incident制約、outbox(github_close含む)、UTC日次budget遅延upsert+lock予約 |
-| I2 | 受け口(Pub/Sub push受信+L1〜L4ノイズ制御+自己除外+コストブレーカー) | I1, §14 | `services/incident-agent/app/**` | mask前に安全placeholder deliveryでmessageId冪等化。L3明示遷移、二相判定、両token/lease原子更新 |
+| I1 | opsスキーマ+incidents/alert_deliveries/slack_events/outbox/budget_usage | なし | `services/incident-agent/db/**` | 全制約/outbox/budget予約、ops_ingest/slack_ingress/worker最小DB role |
+| I2 | 受け口(Pub/Sub push受信+L1〜L4ノイズ制御+自己除外+コストブレーカー) | I1, §14 | `services/incident-agent/app/**` | ops_ingest role。Slack/GitHub secret禁止。placeholder冪等化、二相判定、token/lease原子更新 |
 | I3 | LoopAgent+3ツール+プレイブック注入 | I2 | `services/incident-agent/agent/**`, `playbooks/**` | reviewed事例のみ。resource/60分固定、playbook containment。ツールマスク失敗は内容破棄+固定escalation |
-| I4 | outbox出力(Slack+GitHub)+RCAレビュー/failed replay CLI | I3, §14 | `services/incident-agent/app/**`, `services/incident-agent/scripts/**` | Slack chat.postMessageのchannel/ts保存(Webhook禁止)。worker OIDC/DB正本、storm comment→close、replay |
+| I4 | outbox出力(Slack+GitHub)+RCAレビュー/failed replay CLI | I3, §14 | `services/incident-agent/app/**`, `services/incident-agent/scripts/**` | secretはworkerのみ。chat.postMessage channel/ts保存。worker OIDC/DB正本、storm close、replay |
 | I5 | otel_to_cloud+圧縮率メトリクス(受信アラート→インシデント→Issue) | I4 | `services/incident-agent/**`(設定のみ) | Cloud Traceにマスキング済み要約/メタデータのみ送出(生ログ・ツール結果・プロンプト禁止)。圧縮率がダッシュボードで見える |
-| I6 | Slack対話型二次切り分け(app_mention→session=incident UUID→追調査→スレッド返信+issueコメント追記) | I4, §14 | `services/incident-agent/app/**` | worker OIDC。Task bodyはevent_idのみ、slack_events正本。許可文脈/Session mask+TTL、予算/排他/rate |
+| I6 | Slack対話型二次切り分け(app_mention→session=incident UUID→追調査→スレッド返信+issueコメント追記) | I4, §14 | `services/incident-agent/app/**` | 公開slackはSigning+最小DB/queueのみ。worker OIDC/DB正本、Session mask+TTL、予算/排他/rate |
 
 - 共通スコープ外(全issueに転記): 本番変更ツールの実装禁止 / terraform編集禁止 / アプリ(apps/web)のコード変更禁止 / 書き込み系IAMの要求禁止。
 - 実行順: I1→I2→I3→I4→I5→I6 の直列(依存が一本鎖のため並列不要)。I5とI6の順は入れ替え可。
