@@ -228,7 +228,22 @@ async function seedDemoDailyRecommendation(
   `;
 }
 
+function assertDemoSeedAllowed(): void {
+  const appEnv = process.env.APP_ENV?.trim().toLowerCase();
+  const nodeEnv = process.env.NODE_ENV?.trim().toLowerCase();
+  const isProduction =
+    appEnv === "production" || appEnv === "prod" || nodeEnv === "production";
+
+  if (isProduction && process.env.ALLOW_PROD_SEED !== "1") {
+    throw new Error(
+      "Refusing to run demo seed against production. Set ALLOW_PROD_SEED=1 to override.",
+    );
+  }
+}
+
 export async function seedDemo(prisma: PrismaClient): Promise<void> {
+  assertDemoSeedAllowed();
+
   const viewerUid = resolveViewerUid();
   const viewer = resolveViewerProfile(viewerUid);
   const personas = Object.values(DEMO_PERSONAS);
