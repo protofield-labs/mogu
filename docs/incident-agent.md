@@ -292,7 +292,7 @@ playbooks/
 6. **タイムアウトと再試行**: Cloud Runは300秒、アプリの調査deadlineは270秒、owner leaseは300秒とする。通常のdeadline到達時は処理を中止してleaseを即時失効させ5xxを返す。プロセスクラッシュ時はleaseが先に切れるまで再送が待つため並行ownerを作らない。分析結果とoutboxは同一transactionで永続化後に2xx。外部APIはCloud Tasks workerがidempotency key+leaseで送信する。
 7. **本番不変**: 環境を変更するツールを持たせない。緩和は推奨としてissueに書くだけ。実行は人間(Phase BでもToolConfirmationによる人間承認を必須とする)。
 8. **Slack対話(I6)の追加ガード**: 署名+5分timestampを検証後、`event_id`と決定論的Cloud Tasks名を原子的に登録し、Task enqueue後だけ200 ACKする。workerはlease+最大3回で処理する。許可主体は設定値`ALLOWED_SLACK_TEAM_IDS` / `ALLOWED_SLACK_CHANNEL_IDS` / `ALLOWED_SLACK_USER_IDS`の3つすべてに一致する場合のみとし、未設定・空・不一致は拒否する。channel allowlistは一次通知先と一致させ、user allowlistはon-call/運用担当だけを登録する。workerはSlack複合キー、未解決状態、GitHub Issue、3 allowlist、incidentのresource allowlistを実行直前に再検証する。
-9. **受信エンドポイントの認証**: `incident-agent-ingest` はunauthenticated禁止。Pub/Sub pushはOIDC JWTの署名・issuer・audience(ingestのCloud Run URL)を検証し、push用SAのみ `run.invoker`。受信した`resource`は監視対象allowlist(Phase Aでは`cloud_run/dev-web`等の明示設定値)に一致する場合のみ許可し、不一致はfail-closed。`incident-alerts`へのpublish権限はCloud Monitoring通知サービスエージェントのみに付与する。`incident-agent-slack` はSlack Events到達のため公開するが、§7-8の署名検証をアプリ層の必須境界とする。
+9. **受信エンドポイントの認証**: `incident-agent-ingest` はunauthenticated禁止。Pub/Sub pushはOIDC JWTの署名・issuer・audience(ingestのCloud Run URL)を検証し、push用SAのみ `run.invoker`。受信した`resource`は監視対象allowlistに一致する場合のみ許可し、不一致はfail-closed。`incident-alerts`へのpublish権限はCloud Monitoring通知サービスエージェントのみに付与する。公開`incident-agent-slack`は§7-8の署名検証を必須境界とする。非公開`incident-agent-worker`もIAMだけに依存せず、全Task routeでCloud Tasks OIDC JWTの署名・issuer・audience(worker URL)・有効期限・Task用SA identityをアプリ層で検証し、不一致はbody処理前に拒否する。
 10. **出力サニタイズ**: アラート受信直後、incident_key算出・DB永続化・embedding API送信より前に、`raw_alert`とembedding入力を自動マスキングする。JSONは許可フィールドだけを再帰処理し、未知フィールドを出力へ引き継がない。ログは行単位でBearer/JWT・cookie・email・接続文字列等を`[REDACTED]`へ置換する。以降も全保存・送信前に同処理を適用する。Slackのログ由来/LLM生成本文はBlock Kit `plain_text`で送り、`<`/`>`/`&`や`<!here>`/`<@U...>`/`<#C...>`をmrkdwnとして解釈させない。リンクが必要な箇所だけ別要素でallowlist検証済みURLとescape済みlabelから構築する。GitHub MarkdownもHTML/mention/link制御文字をescapeし、未知URLは`[LINK REMOVED]`、表示ラベルと遷移先の不一致は禁止する。Cloud Traceには生ログ・ツール結果・プロンプトを記録しない。マスキング例外・必須フィールドの処理不能・出力検証失敗は必ずfail-closedとする。受信時なら生入力を破棄し、`messageId/resource/alert_policy/masking_error=true`だけの固定安全JSONからfallback incident_keyを算出して`embedding_unavailable=true,status='escalated'`行+定数だけの固定outboxへ収束させ、embedding/LoopAgentを呼ばない。ツール/Session/outbox段階なら当該内容を保存・送信せずincidentをescalatedへ遷移し、同じ固定outboxだけを使う。
 
 ## 8. 可観測性
@@ -329,8 +329,8 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 
 ノイズ制御の判定と新規調査の開始を分離すると、Issue作成前の同時アラートがすべて「既存なし」と判定して重複調査を開始する。これを防ぐため、I2はDB状態遷移を短いトランザクションとadvisory lockで強制する(API呼び出し中にDB transactionを保持しない)。
 
-1. 認証・resource検証・マスキング後、Pub/Sub `messageId`と`resource`/正規化済み`alert_policy`/`incident_key`/`sanitized_alert`を`status='received'`で原子的に挿入する。再送はDB保存値を正としてpayloadを再解釈しない。completedは2xx、embeddingは専用lease回復、processing ownerは調査lease回復、receivedはノイズ制御を再開する。
-2. リソース単位のtransaction advisory lock内で、まず同一resource+alert_policyの未解決storm行を時間窓なしで検索し、ヒット時は手順7で集約する。非該当時は、(a)`resolved_at IS NULL AND status <> 'merged'`のL1 key完全一致、(b)同scopeの`status='escalated' AND embedding_unavailable=true`未解決行、(c)同一resource+alert_policyかつ`last_seen_at >= now()-15m`の未解決normal行を候補にする。(b)/(c)が複数なら各々`last_seen_at DESC, created_at DESC, id ASC`の先頭だけを使う。まだ集約せずL3を先に評価し、非該当時は**L1完全一致(a)→embedding不能fallback(b)→L2(c)**の最初の候補へ手順7で集約する。候補なしなら手順4へ進む。
+1. 認証・resource allowlist・alert_policy正規化・messageId形式検証後、**マスキング前に**messageIdを冪等化する。新規deliveryは生入力を含まない`sanitized_alert={"masking_pending":true}`と安全metadata由来fallback `incident_key`で`received`挿入する。既存messageIdはpayloadを再解釈せずDB状態へ従う。新規行だけマスキングし、成功時はtoken一致CASで実incident_key/sanitized_alertへ更新する。失敗時は§7-10の安全escalated incident+固定outbox作成とdelivery completedを同一transactionで行い、再送はcompletedとして2xxに収束する。
+2. リソース単位のtransaction advisory lock内で、まず同一resource+alert_policyの未解決storm行を時間窓なしで検索し、ヒット時は手順7で集約する。非該当時は、(a)`resolved_at IS NULL AND status <> 'merged'`のL1 key完全一致、(b)同scopeの`status='escalated' AND embedding_unavailable=true`未解決行、(c)同一resource+alert_policyかつ`last_seen_at >= now()-15m`の未解決normal行を候補にする。(b)/(c)が複数なら各々`last_seen_at DESC, created_at DESC, id ASC`の先頭だけを使う。まだ集約せずL3を評価し、**L3 hitは必ず手順3へ進む**。L3非該当時だけ**L1(a)→embedding fallback(b)→L2(c)**の最初へ手順7で集約し、候補なしなら手順4へ進む。
 3. L3閾値に達したらL1/L2候補への個別集約を行わず、通常フローから**排他的にストーム分岐**する。`{"alert_policy":<正規化値>,"bucket_start":<UTCの5分境界>,"kind":"storm","resource":<allowlist検証済み値>,"v":1}`をキー順・空白なしのcanonical JSONにしてSHA-256 hexの`storm_key`を作り、`incident_key`にも同じ値を使う。`storm_key`でadvisory lockを取得し、`incidents_open_storm_key`/`incidents_open_storm_scope`でもストーム行を一意にする。既存行へは集約して終了する。新規時は手順4と同じdelivery checkpointで代表アラートのembeddingを生成し(API中はlockを保持しない)、完了後にlockを再取得して既存ストーム行を再確認する。なお非該当なら同transactionで調査予算予約、deliveryのembeddingをコピーした`incident_kind='storm'`行、delivery ownerを確保し、同じ新UUIDを両token、同じ300秒期限を両leaseへ設定する。同時に、同一resource+alert_policyの未解決normal行を`status='merged'`/`merged_into=<storm id>`へ更新し、`investigation_token`をローテーションしてleaseを失効、対応owner deliveryをcompletedにして古いownerの書き込みを拒否する。既にIssueがあるnormal行にはstorm Issueへの統合コメントoutboxを1回だけ作成する。これらをcommitしてから共通調査を開始する。予算/API失敗は手順6へ収束する。L3ヒット後はL4検索・個別行作成へ進まない。
 4. L1〜L3非該当時、deliveryのembeddingが既にあればAPIを再実行せず直ちに手順5へ進む。未保存の場合、短いtransactionで`embedding_reserved=false`なら`embedding_count`予約と`embedding_reserved=true`更新を同時に1回だけ行う。その後、予約済みか否かにかかわらずembedding未保存かつ試行可能なdeliveryだけを`status='embedding'`、attempt+1、新work_token、60秒leaseへCAS更新してAPIを呼ぶ。API成功時はtoken一致条件でembedding保存+`received`へ戻し、次の実行は手順5へ進む。クラッシュ時はlease後にtokenを再発行してAPIだけ再試行し、`embedding_reserved`をfalseへ戻さず予算を二重計上しない。
 5. deliveryにembeddingが保存された後、手順2と同じresource advisory lockを再取得する。最初にopen stormを時間窓なしで再検索し、hitなら手順7へ進む。非該当時だけ手順2と同じ候補順・(b)/(c) tie-break・L3優先を再実行する。L3 hitは手順3、L3非該当かつ候補ありは手順7へ進む。候補なしの場合だけL4検索を行い、同率なら`cosine_similarity DESC, last_seen_at DESC, id ASC`の先頭へ集約する。L4 missはlockを保持したまま調査予算予約、deliveryのembeddingをコピーしたincident挿入、同じ新UUIDをincident `investigation_token`とdelivery `work_token`へ設定し、両leaseを同じ300秒期限にしてowner processingまで原子的に行う。
@@ -345,7 +345,7 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 
 **Issueライフサイクル**: 1インシデント=1 Issue。後続の関連アラート(L2/L4)・二次切り分けの発見(§11)は、すべて該当issueへのコメントとして積む。ストーム時(L3)はストーム宣言issueが1本のみ。
 
-**外部出力のoutbox**: Slack/GitHub書き込みは`ops.outbox`を経由する。workerは`incident-agent-worker`で動き、lease+idempotency keyで送信する。GitHub Issue成功時はoutbox `external_ref`と`incidents.github_issue`を、Slack一次投稿成功時はoutbox refと`incidents.slack_team/slack_channel/slack_thread`を同一transactionで保存する。I6は4フィールドがすべて揃うまでfail-closed。失敗は最大10回再試行後`failed`として運用アラートを出す。
+**外部出力のoutbox**: Slack/GitHub書き込みは`ops.outbox`を経由する。Task bodyは`outbox.id`だけを識別子として受け、workerはdestination/payload/incident/idempotency_keyを必ずDB行から再読込する。bodyの追加fieldやDB不一致は拒否し、DB行を唯一の正本としてlease+idempotency keyで送信する。GitHub Issue成功時はoutbox `external_ref`と`incidents.github_issue`を、Slack一次投稿成功時はoutbox refと`incidents.slack_team/slack_channel/slack_thread`を同一transactionで保存する。I6は4フィールドがすべて揃うまでfail-closed。失敗は最大10回再試行後`failed`として運用アラートを出す。
 
 **failed outboxの回復**: 原因修正後、運用者専用CLI `replay_outbox <outbox UUID>`で`status='failed'`行だけを`pending`、`attempt_count=0`、`lease_expires_at=NULL`へCAS更新できるようにする。destination/payload/idempotency_keyは変更不可とし、同じidempotency keyで再送する。CLIはops operator用DB資格情報を使い、AgentランタイムSA・公開エンドポイントから呼べないようにする。Slack成功/GitHub失敗などの部分成功時も、欠けたoutboxだけを再実行してincident参照を補完し、4参照が揃うまでI6は拒否を続ける。
 
@@ -361,6 +361,7 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 - **既知かつ未解決のスレッドのみ許可**: Slack複合キーで検索し、未ヒット・Issue未紐付け・解決済み・mergedのいずれかなら調査・GitHubコメントを行わず固定応答で終了する。
 - **主体allowlist**: team/channel/userの3種類を設定で明示し、すべてdefault-denyとする。通知先channelとon-callユーザーだけを許可し、workerでも再検証する。incidentのresource allowlistも再検証する。
 - **Slack再送の冪等化と永続実行**: `event_id`由来の決定論的Task名を使い、Cloud Tasksへenqueue完了後にSlackへACKする。同一eventがpendingならenqueueを再試行、processing/completedならACKのみ。workerはlease+最大3回で実行し、`ops.slack_events`は完了後7日を超えた行を定期削除する。
+- **Task bodyを信頼しない**: Slack Taskは`event_id`だけを識別子として受け、workerはteam/channel/thread/user/incident_id/task_nameを`ops.slack_events`から再読込する。bodyの追加field・決定的Task名との不一致・DB未登録eventはfail-closedとし、認可判断へbody値を使わない。
 - **共有予算と排他**: workerはLLM実行直前にingestと同じ`ops.budget_usage`を原子的に予約する。incident単位で1件だけ実行し、user+threadごとの時間レートも検査する。上限超過時は調査せず固定応答する。
 - Slackの3秒タイムアウト対策: 即ACK→非同期処理→スレッドに返信。
 - ツール・権限・予算はPhase Aと同一(読み取り専用のまま)。
@@ -396,6 +397,7 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 - Slack追調査用Cloud Tasks queue。slack SAにqueue限定`roles/cloudtasks.enqueuer`
 - Slack/GitHub outbox配信用Cloud Tasks queue(または別routing)
 - Task用SAだけが非公開`incident-agent-worker`をinvoke。ingest/slackサービスへのTask送信は禁止
+- worker全Task routeでCloud Tasks OIDC JWTをアプリ層検証し、Task用SA identity/audience/issuer/expiryをデプロイ後に検証
 - Cloud Monitoring アラートポリシー + 通知チャネル(Pub/Sub)
 - incident-agent 用サービスアカウント(§7のIAMロール。`roles/aiplatform.user`を含む)
 - incident-agent 用Cloud Run 3サービス(ingest/slack/worker)。共有イメージ・別entrypoint、デプロイパイプラインはアプリと分離
@@ -410,11 +412,11 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 | # | issue | 依存 | ファイル境界 | 受け入れ条件シード |
 | --- | --- | --- | --- | --- |
 | I1 | opsスキーマ+incidents/alert_deliveries/slack_events/outbox/budget_usage | なし | `services/incident-agent/db/**` | delivery checkpoint/lease、incident制約、outbox、UTC日次budget行の遅延upsert+lock予約プリミティブ |
-| I2 | 受け口(Pub/Sub push受信+L1〜L4ノイズ制御+自己除外+コストブレーカー) | I1, §14 | `services/incident-agent/app/**` | route限定、候補tie-break、二相判定、両token/lease原子更新。受信マスク失敗は生入力破棄+固定escalation |
+| I2 | 受け口(Pub/Sub push受信+L1〜L4ノイズ制御+自己除外+コストブレーカー) | I1, §14 | `services/incident-agent/app/**` | mask前に安全placeholder deliveryでmessageId冪等化。L3明示遷移、二相判定、両token/lease原子更新 |
 | I3 | LoopAgent+3ツール+プレイブック注入 | I2 | `services/incident-agent/agent/**`, `playbooks/**` | reviewed事例のみ。resource/60分固定、playbook containment。ツールマスク失敗は内容破棄+固定escalation |
-| I4 | outbox出力(Slack+GitHub)+RCAレビュー/failed replay CLI | I3, §14 | `services/incident-agent/app/**`, `services/incident-agent/scripts/**` | Slack本文plain_text+link分離、GitHub制御文字escape。マスク失敗は送信禁止。ref原子反映/replay |
+| I4 | outbox出力(Slack+GitHub)+RCAレビュー/failed replay CLI | I3, §14 | `services/incident-agent/app/**`, `services/incident-agent/scripts/**` | worker OIDC必須。Task bodyはoutbox.idのみ、DB正本。出力escape/mask、ref原子反映/replay |
 | I5 | otel_to_cloud+圧縮率メトリクス(受信アラート→インシデント→Issue) | I4 | `services/incident-agent/**`(設定のみ) | Cloud Traceにマスキング済み要約/メタデータのみ送出(生ログ・ツール結果・プロンプト禁止)。圧縮率がダッシュボードで見える |
-| I6 | Slack対話型二次切り分け(app_mention→session=incident UUID→追調査→スレッド返信+issueコメント追記) | I4, §14 | `services/incident-agent/app/**` | route物理分離。許可user+Botのみ。Session保存/再読込前マスク、解決30日後削除。耐久Task/共有予算/排他/rate |
+| I6 | Slack対話型二次切り分け(app_mention→session=incident UUID→追調査→スレッド返信+issueコメント追記) | I4, §14 | `services/incident-agent/app/**` | worker OIDC。Task bodyはevent_idのみ、slack_events正本。許可文脈/Session mask+TTL、予算/排他/rate |
 
 - 共通スコープ外(全issueに転記): 本番変更ツールの実装禁止 / terraform編集禁止 / アプリ(apps/web)のコード変更禁止 / 書き込み系IAMの要求禁止。
 - 実行順: I1→I2→I3→I4→I5→I6 の直列(依存が一本鎖のため並列不要)。I5とI6の順は入れ替え可。
