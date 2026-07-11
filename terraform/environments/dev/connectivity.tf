@@ -88,6 +88,17 @@ resource "google_cloud_run_v2_job_iam_member" "daily_reco_scheduler_invoker" {
   member   = "serviceAccount:${google_service_account.daily_reco_scheduler[0].email}"
 }
 
+# #318: Cloud Scheduler OAuth → persona curation Cloud Run Job.
+resource "google_cloud_run_v2_job_iam_member" "persona_curation_scheduler_invoker" {
+  count = var.enable_db_connection && var.enable_external_apis ? 1 : 0
+
+  project  = var.project_id
+  location = var.region
+  name     = module.persona_curation_job[0].name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.persona_curation_scheduler[0].email}"
+}
+
 # GitHub Actions: push images and deploy new revisions to Cloud Run.
 resource "google_project_iam_member" "github_actions_artifact_registry_writer" {
   project = var.project_id

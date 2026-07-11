@@ -55,8 +55,30 @@ type GooglePlace = {
   formattedAddress?: string;
   location?: GoogleLatLng;
   currentOpeningHours?: { openNow?: boolean };
+  businessStatus?: string;
   photos?: GooglePhoto[];
 };
+
+export type PlaceBusinessStatus =
+  | "OPERATIONAL"
+  | "CLOSED_TEMPORARILY"
+  | "CLOSED_PERMANENTLY"
+  | "UNKNOWN";
+
+function normalizeBusinessStatus(raw: string | undefined): PlaceBusinessStatus {
+  switch (raw) {
+    case "OPERATIONAL":
+    case "CLOSED_TEMPORARILY":
+    case "CLOSED_PERMANENTLY":
+      return raw;
+    default:
+      return "UNKNOWN";
+  }
+}
+
+export function isClosedBusinessStatus(status: PlaceBusinessStatus): boolean {
+  return status === "CLOSED_TEMPORARILY" || status === "CLOSED_PERMANENTLY";
+}
 
 function mapLocation(location: GoogleLatLng | undefined): PlaceDTO["location"] {
   const lat = location?.latitude;
@@ -158,7 +180,7 @@ export async function fetchPlaceDetails(placeId: string): Promise<PlaceDTO | nul
 
 async function fetchPlaceDetailsUncached(normalized: string): Promise<PlaceDTO | null> {
   const fieldMask =
-    "id,displayName,formattedAddress,location,currentOpeningHours,photos";
+    "id,displayName,formattedAddress,location,currentOpeningHours,businessStatus,photos";
 
   try {
     const place = await placesFetch<GooglePlace>(
@@ -172,6 +194,27 @@ async function fetchPlaceDetailsUncached(normalized: string): Promise<PlaceDTO |
     }
     throw error;
   }
+}
+
+/** Fetch business status for persona curation (#318). */
+export async function fetchPlaceBusinessStatus(
+  placeId: string,
+): Promise<PlaceBusinessStatus> {
+  const normalized = normalizePlaceId(placeId);
+  return getCachedPlacesResponse(`businessStatus:${normalized}`, async () => {
+    try {
+      const place = await placesFetch<GooglePlace>(
+        `/places/${encodeURIComponent(normalized)}`,
+        { method: "GET", fieldMask: "businessStatus" },
+      );
+      return normalizeBusinessStatus(place.businessStatus);
+    } catch (error) {
+      if (error instanceof PlacesApiError && error.status === 404) {
+        return "UNKNOWN";
+      }
+      throw error;
+    }
+  });
 }
 
 /** Text search for place autocomplete (#33). Results are not persisted. */

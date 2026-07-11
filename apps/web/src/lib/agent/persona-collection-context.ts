@@ -5,6 +5,7 @@ import { AGENT_PERSONAS } from "@/lib/agent/persona-config";
 import { withDemoPersonaViewerFallback } from "./demo-persona-fallback";
 import type { PersonaCollectionBlock } from "./persona-collection-message";
 import { hasPersonaCollectionSpots } from "./persona-collection-message";
+import { isPersonaCoreSpotId } from "./persona-config";
 
 async function loadPersonaCollectionBlocksForUid(
   viewerUid: string,
@@ -13,13 +14,12 @@ async function loadPersonaCollectionBlocksForUid(
     const blocks: PersonaCollectionBlock[] = [];
 
     for (const persona of AGENT_PERSONAS) {
-      const spots = await tx.spot.findMany({
+      const rows = await tx.spot.findMany({
         where: {
           addedBy: persona.ownerId,
           collectionId: persona.collectionId,
+          archivedAt: null,
         },
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-        take: 6,
         select: {
           id: true,
           placeId: true,
@@ -28,8 +28,10 @@ async function loadPersonaCollectionBlocksForUid(
           tagSituation: true,
           comment: true,
           rating: true,
+          createdAt: true,
         },
       });
+      const spots = sortPersonaPrefetchSpots(rows).slice(0, 6);
 
       blocks.push({
         personaKey: persona.key,
@@ -49,6 +51,23 @@ async function loadPersonaCollectionBlocksForUid(
     }
 
     return blocks;
+  });
+}
+
+function sortPersonaPrefetchSpots<T extends { id: string; createdAt: Date }>(
+  spots: T[],
+): T[] {
+  return [...spots].sort((left, right) => {
+    const leftCore = isPersonaCoreSpotId(left.id) ? 1 : 0;
+    const rightCore = isPersonaCoreSpotId(right.id) ? 1 : 0;
+    if (leftCore !== rightCore) {
+      return rightCore - leftCore;
+    }
+    const createdDiff = right.createdAt.getTime() - left.createdAt.getTime();
+    if (createdDiff !== 0) {
+      return createdDiff;
+    }
+    return right.id.localeCompare(left.id);
   });
 }
 

@@ -12,6 +12,9 @@ COPY prisma ./prisma
 RUN pnpm install --frozen-lockfile
 COPY scripts ./scripts
 COPY src/lib/seed ./src/lib/seed
+COPY src/lib/agent/persona-config.ts ./src/lib/agent/persona-config.ts
+COPY src/lib/persona-curation ./src/lib/persona-curation
+COPY src/lib/places ./src/lib/places
 COPY src/lib/recommendations ./src/lib/recommendations
 COPY src/lib/db/prisma.ts ./src/lib/db/prisma.ts
 COPY tsconfig.json ./

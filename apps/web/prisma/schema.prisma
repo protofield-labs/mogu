@@ -137,6 +137,7 @@ model Spot {
   freeTags     String[] @default([]) @map("free_tags")
   originUserId String?  @map("origin_user_id")
   depth        Int      @default(0)
+  archivedAt   DateTime? @map("archived_at") @db.Timestamptz(6)
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -153,6 +154,7 @@ model Spot {
   @@index([collectionId], map: "idx_spots_collection")
   @@index([addedBy], map: "idx_spots_added_by")
   @@index([tagArea, tagGenre, tagSituation], map: "idx_spots_tags")
+  @@index([archivedAt], map: "idx_spots_archived_at")
   @@map("spots")
 }
 
