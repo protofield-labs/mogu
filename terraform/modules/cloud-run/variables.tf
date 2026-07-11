@@ -47,6 +47,39 @@ variable "allow_unauthenticated" {
   default     = false
 }
 
+variable "ingress" {
+  description = "Ingress traffic configuration (e.g. INGRESS_TRAFFIC_INTERNAL_ONLY)."
+  type        = string
+  default     = "INGRESS_TRAFFIC_ALL"
+
+  validation {
+    condition = contains([
+      "INGRESS_TRAFFIC_ALL",
+      "INGRESS_TRAFFIC_INTERNAL_ONLY",
+      "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER",
+    ], var.ingress)
+    error_message = "ingress must be a supported Cloud Run v2 ingress value."
+  }
+}
+
+variable "request_timeout" {
+  description = "Maximum request duration (e.g. 600s)."
+  type        = string
+  default     = "300s"
+}
+
+variable "command" {
+  description = "Container entrypoint command."
+  type        = list(string)
+  default     = null
+}
+
+variable "args" {
+  description = "Container command arguments."
+  type        = list(string)
+  default     = null
+}
+
 variable "env" {
   description = "Plain environment variables."
   type        = map(string)
