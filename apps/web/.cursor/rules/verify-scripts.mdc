@@ -1,0 +1,35 @@
+---
+description: verify-*.ts スクリプトの作成・変更ルール（#336）
+globs: apps/web/scripts/verify-*.ts
+alwaysApply: false
+---
+
+# verify スクリプト規約
+
+`apps/web/scripts/verify-*.ts` は Definition of Done の回帰ガード。リファクタに強い書き方を優先する。
+
+## 禁止（新規・拡張時）
+
+- `readFileSync` + `source.includes("...")` による**実装ソースの文字列アサート**
+  - 例: `assert(source.includes("export function Foo"))` — リネームや import 整理で無関係に落ちる
+  - 例: `assert(!source.includes("Sparkles"))` — コメント・文字列リテラルでも誤検知する
+- **行数上限**を verify 内でアサートする（`lineCount < N`）
+  - 行数は ESLint `max-lines`（`eslint.config.mjs` の split guard）に任せる
+
+## 推奨
+
+1. **振る舞い検証** — 対象モジュールを import し、関数の入出力を assert する
+2. **export 検証** — `import * as mod from "../src/..."` のうえ `typeof mod.Foo === "function"`
+3. **共有定数** — 契約文字列（マーカー形式・ペルソナ名など）は `src/lib/` の定数を import し、verify と実装の両方が同じ値を参照する
+4. **ドキュメント** — `docs/*.md` の存在確認はファイル読み取り可（仕様のソースオブトょとして意図的）
+
+## Python ↔ TypeScript 契約
+
+エージェント prompt と TS パーサの契約（候補マーカー等）は:
+
+- TS: `candidate-spot-markers.ts` の `CANDIDATE_MARKER_*` 定数 + `matchesCandidateMarkerLine()`
+- verify: Python ソースに TS 定数と同じ substring が含まれることを **1箇所**だけ確認し、パースは `matchesCandidateMarkerLine(サンプル)` で検証
+
+## 既存 scripts
+
+46/77 本が legacy の includes パターンを残している。触るときに上記へ寄せ、一括書き換えは段階的に行う。
