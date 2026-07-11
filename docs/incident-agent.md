@@ -74,6 +74,9 @@ CREATE SCHEMA IF NOT EXISTS ops;
 CREATE TABLE ops.incidents (
   id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   incident_key   text NOT NULL,          -- §9 L1のcanonical JSONをSHA-256。未解決期間内の完全一致キー
+  incident_kind  text NOT NULL DEFAULT 'normal'
+    CHECK (incident_kind IN ('normal', 'storm')),
+  storm_key      text,                   -- L3のみ。5分bucket+共通属性のcanonical JSONをSHA-256
   alert_policy   text NOT NULL,
   resource       text NOT NULL,          -- 例: cloud_run/dev-web
   severity       text,                   -- agent判定: critical/high/medium/low。調査前はNULL
@@ -98,11 +101,15 @@ CREATE TABLE ops.incidents (
   slack_channel  text,
   slack_thread   text,                   -- thread_ts。I6のsession_idはincidentのidを使う
   embedding      vector(768),            -- 通常調査は必須。embedding失敗escalationのみNULL
+  embedding_unavailable boolean NOT NULL DEFAULT false,
   created_at     timestamptz NOT NULL DEFAULT now(),
   resolved_at    timestamptz,
   CHECK ((status = 'resolved') = (resolved_at IS NOT NULL)),
   CHECK ((status = 'merged') = (merged_into IS NOT NULL)),
-  CHECK (status IN ('escalated', 'merged') OR embedding IS NOT NULL)
+  CHECK ((incident_kind = 'storm') = (storm_key IS NOT NULL)),
+  CHECK (embedding IS NOT NULL OR embedding_unavailable OR status = 'merged'),
+  CHECK (NOT embedding_unavailable OR embedding IS NULL),
+  CHECK (NOT embedding_unavailable OR status IN ('escalated', 'resolved', 'merged'))
 );
 CREATE INDEX ON ops.incidents USING hnsw (embedding vector_cosine_ops);
 CREATE INDEX ON ops.incidents (created_at DESC);
@@ -111,6 +118,9 @@ CREATE UNIQUE INDEX incidents_open_incident_key
   WHERE resolved_at IS NULL AND status <> 'merged';
 CREATE INDEX ON ops.incidents (resource, last_seen_at DESC)
   WHERE resolved_at IS NULL AND status <> 'merged';
+CREATE UNIQUE INDEX incidents_open_storm_key
+  ON ops.incidents (storm_key)
+  WHERE resolved_at IS NULL AND status <> 'merged' AND storm_key IS NOT NULL;
 CREATE UNIQUE INDEX incidents_open_slack_thread
   ON ops.incidents (slack_team, slack_channel, slack_thread)
   WHERE resolved_at IS NULL
@@ -314,10 +324,10 @@ L1で大半を集約し、すり抜けた「表現違いの同一障害」だけ
 
 1. 認証・resource検証・マスキング後、Pub/Sub `messageId`と`resource`/`incident_key`/`sanitized_alert`を`status='received'`で原子的に挿入する。再送はDB保存値を正としてpayloadを再解釈しない。completedは2xx、embeddingは専用lease回復、processing ownerは調査lease回復、receivedはノイズ制御を再開する。
 2. リソース単位のtransaction advisory lock内でL1/L2を再チェックする。別messageIdがヒットした場合だけ対象incidentの`alert_count`/`last_seen_at`を更新し、そのdeliveryをcompletedにして2xxを返す。
-3. L3閾値に達したら通常フローから**排他的にストーム分岐**する。時間bucket+共通属性の`storm_key`でadvisory lockを取得し、同bucketのストーム行があれば集約して終了する。なければ1件だけがembedding/調査予算を予約してストーム用`investigating`行を作り、共通調査を開始する。L3ヒット後はL4検索・個別行作成へ進まない。
-4. L1〜L3非該当時、短いtransactionで`embedding_reserved=false`なら`embedding_count`を1回だけ予約し、deliveryを`embedding`、attempt+1、新work_token、60秒leaseへCAS更新する。API成功時はtoken一致条件でembedding保存+`received`へ戻す。クラッシュ時はlease後にtokenを再発行してAPIだけ再試行し、予算を二重計上しない。
+3. L3閾値に達したら通常フローから**排他的にストーム分岐**する。`{"alert_policy":<正規化値>,"bucket_start":<UTCの5分境界>,"kind":"storm","resource":<allowlist検証済み値>,"v":1}`をキー順・空白なしのcanonical JSONにしてSHA-256 hexの`storm_key`を作り、`incident_key`にも同じ値を使う。`storm_key`でadvisory lockを取得し、`incidents_open_storm_key`でも同bucketのストーム行を一意にする。既存行へは集約して終了する。新規時は手順4と同じdelivery checkpointで代表アラートのembeddingを生成し(API中はlockを保持しない)、完了後にlockを再取得して既存ストーム行を再確認する。なお非該当なら同transactionで調査予算予約、`incident_kind='storm'`行、delivery ownerを原子的に確保して共通調査を開始する。予算/API失敗は手順6へ収束する。L3ヒット後はL4検索・個別行作成へ進まない。
+4. L1〜L3非該当時、deliveryのembeddingが既にあればAPIを再実行せず直ちに手順5へ進む。未保存の場合だけ、短いtransactionで`embedding_reserved=false`なら`embedding_count`を1回予約し、deliveryを`embedding`、attempt+1、新work_token、60秒leaseへCAS更新する。API成功時はtoken一致条件でembedding保存+`received`へ戻し、次の実行は手順5へ進む。クラッシュ時はlease後にtokenを再発行してAPIだけ再試行し、予算を二重計上しない。
 5. deliveryにembeddingが保存された後、L4用lockの同一transaction内で再検索する。hitは集約+completed。missは調査予算予約、incident挿入、delivery owner processingまで原子的に行う。
-6. embedding予算超過、embedding API 3回失敗、または調査予算超過時はLoopAgentを呼ばない。`status='escalated'`のincident(embedding取得失敗時のみNULL可)+固定文outbox+delivery completedを同一transactionで作り、必ず記録・通知経路へ収束させる。
+6. embedding予算超過、embedding API 3回失敗、または調査予算超過時はLoopAgentを呼ばない。`status='escalated'`のincident+固定文outbox+delivery completedを同一transactionで作り、必ず記録・通知経路へ収束させる。embedding取得不能時だけ`embedding=NULL, embedding_unavailable=true`とし、このフラグは後の`resolved`遷移でも保持する。調査予算超過時は取得済みembeddingを保存する。
 7. 別messageId集約時、investigatingはcountだけ更新。analyzed/escalatedはcount+messageId付きcomment outboxを原子的に作り、Issue ref未設定ならpendingで待つ。
 8. owner deliveryはtoken+300秒leaseを持つ。app deadlineは270秒。期限切れ時はCASでtoken再発行、lease延長、attempt+1を同時更新し、古いtokenの書き込みを拒否する。
 9. 成功時は分析+outbox+analyzed+delivery completedを同一transactionで保存する。3回調査失敗時も固定文outbox+escalated+delivery completedを原子的に保存する。
