@@ -63,9 +63,34 @@ function main() {
     "orchestrator surfaces persona taste in final reply",
   );
 
+  const markerContract = "[[候補 spot_id=";
+
+  const personaBase = readAgentSource("mogu/personas/_base.py");
+  assert(personaBase.includes("日本語"), "persona base uses Japanese instruction");
+  assert(
+    personaBase.includes("Thinking Process") || personaBase.includes("思考過程"),
+    "persona base forbids thinking process output",
+  );
+  assert(
+    personaBase.includes("ユーザーに直接話しかけない"),
+    "persona base does not address the user directly",
+  );
+  assert(
+    personaBase.includes("ペルソナコレクション実データ"),
+    "persona base prefers prefetch collection data (#264)",
+  );
+  assert(personaBase.includes("参照:"), "persona base declares collection reference line");
+  assert(
+    personaBase.includes(markerContract),
+    "persona base documents candidate marker format (#333)",
+  );
+  assert(
+    personaBase.includes("build_persona_instruction"),
+    "persona base exposes instruction builder (#339)",
+  );
+
   const ken = readAgentSource("mogu/personas/ken.py");
-  assertJapanesePersona(ken, "ken");
-  assert(ken.includes("ユーザーに直接話しかけない"), "ken does not address the user directly");
+  assert(ken.includes("build_persona_instruction"), "ken uses shared persona instruction builder");
   assert(
     ken.includes("居酒屋") && (ken.includes("コスパ") || ken.includes("ワイワイ")),
     "ken specializes in izakaya/casual/cost-performance",
@@ -79,17 +104,12 @@ function main() {
     "ken avoids quiet/formal date venues",
   );
   assert(
-    ken.includes("中目黒サク飲み") && ken.includes("参照:"),
-    "ken declares demo collection reference",
-  );
-  assert(
-    ken.includes("ペルソナコレクション実データ") || ken.includes("place_id"),
-    "ken prefers prefetch collection data (#264)",
+    ken.includes("中目黒サク飲み"),
+    "ken declares demo collection name",
   );
 
   const aoi = readAgentSource("mogu/personas/aoi.py");
-  assertJapanesePersona(aoi, "aoi");
-  assert(aoi.includes("ユーザーに直接話しかけない"), "aoi does not address the user directly");
+  assert(aoi.includes("build_persona_instruction"), "aoi uses shared persona instruction builder");
   assert(
     aoi.includes("デート") && (aoi.includes("雰囲気") || aoi.includes("プロポーズ")),
     "aoi specializes in date/atmosphere/special occasions",
@@ -103,12 +123,8 @@ function main() {
     "aoi avoids loud izakaya-style venues",
   );
   assert(
-    aoi.includes("静かな二人時間") && aoi.includes("参照:"),
-    "aoi declares demo collection reference",
-  );
-  assert(
-    aoi.includes("ペルソナコレクション実データ") || aoi.includes("place_id"),
-    "aoi prefers prefetch collection data (#264)",
+    aoi.includes("静かな二人時間"),
+    "aoi declares demo collection name",
   );
 
   const maps = readAgentSource("mogu_maps/agent.py");
@@ -137,11 +153,9 @@ function main() {
     "orchestrator keeps same place on follow-up (#264)",
   );
 
-  const markerContract = "[[候補 spot_id=";
   for (const [label, source] of [
     ["orchestrator", orchestrator],
-    ["ken", ken],
-    ["aoi", aoi],
+    ["persona_base", personaBase],
   ] as const) {
     assert(
       source.includes(markerContract),
@@ -156,7 +170,7 @@ function main() {
     "TS candidate marker pattern matches canonical sample line (#333)",
   );
 
-  console.log("PASS: agent instructions (#251/#263/#269/#270/#264/#333)");
+  console.log("PASS: agent instructions (#251/#263/#269/#270/#264/#333/#339)");
 }
 
 main();

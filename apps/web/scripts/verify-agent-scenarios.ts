@@ -78,18 +78,22 @@ assert(
   "scenario: orchestrator evidence examples use role+name (#288)",
 );
 
-const ken = readAgent("mogu/personas/ken.py");
+const personaBase = readAgent("mogu/personas/_base.py");
 assert(
-  ken.includes("ペルソナコレクション実データ"),
-  "scenario: ken uses prefetch block when present",
+  personaBase.includes("ペルソナコレクション実データ"),
+  "scenario: persona base uses prefetch block when present",
 );
-assert(ken.includes("同一 place_id"), "scenario: ken keeps place on follow-up");
+assert(
+  personaBase.includes("同一 place_id"),
+  "scenario: persona base keeps place on follow-up",
+);
+
+const ken = readAgent("mogu/personas/ken.py");
+assert(ken.includes("build_persona_instruction"), "scenario: ken uses shared instruction builder");
+assert(ken.includes("中目黒サク飲み"), "scenario: ken declares demo collection");
 
 const aoi = readAgent("mogu/personas/aoi.py");
-assert(
-  aoi.includes("ペルソナコレクション実データ"),
-  "scenario: aoi uses prefetch block when present",
-);
-assert(aoi.includes("同一 place_id"), "scenario: aoi keeps place on follow-up");
+assert(aoi.includes("build_persona_instruction"), "scenario: aoi uses shared instruction builder");
+assert(aoi.includes("静かな二人時間"), "scenario: aoi declares demo collection");
 
 console.log("PASS: agent scenarios verified");
