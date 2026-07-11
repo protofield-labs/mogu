@@ -7,9 +7,10 @@ import { countSavedInCircleByPlaceIds } from "@/lib/dal/saved-count";
 import { toSpotDto } from "@/lib/dal/spot-dto";
 import { pickDailyRecommendation } from "@/lib/recommendations/pick";
 import {
-  PERSONA_COLLECTION_HINTS,
-  withPersonaTasteEvidence,
-} from "@/lib/agent/stream-parser";
+  AGENT_PERSONA_BY_KEY,
+  type PersonaKey,
+} from "@/lib/agent/persona-config";
+import { withPersonaTasteEvidence } from "@/lib/agent/stream-parser";
 
 const spotSelect = {
   id: true,
@@ -37,11 +38,11 @@ const spotSelect = {
 export async function buildAgentRecommendation(
   uid: string,
   personaTasteHint: string | null = null,
-  personaKey: "ken" | "aoi" | null = null,
+  personaKey: PersonaKey | null = null,
   options?: { anchorSpotId?: string },
 ): Promise<Recommendation | null> {
   const preferAddedByUids = personaKey
-    ? [PERSONA_COLLECTION_HINTS[personaKey]!.demoUid]
+    ? [AGENT_PERSONA_BY_KEY[personaKey].ownerId]
     : [];
   const anchorSpotId = options?.anchorSpotId;
 

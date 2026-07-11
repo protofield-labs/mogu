@@ -41,6 +41,7 @@ import {
 } from "./recommendation-context-message";
 import { buildCollectionContextMessage } from "./collection-context-message";
 import { loadPersonaCollectionBlocks } from "./persona-collection-context";
+import { isAgentDemoMode } from "./persona-config";
 import {
   buildPersonaCollectionContextMessage,
   hasPersonaCollectionSpots,
@@ -453,6 +454,9 @@ export async function seedAgentPersonaCollectionContext(input: {
   userId: string;
   sessionId: string;
 }): Promise<void> {
+  if (!isAgentDemoMode()) {
+    return;
+  }
   try {
     const blocks = await loadPersonaCollectionBlocks(input.userId);
     if (!hasPersonaCollectionSpots(blocks)) {
