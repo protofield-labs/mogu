@@ -14,6 +14,9 @@ from agent.scanner import SecretScanError, SecretScanner
 from app.db import Database, vector_to_pg
 
 MAX_LOG_ENTRIES = 200
+# Keeps 200 entries safely under the scanner's 256 KiB boundary limit even
+# when every message is a full stack trace (200 x 1024 bytes + envelope).
+MAX_LOG_MESSAGE_BYTES = 1024
 MAX_METRIC_SERIES = 100
 LOOKBACK_MINUTES = 60
 _RESOURCE_PART = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
@@ -279,6 +282,8 @@ def _summarize_log_entry(entry: dict[str, Any]) -> dict[str, Any]:
         payload = json.dumps(payload, sort_keys=True, ensure_ascii=False)
     if payload is not None and not isinstance(payload, str):
         payload = str(payload)
+    if payload is not None:
+        payload = _truncate_message(payload)
     return {
         "timestamp": entry.get("timestamp"),
         "severity": entry.get("severity"),
@@ -286,12 +291,24 @@ def _summarize_log_entry(entry: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _truncate_message(message: str) -> str:
+    encoded = message.encode("utf-8")
+    if len(encoded) <= MAX_LOG_MESSAGE_BYTES:
+        return message
+    truncated = encoded[:MAX_LOG_MESSAGE_BYTES].decode("utf-8", errors="ignore")
+    # Drop the trailing partial word so a secret cut below the scanner's
+    # high-entropy threshold cannot slip through half-redacted.
+    truncated = re.sub(r"[A-Za-z0-9_-]+$", "", truncated)
+    return f"{truncated}[TRUNCATED]"
+
+
 def _rfc3339(value: datetime) -> str:
     return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def _reviewed_cause(summary: str) -> str:
-    first_line = summary.splitlines()[0]
+    lines = summary.splitlines()
+    first_line = lines[0] if lines else ""
     if first_line.startswith("仮説: "):
         return first_line.removeprefix("仮説: ")
     return first_line

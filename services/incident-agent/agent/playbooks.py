@@ -45,9 +45,6 @@ class PlaybookLoader:
         if any(part in alert_policy for part in ("..", "/", "\\")):
             raise PlaybookError("invalid alert policy")
         filename = PLAYBOOK_MAP.get(alert_policy, DEFAULT_PLAYBOOK)
-        if filename not in set(PLAYBOOK_MAP.values()) | {DEFAULT_PLAYBOOK}:
-            raise PlaybookError("playbook is not allowlisted")
-
         candidate = self._root.joinpath(filename).resolve()
         try:
             candidate.relative_to(self._root)

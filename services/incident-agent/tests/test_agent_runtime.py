@@ -57,12 +57,14 @@ class FakeSessionService:
 
 class FakeRunner:
     last_agent = None
+    last_message = None
 
     def __init__(self, *, agent, app_name, session_service):
         FakeRunner.last_agent = agent
         self._sessions = session_service
 
     async def run_async(self, **kwargs):
+        FakeRunner.last_message = kwargs.get("new_message")
         self._sessions.session.state.update(
             {"evaluation": EVALUATION, "loop_count": 1}
         )
@@ -106,7 +108,7 @@ def test_adk_runtime_builds_three_iteration_loop_and_parses_result(
     result = asyncio.run(
         runtime.run(
             RuntimeRequest(
-                incident_id="incident-1",
+                incident_id="0d9e4c1a-8f27-4b53-9c66-2f3a51e7b804",
                 alert={"resource": "cloud_run/dev-web", "v": 1},
                 playbook=LoadedPlaybook("default.md", "Inspect metrics, then logs."),
                 loop_budget_seconds=30,
@@ -122,6 +124,13 @@ def test_adk_runtime_builds_three_iteration_loop_and_parses_result(
         "evaluator",
         "confidence_checker",
     ]
+    for sub_agent in FakeRunner.last_agent.sub_agents[:2]:
+        assert sub_agent.generate_content_config.max_output_tokens == 2048
+    # Full UUIDs would be redacted by the 32-char entropy mask; only the
+    # short prefix may reach the model.
+    message_text = FakeRunner.last_message.parts[0].text
+    assert '"incident_ref":"0d9e4c1a"' in message_text
+    assert "[REDACTED]" not in message_text
     assert result.loop_count == 1
     assert result.token_cost == 123
     assert result.confidence == "high"

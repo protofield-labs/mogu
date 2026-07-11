@@ -8,10 +8,13 @@ import pytest
 
 from agent.scanner import SecretScanner
 from agent.tools import (
+    MAX_LOG_MESSAGE_BYTES,
     BoundInvestigationTools,
     GoogleObservationClient,
     IncidentToolScope,
     ToolScopeError,
+    _reviewed_cause,
+    _truncate_message,
     build_resource_query,
 )
 
@@ -45,6 +48,7 @@ class FakeAuthorizedSession:
     def __init__(self):
         self.get_call = None
         self.post_call = None
+        self.log_entries: list[dict] = []
 
     def get(self, url, *, params, timeout):
         self.get_call = (url, params, timeout)
@@ -52,7 +56,7 @@ class FakeAuthorizedSession:
 
     def post(self, url, *, json, timeout):
         self.post_call = (url, json, timeout)
-        return FakeResponse({"entries": []})
+        return FakeResponse({"entries": self.log_entries})
 
 
 class NoopDB:
@@ -176,6 +180,52 @@ def test_google_clients_build_server_owned_filters() -> None:
     assert 'timestamp >= "2026-07-11T23:00:00Z"' in log_body["filter"]
     assert "severity >= WARNING" in log_body["filter"]
     assert log_body["pageSize"] == 200
+
+
+def test_log_messages_are_truncated_below_scanner_boundary_limit() -> None:
+    session = FakeAuthorizedSession()
+    session.log_entries = [
+        {
+            "timestamp": "2026-07-11T23:59:00Z",
+            "severity": "ERROR",
+            "textPayload": "stacktrace " * 400,
+        }
+        for _ in range(200)
+    ]
+    client = GoogleObservationClient("test-project", session=session)
+    query = build_resource_query("cloud_run/dev-web")
+    start = datetime(2026, 7, 11, 23, 0, tzinfo=timezone.utc)
+    end = datetime(2026, 7, 12, 0, 0, tzinfo=timezone.utc)
+
+    result = client.get_logs(query, start=start, end=end)
+
+    assert len(result["entries"]) == 200
+    for entry in result["entries"]:
+        assert entry["message"].endswith("[TRUNCATED]")
+        assert len(entry["message"].encode("utf-8")) <= MAX_LOG_MESSAGE_BYTES + len(
+            "[TRUNCATED]"
+        )
+    # The whole batch must stay scannable instead of failing the boundary.
+    assert SecretScanner().sanitize_payload(result) == result
+
+
+def test_truncation_drops_partial_trailing_token() -> None:
+    secret = "A" * 40
+    message = "x" * (MAX_LOG_MESSAGE_BYTES - 20) + " ghp_" + secret
+
+    truncated = _truncate_message(message)
+
+    assert "ghp_" not in truncated
+    assert truncated.endswith(" [TRUNCATED]")
+
+
+def test_short_messages_are_not_truncated() -> None:
+    assert _truncate_message("short message") == "short message"
+
+
+def test_reviewed_cause_handles_empty_summary() -> None:
+    assert _reviewed_cause("") == ""
+    assert _reviewed_cause("仮説: pool exhaustion\n根拠: x") == "pool exhaustion"
 
 
 def test_similar_search_uses_only_reviewed_resolved_cases_and_top_three() -> None:

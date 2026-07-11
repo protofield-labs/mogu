@@ -20,6 +20,9 @@ from agent.scanner import SecretScanError, SecretScanner
 from agent.tools import BoundInvestigationTools
 
 MAX_LOOP_ITERATIONS = 3
+# Per-round output cap so total cost stays bounded by
+# "3 iterations x per-round token limit" (spec section 4).
+MAX_OUTPUT_TOKENS_PER_TURN = 2048
 APP_NAME = "incident-agent"
 
 
@@ -102,7 +105,9 @@ class AdkInvestigationRuntime:
             {
                 "alert": request.alert,
                 "playbook": request.playbook.content,
-                "incident_id": request.incident_id,
+                # Short prefix only: a full UUID matches the masking layer's
+                # 32-char high-entropy pattern and would arrive redacted.
+                "incident_ref": request.incident_id[:8],
             }
         )
         safety = _SafetyCallbacks(scanner, tools)
@@ -113,6 +118,9 @@ class AdkInvestigationRuntime:
                 "project": self._project_id,
                 "location": self._location,
             },
+        )
+        output_cap = types.GenerateContentConfig(
+            max_output_tokens=MAX_OUTPUT_TOKENS_PER_TURN,
         )
 
         investigator = LlmAgent(
@@ -132,6 +140,7 @@ class AdkInvestigationRuntime:
                 tools.search_similar_incidents,
             ],
             output_key="investigation_draft",
+            generate_content_config=output_cap,
             before_model_callback=safety.before_model,
             after_model_callback=safety.after_model,
             before_tool_callback=safety.before_tool,
@@ -149,6 +158,7 @@ class AdkInvestigationRuntime:
             ),
             output_schema=EvaluationOutput,
             output_key="evaluation",
+            generate_content_config=output_cap,
             before_model_callback=safety.before_model,
             after_model_callback=safety.after_model,
         )
