@@ -3,7 +3,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from agent.scanner import SecretScanner
-from app.external import GitHubApiSender, SlackApiSender, safe_markdown_text
+from app.external import GitHubApiSender, SlackApiSender, render_analysis, safe_markdown_text
 from app.outbox import OutboxRecord
 
 
@@ -74,6 +74,69 @@ def _record(destination: str, **overrides) -> OutboxRecord:
     )
     values.update(overrides)
     return OutboxRecord(**values)
+
+
+def test_render_analysis_includes_trace_url() -> None:
+    text = render_analysis(
+        {
+            "hypothesis": "latency regression",
+            "trace_url": "https://console.cloud.google.com/traces/explorer;traceId=abc",
+        }
+    )
+    assert "Trace: https://console.cloud.google.com/traces/explorer;traceId=abc" in text
+
+
+def test_slack_includes_trace_link_in_plain_text() -> None:
+    session = FakeSession()
+    sender = SlackApiSender(
+        token="not-a-secret-fixture",
+        channel="C123",
+        team="T123",
+        scanner=SecretScanner(),
+        session=session,
+    )
+    record = _record(
+        "slack",
+        payload={
+            "hypothesis": "latency regression",
+            "trace_url": (
+                "https://console.cloud.google.com/traces/explorer;traceId=abc"
+                "?project=mogu-501309"
+            ),
+        },
+    )
+
+    sender.send(record)
+
+    text = session.calls[0][2]["json"]["blocks"][0]["text"]["text"]
+    assert "Trace:" in text
+    assert "console.cloud.google.com/traces/explorer" in text
+
+
+def test_github_issue_body_includes_trace_link() -> None:
+    session = FakeSession()
+    sender = GitHubApiSender(
+        token="not-a-secret-fixture",
+        repository="acme/repo",
+        scanner=SecretScanner(),
+        session=session,
+    )
+    record = _record(
+        "github_issue",
+        payload={
+            "hypothesis": "latency regression",
+            "trace_url": (
+                "https://console.cloud.google.com/traces/explorer;traceId=abc"
+                "?project=mogu-501309"
+            ),
+        },
+    )
+
+    sender.send(record)
+
+    body = session.calls[-1][2]["json"]["body"]
+    assert "Trace:" in body
+    assert "console.cloud.google.com/traces/explorer" in body
 
 
 def test_slack_uses_plain_text_and_deterministic_client_message_id() -> None:

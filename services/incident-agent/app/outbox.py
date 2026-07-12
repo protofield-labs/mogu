@@ -6,6 +6,7 @@ from typing import Any, Literal
 from uuid import UUID, uuid4
 
 from app.db import Database
+from app.telemetry import record_issue_opened
 
 MAX_OUTBOX_ATTEMPTS = 10
 OutboxState = Literal["claimed", "busy", "sent", "failed", "missing", "blocked"]
@@ -222,6 +223,7 @@ def mark_outbox_sent(
             ).fetchone()
             if not updated:
                 raise ReferenceConflictError("incident GitHub reference conflict")
+            record_issue_opened()
         elif record.destination == "slack":
             if not slack_team or not slack_channel or not slack_thread:
                 raise ReferenceConflictError("complete Slack reference is required")

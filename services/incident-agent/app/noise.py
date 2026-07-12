@@ -23,6 +23,7 @@ from app.deadline import RequestDeadline, lease_expires_at, new_token
 from app.embedding import EmbeddingClient
 from app.keys import compute_incident_key, compute_storm_key
 from app.owner import create_storm_merge_outboxes
+from app.telemetry import record_incident_opened
 
 
 @dataclass(frozen=True)
@@ -641,6 +642,7 @@ class NoiseOrchestrator:
                     if not claimed:
                         raise RuntimeError("storm owner claim lost after row lock")
 
+        record_incident_opened()
         return InvestigationReady(
             incident_id=storm_id,
             delivery_message_id=delivery.message_id,
@@ -961,6 +963,7 @@ class NoiseOrchestrator:
                 if not claimed:
                     raise RuntimeError("normal owner claim lost after row lock")
 
+        record_incident_opened()
         return InvestigationReady(
             incident_id=incident_row["id"],
             delivery_message_id=delivery.message_id,

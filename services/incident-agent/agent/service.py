@@ -4,6 +4,7 @@ import asyncio
 from dataclasses import dataclass
 from typing import Any
 
+from app.external import format_trace_line
 from agent.playbooks import PlaybookError, PlaybookLoader
 from agent.runtime import (
     AdkInvestigationRuntime,
@@ -25,6 +26,13 @@ from app.db import Database, parse_vector
 from app.deadline import RequestDeadline
 from app.noise import IngestResult, InvestigationReady
 from app.owner import expire_owner_lease, save_owner_analysis
+from app.telemetry import (
+    InvestigationTelemetry,
+    record_investigation_completed,
+    record_investigation_summary,
+    trace_console_url,
+)
+from opentelemetry import trace
 
 FIXED_SAFETY_ESCALATION = {
     "severity": "high",
@@ -99,20 +107,27 @@ class InvestigationService:
                 observation,
                 self._scanner,
             )
-            result = await asyncio.wait_for(
-                self._runtime.run(
-                    RuntimeRequest(
-                        incident_id=str(owner.scope.incident_id),
-                        alert=self._scanner.sanitize_payload(owner.alert),
-                        playbook=playbook,
-                        loop_budget_seconds=budget,
+            tracer = trace.get_tracer("incident-agent")
+            with tracer.start_as_current_span(
+                "incident_investigation",
+                attributes={
+                    "incident_agent.incident_ref": str(owner.scope.incident_id)[:8],
+                },
+            ):
+                result = await asyncio.wait_for(
+                    self._runtime.run(
+                        RuntimeRequest(
+                            incident_id=str(owner.scope.incident_id),
+                            alert=self._scanner.sanitize_payload(owner.alert),
+                            playbook=playbook,
+                            loop_budget_seconds=budget,
+                        ),
+                        tools,
+                        self._scanner,
                     ),
-                    tools,
-                    self._scanner,
-                ),
-                timeout=budget,
-            )
-            return self._save_analysis(ready, result)
+                    timeout=budget,
+                )
+                return self._save_analysis(ready, result)
         except (SecretScanError, PlaybookError, ToolScopeError):
             return self._save_safety_escalation(ready)
         except (asyncio.TimeoutError, InvestigationRuntimeError):
@@ -198,6 +213,20 @@ class InvestigationService:
         )
         if not isinstance(analysis_payload, dict):
             raise SecretScanError("analysis payload must be an object")
+        trace_id = record_investigation_summary(
+            self._scanner,
+            InvestigationTelemetry(
+                hypothesis=result.hypothesis,
+                severity=result.severity,
+                confidence=result.confidence,
+                loop_count=result.loop_count,
+                token_cost=result.token_cost,
+                playbook_used=result.playbook_used,
+            ),
+        )
+        trace_url = trace_console_url(self._settings.google_cloud_project, trace_id)
+        if trace_url and format_trace_line(trace_url):
+            analysis_payload["trace_url"] = trace_url
         saved = save_owner_analysis(
             self._db,
             incident_id=ready.incident_id,
@@ -229,6 +258,10 @@ class InvestigationService:
                 ready,
                 saved.reason or "analysis save failed",
             )
+        record_investigation_completed(
+            severity=result.severity,
+            confidence=result.confidence,
+        )
         return IngestResult(
             200,
             {

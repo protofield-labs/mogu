@@ -15,6 +15,7 @@ from app.keys import compute_fallback_incident_key, compute_incident_key
 from app.masking import MaskingError, mask_alert
 from app.noise import DeliveryRow, IngestResult, InvestigationReady, NoiseOrchestrator, _row_to_delivery
 from app.self_exclude import is_self_excluded
+from app.telemetry import record_alert_received
 
 _MESSAGE_ID_RE = re.compile(r"^[A-Za-z0-9\-_+/=]{1,256}$")
 
@@ -65,6 +66,9 @@ class IngestService:
             return checkpoint
 
         delivery, is_new = checkpoint
+
+        if is_new:
+            record_alert_received()
 
         if delivery.status == "completed":
             return IngestResult(200, {"action": "already_completed"})
