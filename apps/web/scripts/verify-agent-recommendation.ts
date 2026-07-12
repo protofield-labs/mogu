@@ -16,6 +16,7 @@ import {
   inferPersonaTasteEvidence,
   PERSONA_COLLECTION_HINTS,
   PERSONA_THINKING,
+  sanitizeAgentPublicEvidence,
   withPersonaTasteEvidence,
 } from "../src/lib/agent/stream-parser";
 import { buildEvidence } from "../src/lib/recommendations/pick";
@@ -65,6 +66,11 @@ function main() {
       PERSONA_COLLECTION_HINTS.aoi!.evidence,
     ).startsWith(`${PERSONA_COLLECTION_HINTS.aoi!.evidence}・`),
     "prefix taste hint when friend name differs from persona",
+  );
+  assert(
+    sanitizeAgentPublicEvidence(homeStyle) ===
+      "好みの傾向に一致・グループで3人が保存",
+    "agent recommendation hides persona identity",
   );
 
   assert(

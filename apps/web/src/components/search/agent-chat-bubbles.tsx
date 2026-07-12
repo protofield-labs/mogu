@@ -1,7 +1,5 @@
 "use client";
 
-import Image from "next/image";
-
 import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
 import {
   Bubble,
@@ -13,39 +11,14 @@ import {
 } from "@/components/chat";
 import { AgentCandidateSpotCards } from "@/components/search/agent-candidate-spot-cards";
 import { RecommendationCard } from "@/components/search/recommendation-card";
-import {
-  personaImageForPersonaKey,
-  type PersonaIntroKey,
-} from "@/lib/agent/persona-intro";
 import { filterPillClass } from "@/lib/ui/filter-pill";
 import {
   formatUserBubbleText,
+  toPublicChatEntry,
   type ChatEntry,
 } from "@/lib/agent/chat-helpers";
 
-const PERSONA_AVATAR_LABEL: Record<PersonaIntroKey, string> = {
-  ken: "サク飲み担当 Ken",
-  aoi: "大人デート担当 Aoi",
-};
-
-export function AgentAvatar({ personaKey }: { personaKey?: PersonaIntroKey }) {
-  if (personaKey) {
-    return (
-      <MessageAvatar
-        className="size-8 overflow-hidden bg-mogu-surface-elevated text-foreground"
-        aria-label={PERSONA_AVATAR_LABEL[personaKey]}
-      >
-        <Image
-          src={personaImageForPersonaKey(personaKey)}
-          alt=""
-          width={32}
-          height={32}
-          className="size-full object-cover"
-        />
-      </MessageAvatar>
-    );
-  }
-
+export function AgentAvatar() {
   return (
     <MessageAvatar
       className="size-8 overflow-visible bg-transparent text-foreground"
@@ -97,25 +70,29 @@ export function AgentBubble({
   disabled,
 }: {
   entry: Extract<ChatEntry, { kind: "agent" }>;
-  onChipSelect: (chip: string) => void;
+  onChipSelect: (chip: string, displayText?: string) => void;
   disabled: boolean;
 }) {
+  const publicEntry = toPublicChatEntry(entry);
+
   return (
     <Message align="start">
-      <AgentAvatar personaKey={entry.personaKey} />
+      <AgentAvatar />
       <MessageContent>
         <BubbleGroup>
           <Bubble variant="outline" align="start">
             <BubbleContent>
-              <p className="whitespace-pre-wrap">{entry.text}</p>
-              {entry.quickReplies?.length ? (
+              <p className="whitespace-pre-wrap">{publicEntry.text}</p>
+              {publicEntry.quickReplies?.length ? (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {entry.quickReplies.map((chip) => (
+                  {publicEntry.quickReplies.map((chip, index) => (
                     <button
-                      key={chip}
+                      key={entry.quickReplies?.[index] ?? chip}
                       type="button"
                       disabled={disabled}
-                      onClick={() => onChipSelect(chip)}
+                      onClick={() =>
+                        onChipSelect(entry.quickReplies?.[index] ?? chip, chip)
+                      }
                       className={filterPillClass(false)}
                     >
                       {chip}
@@ -126,11 +103,11 @@ export function AgentBubble({
             </BubbleContent>
           </Bubble>
         </BubbleGroup>
-        {entry.recommendation ? (
-          <RecommendationCard recommendation={entry.recommendation} />
+        {publicEntry.recommendation ? (
+          <RecommendationCard recommendation={publicEntry.recommendation} />
         ) : null}
-        {entry.candidateSpots?.length ? (
-          <AgentCandidateSpotCards spots={entry.candidateSpots} />
+        {publicEntry.candidateSpots?.length ? (
+          <AgentCandidateSpotCards spots={publicEntry.candidateSpots} />
         ) : null}
       </MessageContent>
     </Message>

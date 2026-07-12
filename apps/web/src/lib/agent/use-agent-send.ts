@@ -59,7 +59,10 @@ export function useAgentSend(options: UseAgentSendOptions) {
     async (
       text: string,
       chips?: string[],
-      sendOptions?: { candidateSpot?: CandidateSpotRef },
+      sendOptions?: {
+        candidateSpot?: CandidateSpotRef;
+        displayText?: string;
+      },
     ) => {
       if (!sessionId || !userId || sendingRef.current) {
         return;
@@ -68,6 +71,7 @@ export function useAgentSend(options: UseAgentSendOptions) {
       if (!trimmed) {
         return;
       }
+      const displayText = sendOptions?.displayText?.trim() || trimmed;
 
       sendingRef.current = true;
       setSending(true);
@@ -75,7 +79,7 @@ export function useAgentSend(options: UseAgentSendOptions) {
       setThinkingMessages([]);
 
       const entriesBefore = entriesRef.current;
-      const userEntry = createUserEntry(trimmed, chips);
+      const userEntry = createUserEntry(displayText, chips);
       if (userEntry.kind !== "user") {
         sendingRef.current = false;
         setSending(false);
@@ -99,7 +103,7 @@ export function useAgentSend(options: UseAgentSendOptions) {
             );
           },
         });
-        applySendTurnResult(result, trimmed);
+        applySendTurnResult(result, displayText);
       } finally {
         sendingRef.current = false;
         setSending(false);
@@ -114,8 +118,8 @@ export function useAgentSend(options: UseAgentSendOptions) {
     void sendMessage(input);
   }
 
-  function handleChipSelect(chip: string) {
-    void sendMessage(chip);
+  function handleChipSelect(chip: string, displayText?: string) {
+    void sendMessage(chip, undefined, { displayText });
   }
 
   return {

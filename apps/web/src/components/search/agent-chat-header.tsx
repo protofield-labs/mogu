@@ -4,7 +4,6 @@ import {
   HistoryIcon,
   LoaderCircleIcon,
   MessageSquarePlusIcon,
-  UsersIcon,
 } from "lucide-react";
 
 import { MoguHeaderLogo } from "@/components/brand/mogu-header-logo";
@@ -20,17 +19,6 @@ export function AgentChatHeader() {
       <MoguHeaderLogo />
       {sessionStatus === "ready" ? (
         <div className="flex items-center gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="味覚アドバイザーの紹介"
-            disabled={loadingConsultation || sending}
-            onClick={actions.showPersonaIntroAgain}
-            className="text-muted-foreground"
-          >
-            <UsersIcon className="size-4" aria-hidden />
-          </Button>
           <Button
             type="button"
             variant="ghost"

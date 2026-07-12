@@ -10,7 +10,7 @@ import {
   AGENT_PERSONA_BY_KEY,
   type PersonaKey,
 } from "@/lib/agent/persona-config";
-import { withPersonaTasteEvidence } from "@/lib/agent/stream-parser";
+import { sanitizeAgentPublicEvidence } from "@/lib/agent/stream-parser";
 
 const spotSelect = {
   id: true,
@@ -37,7 +37,7 @@ const spotSelect = {
  */
 export async function buildAgentRecommendation(
   uid: string,
-  personaTasteHint: string | null = null,
+  _personaTasteHint: string | null = null,
   personaKey: PersonaKey | null = null,
   options?: { anchorSpotId?: string },
 ): Promise<Recommendation | null> {
@@ -83,7 +83,7 @@ export async function buildAgentRecommendation(
     return {
       spot: toSpotDto(spot, savedCounts.get(spot.placeId) ?? 0),
       assertion: picked.assertion,
-      evidence: withPersonaTasteEvidence(picked.evidence, personaTasteHint),
+      evidence: sanitizeAgentPublicEvidence(picked.evidence),
       alternatives: alternatives.map((alt) =>
         toSpotDto(alt, savedCounts.get(alt.placeId) ?? 0),
       ),

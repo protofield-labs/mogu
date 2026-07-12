@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import { LoaderCircleIcon } from "lucide-react";
 
+import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
 import {
   Marker,
   MarkerContent,
@@ -22,9 +22,7 @@ import {
 } from "@/components/search/agent-chat-bubbles";
 import { useAgentChatContext } from "@/components/search/agent-chat-context";
 import { AgentStructuredChips } from "@/components/search/agent-structured-chips";
-import { PersonaIntroCard } from "@/components/search/persona-intro-card";
 import { Button } from "@/components/ui/button";
-import { personaImageForThinkingMessage } from "@/lib/agent/persona-intro";
 
 export function AgentChatTranscript() {
   const { state, actions } = useAgentChatContext();
@@ -35,7 +33,6 @@ export function AgentChatTranscript() {
     consultationViewMode,
     showInitialSkeleton,
     showStructuredChips,
-    showPersonaIntro,
     sending,
     retryingSession,
     resettingConsultation,
@@ -71,12 +68,6 @@ export function AgentChatTranscript() {
         </MessageScrollerItem>
       ) : null}
 
-      {showPersonaIntro && !showInitialSkeleton ? (
-        <MessageScrollerItem>
-          <PersonaIntroCard onDismiss={actions.dismissPersonaIntro} />
-        </MessageScrollerItem>
-      ) : null}
-
       {entries.map((entry) => (
         <MessageScrollerItem key={entry.id} scrollAnchor>
           <MessageGroup>
@@ -109,27 +100,12 @@ export function AgentChatTranscript() {
       {thinkingMessages.length > 0 ? (
         <MessageScrollerItem scrollAnchor>
           <MessageGroup>
-            {thinkingMessages.map((message) => {
-              const personaImage = personaImageForThinkingMessage(message);
-              return (
-                <Marker key={message} variant="separator">
-                  <MarkerIcon>
-                    {personaImage ? (
-                      <Image
-                        src={personaImage}
-                        alt=""
-                        width={16}
-                        height={16}
-                        className="size-4 rounded-full object-cover"
-                      />
-                    ) : (
-                      <LoaderCircleIcon className="size-4 animate-spin" />
-                    )}
-                  </MarkerIcon>
-                  <MarkerContent>{message}</MarkerContent>
-                </Marker>
-              );
-            })}
+            <Marker variant="separator">
+              <MarkerIcon>
+                <MoguBrandIcon className="size-4" />
+              </MarkerIcon>
+              <MarkerContent>moguがお店を探しています…</MarkerContent>
+            </Marker>
           </MessageGroup>
         </MessageScrollerItem>
       ) : null}

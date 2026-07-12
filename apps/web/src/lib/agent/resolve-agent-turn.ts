@@ -15,6 +15,7 @@ import type { CandidatePinContext } from "./followup-context";
 import {
   inferPersonaKey,
   inferPersonaTasteEvidence,
+  sanitizeAgentPublicText,
 } from "./reply-sanitizer";
 import type { StreamQueryResult } from "./agent-stream-query";
 import type { AgentMessage } from "./types";
@@ -123,7 +124,7 @@ export function resolveAgentDisplayText(input: {
   const { text, route, recommendation, candidateSpots } = input;
 
   if (recommendation) {
-    return recommendation.assertion;
+    return sanitizeAgentPublicText(recommendation.assertion);
   }
   if (route.useCandidateCards && route.hasCandidateMarkers) {
     if (candidateSpots) {
@@ -134,7 +135,7 @@ export function resolveAgentDisplayText(input: {
   if (route.needsAssertionRecommendation) {
     return RECOMMENDATION_RESOLUTION_FAILED_TEXT;
   }
-  return text;
+  return sanitizeAgentPublicText(text);
 }
 
 export type ResolveAgentTurnMessageInput = {
