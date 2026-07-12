@@ -104,6 +104,18 @@ def configure_telemetry(
                 "incident_agent.investigations.completed",
                 description="LoopAgent investigations that persisted analysis",
             )
+            _COUNTERS["slack_denied"] = _METER.create_counter(
+                "incident_agent.slack.denied",
+                description="Slack events rejected before DB/Task creation (§7-8)",
+            )
+            _COUNTERS["followups_completed"] = _METER.create_counter(
+                "incident_agent.slack.followups.completed",
+                description="Slack follow-up investigations that replied in thread",
+            )
+            _COUNTERS["session_cleanup_failed"] = _METER.create_counter(
+                "incident_agent.slack.session_cleanup.failed",
+                description="Vertex AI Session TTL deletions that failed (§11)",
+            )
         except Exception:
             logger.warning("OpenTelemetry metrics meter setup failed", exc_info=True)
 
@@ -196,6 +208,37 @@ def record_investigation_completed(*, severity: str, confidence: str) -> None:
                 "confidence": confidence,
             },
         )
+
+
+_SLACK_DENIED_REASONS = frozenset(
+    {
+        "signature",
+        "malformed",
+        "allowlist",
+        "rate_limited",
+        "unsupported",
+    }
+)
+
+
+def record_slack_event_denied(reason: str) -> None:
+    """Safe counter only — never record IDs or payload content (§7-8)."""
+    counter = _COUNTERS.get("slack_denied")
+    if counter is not None:
+        safe_reason = reason if reason in _SLACK_DENIED_REASONS else "other"
+        counter.add(1, attributes={"reason": safe_reason})
+
+
+def record_followup_completed() -> None:
+    counter = _COUNTERS.get("followups_completed")
+    if counter is not None:
+        counter.add(1)
+
+
+def record_session_cleanup_failed() -> None:
+    counter = _COUNTERS.get("session_cleanup_failed")
+    if counter is not None:
+        counter.add(1)
 
 
 def reset_for_tests() -> None:

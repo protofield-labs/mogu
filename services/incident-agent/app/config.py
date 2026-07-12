@@ -11,6 +11,17 @@ def _parse_csv(value: str | None) -> frozenset[str]:
     return frozenset(part.strip() for part in value.split(",") if part.strip())
 
 
+def _parse_rate_limit(value: str | None) -> int:
+    """§7-8: unset, non-numeric, or non-positive limits are default-deny (0)."""
+    if value is None:
+        return 0
+    try:
+        parsed = int(value)
+    except ValueError:
+        return 0
+    return parsed if parsed > 0 else 0
+
+
 @dataclass(frozen=True)
 class Settings:
     service_mode: str
@@ -51,6 +62,21 @@ class Settings:
     outbox_queue_location: str = "asia-northeast1"
     outbox_queue_name: str = "incident-agent-outbox"
     worker_url: str = ""
+    slack_signing_secret: str = ""
+    allowed_slack_team_ids: frozenset[str] = frozenset()
+    allowed_slack_channel_ids: frozenset[str] = frozenset()
+    allowed_slack_user_ids: frozenset[str] = frozenset()
+    # 0 means default-deny (§7-8: unset/invalid rate limits reject all events).
+    slack_user_rate_limit_per_minute: int = 0
+    slack_thread_rate_limit_per_hour: int = 0
+    slack_queue_project: str = ""
+    slack_queue_location: str = "asia-northeast1"
+    slack_queue_name: str = "incident-agent-slack"
+    slack_lease_seconds: int = 600
+    slack_events_retention_days: int = 7
+    session_retention_days: int = 30
+    session_backend: str = "inmemory"
+    vertex_agent_engine_id: str = ""
 
     @property
     def dsn(self) -> str:
@@ -134,4 +160,30 @@ def get_settings() -> Settings:
             "WORKER_URL",
             os.environ.get("CLOUD_TASKS_TARGET_URL", ""),
         ),
+        slack_signing_secret=os.environ.get("SLACK_SIGNING_SECRET", ""),
+        allowed_slack_team_ids=_parse_csv(os.environ.get("ALLOWED_SLACK_TEAM_IDS")),
+        allowed_slack_channel_ids=_parse_csv(
+            os.environ.get("ALLOWED_SLACK_CHANNEL_IDS")
+        ),
+        allowed_slack_user_ids=_parse_csv(os.environ.get("ALLOWED_SLACK_USER_IDS")),
+        slack_user_rate_limit_per_minute=_parse_rate_limit(
+            os.environ.get("SLACK_USER_RATE_LIMIT_PER_MINUTE")
+        ),
+        slack_thread_rate_limit_per_hour=_parse_rate_limit(
+            os.environ.get("SLACK_THREAD_RATE_LIMIT_PER_HOUR")
+        ),
+        slack_queue_project=os.environ.get(
+            "SLACK_QUEUE_PROJECT", os.environ.get("GOOGLE_CLOUD_PROJECT", "")
+        ),
+        slack_queue_location=os.environ.get(
+            "SLACK_QUEUE_LOCATION", "asia-northeast1"
+        ),
+        slack_queue_name=os.environ.get("SLACK_QUEUE_NAME", "incident-agent-slack"),
+        slack_lease_seconds=int(os.environ.get("SLACK_LEASE_SECONDS", "600")),
+        slack_events_retention_days=int(
+            os.environ.get("SLACK_EVENTS_RETENTION_DAYS", "7")
+        ),
+        session_retention_days=int(os.environ.get("SESSION_RETENTION_DAYS", "30")),
+        session_backend=os.environ.get("SESSION_BACKEND", "inmemory").lower(),
+        vertex_agent_engine_id=os.environ.get("VERTEX_AGENT_ENGINE_ID", ""),
     )

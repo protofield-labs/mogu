@@ -46,6 +46,7 @@ class GoogleCloudTasksEnqueuer:
         worker_url: str,
         service_account_email: str,
         audience: str,
+        task_path: str = "/tasks/outbox",
         session: AuthorizedSession | None = None,
     ):
         required = {
@@ -60,7 +61,7 @@ class GoogleCloudTasksEnqueuer:
         if missing:
             raise ValueError(f"Cloud Tasks configuration missing: {', '.join(missing)}")
         self._parent = f"projects/{project_id}/locations/{location}/queues/{queue}"
-        self._worker_url = worker_url.rstrip("/") + "/tasks/outbox"
+        self._worker_url = worker_url.rstrip("/") + task_path
         self._service_account_email = service_account_email
         self._audience = audience
         if session is None:

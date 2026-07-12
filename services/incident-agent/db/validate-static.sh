@@ -11,6 +11,7 @@ required_files=(
   migrations/003_ops_roles.sql
   migrations/004_incident_review_gate.sql
   migrations/005_outbox_delivery_token.sql
+  migrations/006_slack_retention_grants.sql
   seeds/001_sample_incidents.sql
   README.md
 )
@@ -45,6 +46,8 @@ if grep -Eq 'CREATE ROLE ops_(ingest|slack_ingress|worker|dispatcher)' migration
   echo "runtime LOGIN roles must be created by Terraform, not migrations"
   exit 1
 fi
+grep -q 'GRANT DELETE ON ops.slack_events TO ops_worker' migrations/006_slack_retention_grants.sql
+grep -q 'budget_reserved' migrations/006_slack_retention_grants.sql
 grep -q 'rca_reviewed' seeds/001_sample_incidents.sql
 
 echo "PASS: static SQL structure checks"

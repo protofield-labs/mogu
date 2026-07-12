@@ -11,12 +11,16 @@ from pydantic import BaseModel, ConfigDict
 from agent.service import InvestigationService
 from agent.scanner import SecretScanner
 from app.auth import verify_pubsub_oidc, verify_task_oidc
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.db import Database
 from app.deadline import DeadlineExceeded, RequestDeadline
-from app.external import GitHubApiSender, SlackApiSender
+from app.dispatcher import GoogleCloudTasksEnqueuer, TaskEnqueuer
+from app.external import GitHubApiSender, SlackApiSender, SlackThreadApiClient
+from app.followup import AdkFollowupRuntime, build_session_service
 from app.ingest import IngestService
 from app.noise import IngestResult, InvestigationReady
+from app.slack_ingress import MAX_SLACK_BODY_BYTES, SlackIngressService
+from app.slack_worker import SlackFollowupWorker
 from app.telemetry import configure_telemetry
 from app.worker import OutboxWorker
 
@@ -29,9 +33,58 @@ class OutboxTaskBody(BaseModel):
     outbox_id: UUID
 
 
+class SlackTaskBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    event_id: str
+
+
+class _UnconfiguredEnqueuer:
+    """Fail closed until the Slack Cloud Tasks queue is fully configured."""
+
+    def enqueue(self, *, task_name: str, body: dict[str, str]) -> None:
+        raise RuntimeError("Slack task queue is not configured")
+
+
+def _build_slack_enqueuer(settings: Settings) -> TaskEnqueuer:
+    try:
+        return GoogleCloudTasksEnqueuer(
+            project_id=settings.slack_queue_project,
+            location=settings.slack_queue_location,
+            queue=settings.slack_queue_name,
+            worker_url=settings.worker_url,
+            service_account_email=settings.task_service_account_email,
+            audience=settings.worker_audience,
+            task_path="/tasks/slack",
+        )
+    except ValueError:
+        return _UnconfiguredEnqueuer()
+
+
+async def _read_capped_body(request: Request) -> bytes | None:
+    """§7-12: enforce 256 KiB via Content-Length and streaming read."""
+    declared = request.headers.get("content-length")
+    if declared is not None:
+        try:
+            if int(declared) > MAX_SLACK_BODY_BYTES:
+                return None
+        except ValueError:
+            return None
+    chunks: list[bytes] = []
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > MAX_SLACK_BODY_BYTES:
+            return None
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
 def create_app(
     investigation_service: InvestigationService | None = None,
     outbox_worker: OutboxWorker | None = None,
+    slack_ingress: SlackIngressService | None = None,
+    slack_followup_worker: SlackFollowupWorker | None = None,
 ) -> FastAPI:
     settings = get_settings()
     configure_telemetry(
@@ -70,8 +123,30 @@ def create_app(
 
             return _to_response(result)
 
+    elif settings.service_mode == "slack":
+        active_paths.add("/slack/events")
+        ingress = slack_ingress or SlackIngressService(
+            db, settings, _build_slack_enqueuer(settings)
+        )
+
+        @app.post("/slack/events")
+        async def slack_events(request: Request) -> JSONResponse:
+            raw_body = await _read_capped_body(request)
+            if raw_body is None:
+                # Rejected before signature computation, JSON parse, and DB (§7-12).
+                return JSONResponse(
+                    status_code=413, content={"error": "payload too large"}
+                )
+            result = ingress.handle(
+                raw_body,
+                timestamp=request.headers.get("X-Slack-Request-Timestamp"),
+                signature=request.headers.get("X-Slack-Signature"),
+            )
+            return JSONResponse(status_code=result.status_code, content=result.body)
+
     elif settings.service_mode == "worker":
         active_paths.add("/tasks/outbox")
+        active_paths.add("/tasks/slack")
         scanner = SecretScanner()
         worker = outbox_worker or OutboxWorker(
             db,
@@ -98,6 +173,53 @@ def create_app(
             except Exception as exc:
                 raise HTTPException(status_code=400, detail="invalid task body") from exc
             result = worker.handle(body.outbox_id)
+            return JSONResponse(status_code=result.status_code, content=result.body)
+
+        followup_holder: list[SlackFollowupWorker] = (
+            [slack_followup_worker] if slack_followup_worker else []
+        )
+
+        def _get_followup_worker() -> SlackFollowupWorker:
+            if not followup_holder:
+                session_service, session_app = build_session_service(settings)
+                followup_holder.append(
+                    SlackFollowupWorker(
+                        db,
+                        settings,
+                        gateway=SlackThreadApiClient(
+                            token=settings.slack_bot_token,
+                            scanner=scanner,
+                        ),
+                        runtime=AdkFollowupRuntime(
+                            project_id=settings.google_cloud_project,
+                            location=settings.vertex_location,
+                            model_name=settings.agent_model,
+                            session_service=session_service,
+                            app_name=session_app,
+                        ),
+                        scanner=scanner,
+                    )
+                )
+            return followup_holder[0]
+
+        @app.post("/tasks/slack")
+        async def tasks_slack(request: Request) -> JSONResponse:
+            verify_task_oidc(request, settings)
+            try:
+                body = SlackTaskBody.model_validate(await request.json())
+            except Exception as exc:
+                raise HTTPException(status_code=400, detail="invalid task body") from exc
+            try:
+                followup = _get_followup_worker()
+            except Exception:
+                return JSONResponse(
+                    status_code=503,
+                    content={"error": "slack follow-up worker not configured"},
+                )
+            result = await followup.handle(
+                body.event_id,
+                task_name=request.headers.get("X-CloudTasks-TaskName"),
+            )
             return JSONResponse(status_code=result.status_code, content=result.body)
 
     if "/pubsub/alerts" not in active_paths:
