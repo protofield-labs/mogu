@@ -77,8 +77,7 @@ function main() {
   assert(!accountSheet.includes("ログアウト"), "logout removed from account sheet");
 
   const mypageTopBar = readSource("components/mypage/mypage-top-bar.tsx");
-  assert(mypageTopBar.includes("MoguBrandIcon"), "mypage header uses brand icon");
-  assert(mypageTopBar.includes("MoguWordmark"), "mypage header uses wordmark");
+  assert(mypageTopBar.includes("MoguHeaderLogo"), "mypage header uses shared PNG logo component");
   assert(!mypageTopBar.includes("プロフィール"), "mypage header drops profile title text");
   assert(mypageTopBar.includes('aria-label="ログアウト"'), "mypage header exposes logout");
 
@@ -87,11 +86,10 @@ function main() {
   assert(profileHero.includes("shadow-mogu-card"), "hero card uses diffuse elevation");
 
   const homeView = readSource("components/home/home-view.tsx");
-  assert(homeView.includes('src="/mogu-logo.png"'), "home uses supplied PNG logo");
+  assert(homeView.includes("MoguHeaderLogo"), "home uses shared PNG logo component");
 
   const searchHeader = readSource("components/search/agent-chat-header.tsx");
-  assert(searchHeader.includes("MoguBrandIcon"), "search header uses brand icon");
-  assert(searchHeader.includes("MoguWordmark"), "search header uses wordmark");
+  assert(searchHeader.includes("MoguHeaderLogo"), "search header uses shared PNG logo component");
   assert(!searchHeader.includes("PageTitle"), "search header no longer uses PageTitle");
 
   const tabBar = readSource("components/tab-bar.tsx");

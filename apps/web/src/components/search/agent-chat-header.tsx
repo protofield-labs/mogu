@@ -7,8 +7,7 @@ import {
   UsersIcon,
 } from "lucide-react";
 
-import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
-import { MoguWordmark } from "@/components/brand/mogu-wordmark";
+import { MoguHeaderLogo } from "@/components/brand/mogu-header-logo";
 import { useAgentChatContext } from "@/components/search/agent-chat-context";
 import { Button } from "@/components/ui/button";
 
@@ -18,10 +17,7 @@ export function AgentChatHeader() {
     state;
   return (
     <header className="flex shrink-0 items-center justify-between px-mogu-screen-x py-3">
-      <div className="flex items-center gap-2">
-        <MoguBrandIcon className="size-5" />
-        <MoguWordmark as="h1" />
-      </div>
+      <MoguHeaderLogo />
       {sessionStatus === "ready" ? (
         <div className="flex items-center gap-1">
           <Button
