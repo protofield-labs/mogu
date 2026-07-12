@@ -34,10 +34,24 @@ class InvestigationRuntimeError(Exception):
 class EvaluationOutput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    hypothesis: str = Field(min_length=1, max_length=2000)
-    evidence: list[str] = Field(min_length=1, max_length=20)
+    hypothesis: str = Field(
+        min_length=1,
+        max_length=2000,
+        description="日本語で記述する、インシデント原因の仮説",
+    )
+    evidence: list[str] = Field(
+        min_length=1,
+        max_length=20,
+        description=(
+            "日本語で説明する根拠。ログ、メトリクス、識別子の原文は英語のままでよい"
+        ),
+    )
     severity: str = Field(pattern=r"^(low|medium|high|critical)$")
-    recommended_actions: list[str] = Field(min_length=1, max_length=10)
+    recommended_actions: list[str] = Field(
+        min_length=1,
+        max_length=10,
+        description="運用担当者が実施する推奨アクションを日本語で記述する",
+    )
     confidence: str = Field(pattern=r"^(low|medium|high)$")
 
 
@@ -133,7 +147,10 @@ class AdkInvestigationRuntime:
                 "found in logs. Use get_metrics, get_logs, and "
                 "search_similar_incidents when evidence is missing. Produce a concise "
                 "draft containing one hypothesis, cited evidence, gaps, severity, and "
-                "human actions. Never invent observations."
+                "human actions. Write the hypothesis, explanatory evidence, gaps, and "
+                "human actions in Japanese. Keep raw log messages, metric names, "
+                "resource names, and identifiers in their original language. Never "
+                "invent observations."
             ),
             tools=[
                 tools.get_metrics,
@@ -155,7 +172,10 @@ class AdkInvestigationRuntime:
                 "Return the required structured result. Confidence may be high only "
                 "when current metrics or logs directly support one cause; a historical "
                 "similar incident alone is insufficient. If evidence is missing, set "
-                "confidence low or medium and state what action is needed."
+                "confidence low or medium and state what action is needed. Write the "
+                "hypothesis, evidence explanations, and recommended actions in Japanese; "
+                "raw log excerpts, metric names, resource names, and identifiers may "
+                "remain in English."
             ),
             output_schema=EvaluationOutput,
             output_key="evaluation",

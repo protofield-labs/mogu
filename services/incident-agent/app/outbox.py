@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import timedelta
+import json
 from typing import Any, Literal
 from uuid import UUID, uuid4
 
@@ -224,6 +225,38 @@ def mark_outbox_sent(
             if not updated:
                 raise ReferenceConflictError("incident GitHub reference conflict")
             record_issue_opened()
+            if record.payload.get("kind") == "primary_investigation":
+                slack_outbox = conn.execute(
+                    """
+                    SELECT id
+                      FROM ops.outbox
+                     WHERE incident_id = %s
+                       AND destination = 'slack'
+                       AND idempotency_key = %s
+                    """,
+                    (
+                        record.incident_id,
+                        f"primary-slack:{record.incident_id}",
+                    ),
+                ).fetchone()
+                if slack_outbox:
+                    update_payload = {**record.payload, "operation": "update"}
+                    conn.execute(
+                        """
+                        INSERT INTO ops.outbox (
+                            incident_id, destination, idempotency_key,
+                            payload, depends_on
+                        )
+                        VALUES (%s, 'slack', %s, %s::jsonb, %s)
+                        ON CONFLICT (idempotency_key) DO NOTHING
+                        """,
+                        (
+                            record.incident_id,
+                            f"primary-slack-issue-update:{record.incident_id}",
+                            json.dumps(update_payload),
+                            slack_outbox["id"],
+                        ),
+                    )
         elif record.destination == "slack":
             if not slack_team or not slack_channel or not slack_thread:
                 raise ReferenceConflictError("complete Slack reference is required")

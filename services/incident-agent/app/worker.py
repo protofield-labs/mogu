@@ -54,7 +54,10 @@ class OutboxWorker:
             self._scanner.assert_safe(render_analysis(record.payload))
             slack_ref: SlackReference | None = None
             if record.destination == "slack":
-                slack_ref = self._slack.send(record)
+                if record.payload.get("operation") == "update":
+                    slack_ref = self._slack.update(record)
+                else:
+                    slack_ref = self._slack.send(record)
                 external_ref = slack_ref.external_ref
             elif record.destination in {
                 "github_issue",
