@@ -19,10 +19,51 @@ locals {
   incident_agent_slack_queue_name  = "${var.environment}-incident-agent-slack"
   incident_agent_outbox_queue_name = "${var.environment}-incident-agent-outbox"
 
-  # Deterministic Cloud Run URL (#209 pattern). The worker cannot reference its
-  # own module output for WORKER_AUDIENCE without a cycle, so both the token
-  # minting side (dispatcher) and the verifying side (worker) pin this value.
+  # Deterministic Cloud Run URL (#209 pattern). Ingest/worker cannot reference
+  # their own module output for OIDC audience without a cycle, so push
+  # subscription and runtime env pin these values.
+  incident_agent_ingest_audience = "https://${local.incident_agent_service_names.ingest}-${data.google_project.current.number}.${var.region}.run.app"
   incident_agent_worker_audience = "https://${local.incident_agent_service_names.worker}-${data.google_project.current.number}.${var.region}.run.app"
+
+  incident_agent_allowed_alert_policies = (
+    length(trimspace(var.incident_agent_allowed_alert_policies)) > 0
+    ? var.incident_agent_allowed_alert_policies
+    : "${var.environment}-incident-agent-cloud-run-5xx,${var.environment}-incident-agent-cloud-run-latency"
+  )
+
+  # Vertex AI Sessions (I6): reuse web orchestrator when Agent Engine is enabled,
+  # or an explicit override for incident-agent-only stacks.
+  incident_agent_vertex_session_engine_id = local.agent_engine_enabled ? google_vertex_ai_reasoning_engine.orchestrator[0].id : var.incident_agent_vertex_agent_engine_id
+  incident_agent_session_backend = (
+    local.agent_engine_enabled || length(trimspace(var.incident_agent_vertex_agent_engine_id)) > 0
+  ) ? "vertex" : "inmemory"
+
+  incident_agent_vertex_env = local.incident_agent_enabled ? {
+    EMBEDDING_BACKEND = "vertex"
+    VERTEX_LOCATION   = var.region
+  } : {}
+
+  incident_agent_vertex_session_env = local.incident_agent_enabled ? (
+    local.incident_agent_session_backend == "vertex" ? {
+      SESSION_BACKEND        = "vertex"
+      VERTEX_AGENT_ENGINE_ID = local.incident_agent_vertex_session_engine_id
+      } : {
+      SESSION_BACKEND = "inmemory"
+    }
+  ) : {}
+
+  incident_agent_ingest_runtime_env = local.incident_agent_enabled ? {
+    PUBSUB_AUDIENCE                = local.incident_agent_ingest_audience
+    PUBSUB_PUSH_SA_EMAIL           = google_service_account.incident_agent_pubsub_push[0].email
+    ALLOWED_RESOURCES              = var.incident_agent_allowed_resources
+    ALLOWED_ALERT_POLICIES         = local.incident_agent_allowed_alert_policies
+    SELF_EXCLUDE_RESOURCE_PREFIXES = "incident-agent"
+  } : {}
+
+  incident_agent_worker_runtime_env = local.incident_agent_enabled ? {
+    OUTBOX_QUEUE_NAME = local.incident_agent_outbox_queue_name
+    SLACK_QUEUE_NAME  = local.incident_agent_slack_queue_name
+  } : {}
 
   incident_agent_common_env = local.incident_agent_enabled ? {
     GOOGLE_CLOUD_PROJECT = var.project_id
@@ -439,7 +480,7 @@ resource "google_pubsub_subscription" "incident_alerts_ingest" {
 
     oidc_token {
       service_account_email = google_service_account.incident_agent_pubsub_push[0].email
-      audience              = module.incident_agent_ingest[0].uri
+      audience              = local.incident_agent_ingest_audience
     }
   }
 
@@ -509,10 +550,15 @@ module "incident_agent_ingest" {
 
   command = ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
 
-  env = merge(local.incident_agent_common_env, {
-    SERVICE_MODE = "ingest"
-    DB_USER      = google_sql_user.incident_agent_ops_ingest[0].name
-  })
+  env = merge(
+    local.incident_agent_common_env,
+    local.incident_agent_vertex_env,
+    local.incident_agent_ingest_runtime_env,
+    {
+      SERVICE_MODE = "ingest"
+      DB_USER      = google_sql_user.incident_agent_ops_ingest[0].name
+    },
+  )
 
   secret_env = {
     DB_PASSWORD = {
@@ -552,17 +598,24 @@ module "incident_agent_worker" {
 
   command = ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
 
-  env = merge(local.incident_agent_common_env, local.incident_agent_i6_guard_env, {
-    SERVICE_MODE         = "worker"
-    DB_USER              = google_sql_user.incident_agent_ops_worker[0].name
-    CLOUD_TASKS_OIDC_SA  = google_service_account.incident_agent_tasks[0].email
-    CLOUD_TASKS_LOCATION = var.region
-    GITHUB_REPOSITORY    = var.github_repository
-    OUTBOX_LEASE_SECONDS = "660"
-    SLACK_CHANNEL_ID     = var.incident_agent_slack_channel_id
-    SLACK_TEAM_ID        = var.incident_agent_slack_team_id
-    WORKER_AUDIENCE      = local.incident_agent_worker_audience
-  })
+  env = merge(
+    local.incident_agent_common_env,
+    local.incident_agent_vertex_env,
+    local.incident_agent_vertex_session_env,
+    local.incident_agent_worker_runtime_env,
+    local.incident_agent_i6_guard_env,
+    {
+      SERVICE_MODE         = "worker"
+      DB_USER              = google_sql_user.incident_agent_ops_worker[0].name
+      CLOUD_TASKS_OIDC_SA  = google_service_account.incident_agent_tasks[0].email
+      CLOUD_TASKS_LOCATION = var.region
+      GITHUB_REPOSITORY    = var.github_repository
+      OUTBOX_LEASE_SECONDS = "660"
+      SLACK_CHANNEL_ID     = var.incident_agent_slack_channel_id
+      SLACK_TEAM_ID        = var.incident_agent_slack_team_id
+      WORKER_AUDIENCE      = local.incident_agent_worker_audience
+    },
+  )
 
   secret_env = merge(
     {
@@ -778,11 +831,15 @@ module "incident_agent_slack_retention_job" {
 
   command = ["python", "-m", "jobs.slack_retention"]
 
-  env = merge(local.incident_agent_common_env, {
-    DB_USER                     = google_sql_user.incident_agent_ops_worker[0].name
-    SLACK_EVENTS_RETENTION_DAYS = "7"
-    SESSION_RETENTION_DAYS      = "30"
-  })
+  env = merge(
+    local.incident_agent_common_env,
+    local.incident_agent_vertex_session_env,
+    {
+      DB_USER                     = google_sql_user.incident_agent_ops_worker[0].name
+      SLACK_EVENTS_RETENTION_DAYS = "7"
+      SESSION_RETENTION_DAYS      = "30"
+    },
+  )
 
   secret_env = {
     DB_PASSWORD = {
