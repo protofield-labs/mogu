@@ -5,10 +5,15 @@ import json
 from app.config import get_settings
 from app.db import Database
 from app.dispatcher import GoogleCloudTasksEnqueuer, OutboxDispatcher
+from app.telemetry import configure_telemetry
 
 
 def main() -> int:
     settings = get_settings()
+    configure_telemetry(
+        project_id=settings.google_cloud_project,
+        service_name="incident-agent-outbox-dispatcher",
+    )
     dispatcher = OutboxDispatcher(
         Database(settings.dsn),
         GoogleCloudTasksEnqueuer(

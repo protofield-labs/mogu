@@ -49,7 +49,20 @@ def safe_markdown_text(value: Any) -> str:
     return _MARKDOWN_SPECIAL.sub(r"\\\1", text)
 
 
-def render_analysis(payload: dict[str, Any]) -> str:
+def format_trace_line(trace_url: Any) -> str | None:
+    if not isinstance(trace_url, str):
+        return None
+    parsed = urlparse(trace_url)
+    if (
+        parsed.scheme == "https"
+        and parsed.netloc == "console.cloud.google.com"
+        and parsed.path.startswith("/traces/")
+    ):
+        return f"Trace: {trace_url}"
+    return None
+
+
+def render_analysis(payload: dict[str, Any], *, include_trace: bool = True) -> str:
     if set(payload) == {"text"}:
         return str(payload["text"])
     alert = payload.get("alert")
@@ -67,10 +80,17 @@ def render_analysis(payload: dict[str, Any]) -> str:
         ("severity", "Severity"),
         ("confidence", "Confidence"),
         ("playbook_used", "Playbook"),
+        ("loop_count", "Loop count"),
+        ("token_cost", "Token cost"),
     )
     for key, label in labels:
         if key in payload:
             sections.append(f"{label}: {payload[key]}")
+    trace_line = (
+        format_trace_line(payload.get("trace_url")) if include_trace else None
+    )
+    if trace_line:
+        sections.append(trace_line)
     for key, label in (("evidence", "Evidence"), ("recommended_actions", "Actions")):
         value = payload.get(key)
         if isinstance(value, list):
@@ -267,7 +287,17 @@ class GitHubApiSender:
         return None
 
     def _issue_body(self, record: OutboxRecord, marker: str) -> str:
-        content = safe_markdown_text(render_analysis(record.payload))
+        base_payload = {
+            key: value
+            for key, value in record.payload.items()
+            if key != "trace_url"
+        }
+        content = safe_markdown_text(
+            render_analysis(base_payload, include_trace=False)
+        )
+        trace_line = format_trace_line(record.payload.get("trace_url"))
+        if trace_line:
+            content += f"\n{trace_line}"
         body = (
             f"## Automated investigation\n\n{content}\n\n"
             f"Resource: `{safe_markdown_text(record.resource)}`  \n"

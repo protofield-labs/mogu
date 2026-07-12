@@ -2,7 +2,7 @@
 
 自律インシデント Agent サービス。仕様は `docs/incident-agent.md` を参照。
 
-## I2–I4 スコープ (ingest + investigation + outbox)
+## I2–I5 スコープ (ingest + investigation + outbox + observability)
 
 - Pub/Sub push 受信 (`/pubsub/alerts`)
 - OIDC JWT 検証
@@ -18,6 +18,27 @@
 - 1分scanのoutbox dispatcher（pending/期限切れsending、依存sentのみ、決定論的Cloud Task名）
 - OIDC認証workerによるSlack/GitHub冪等送信、lease+delivery token
 - failed outbox replay / 人間RCAレビューCLI
+- ADK telemetry のプログラム設定（Cloud Trace + 圧縮率メトリクス）
+- Slack/GitHub 通知への Cloud Trace リンク添付
+
+## 可観測性 (I5)
+
+起動時に `configure_telemetry()` が ADK `get_gcp_exporters` + `maybe_set_otel_providers`
+を呼び出します。GenAI プロンプト/ツール結果は span へ記録しません
+(`OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=NO_CONTENT`)。
+
+圧縮率メトリクス:
+
+- `incident_agent.alerts.received`
+- `incident_agent.incidents.opened`
+- `incident_agent.issues.opened`
+
+ダッシュボード用 MQL 例は `observability/dashboard.md` を参照。
+
+環境変数:
+
+- `ENABLE_CLOUD_TRACING` (default: true)
+- `ENABLE_CLOUD_METRICS` (default: true)
 
 ## 起動
 

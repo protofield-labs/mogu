@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from agent.playbooks import LoadedPlaybook
 from agent.scanner import SecretScanError, SecretScanner
 from agent.tools import BoundInvestigationTools
+from app.telemetry import investigation_run_config
 
 MAX_LOOP_ITERATIONS = 3
 # Per-round output cap so total cost stays bounded by
@@ -203,6 +204,7 @@ class AdkInvestigationRuntime:
             user_id=user_id,
             session_id=session.id,
             new_message=message,
+            run_config=investigation_run_config(),
         ):
             usage = event.usage_metadata
             if usage and usage.total_token_count:

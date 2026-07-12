@@ -17,6 +17,7 @@ from app.deadline import DeadlineExceeded, RequestDeadline
 from app.external import GitHubApiSender, SlackApiSender
 from app.ingest import IngestService
 from app.noise import IngestResult, InvestigationReady
+from app.telemetry import configure_telemetry
 from app.worker import OutboxWorker
 
 logger = logging.getLogger(__name__)
@@ -33,6 +34,10 @@ def create_app(
     outbox_worker: OutboxWorker | None = None,
 ) -> FastAPI:
     settings = get_settings()
+    configure_telemetry(
+        project_id=settings.google_cloud_project,
+        service_name=f"incident-agent-{settings.service_mode}",
+    )
     app = FastAPI(title="incident-agent", version="0.1.0")
     db = Database(settings.dsn)
     ingest_service = IngestService(db, settings)
