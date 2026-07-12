@@ -99,6 +99,11 @@ output "incident_agent_ingest_url" {
   value       = try(module.incident_agent_ingest[0].uri, null)
 }
 
+output "incident_agent_artifact_registry_repository" {
+  description = "Artifact Registry repository used to bootstrap incident-agent images before enabling its runtime."
+  value       = google_artifact_registry_repository.incident_agent.name
+}
+
 output "incident_agent_slack_lb_ip" {
   description = "External HTTPS load balancer IP for incident-agent-slack (null until domain and signing secret are set)."
   value       = try(google_compute_global_address.incident_agent_slack[0].address, null)

@@ -88,8 +88,6 @@ locals {
 }
 
 resource "google_artifact_registry_repository" "incident_agent" {
-  count = local.incident_agent_enabled ? 1 : 0
-
   project       = var.project_id
   location      = var.region
   repository_id = "incident-agent"
