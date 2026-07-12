@@ -29,6 +29,13 @@ _ALLOWLISTED_TRACE_URL = re.compile(
     r"https://console\.cloud\.google\.com/traces/explorer"
     r";traceId=[0-9a-f]{32}\?project=[a-z][a-z0-9-]{4,29}"
 )
+_OPERATIONAL_KEBAB = re.compile(r"\b[a-z][a-z0-9]*(?:-[a-z0-9]+){3,}\b")
+_OPERATIONAL_RESOURCE = re.compile(r"\bcloud_run/[a-z0-9_-]+\b")
+
+
+def _scrub_operational_identifiers(text: str) -> str:
+    text = _OPERATIONAL_RESOURCE.sub("[RESOURCE]", text)
+    return _OPERATIONAL_KEBAB.sub("[POLICY]", text)
 
 
 class SecretScanError(Exception):
@@ -134,7 +141,9 @@ class SecretScanner:
 
     @classmethod
     def _has_residual(cls, text: str) -> bool:
-        scrubbed = _scrub_allowlisted_trace_urls(text)
+        scrubbed = _scrub_operational_identifiers(
+            _scrub_allowlisted_trace_urls(text)
+        )
         if cls._has_known_prefix(scrubbed):
             return True
         return any(pattern.search(scrubbed) for pattern in _RESIDUAL_PATTERNS)

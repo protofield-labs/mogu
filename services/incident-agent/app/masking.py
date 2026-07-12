@@ -45,6 +45,8 @@ _ASSIGNMENT = re.compile(
     r"(?i)(?:secret|password|passwd|token|api[_-]?key)\s*[:=]\s*['\"]?[^\s'\",;]+"
 )
 _HIGH_ENTROPY = re.compile(r"\b[A-Za-z0-9_\-]{32,}\b")
+# Long kebab-case alert policy names (4+ segments) are operational IDs, not secrets.
+_OPERATIONAL_ALERT_POLICY = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+){3,}$")
 
 # Safe metadata keys that may contain longer strings
 _SAFE_KEYS = frozenset(
@@ -125,6 +127,8 @@ def _scan_text(text: str) -> MaskingResult:
     def entropy_replacer(match: re.Match[str]) -> str:
         token = match.group(0)
         if token in _SAFE_KEYS:
+            return token
+        if _OPERATIONAL_ALERT_POLICY.fullmatch(token):
             return token
         return REDACTED
 
