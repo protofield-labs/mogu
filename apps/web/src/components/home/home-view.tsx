@@ -1,10 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { AvatarRow, FeedFilterChip } from "@/components/home/avatar-row";
-import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
-import { MoguWordmark } from "@/components/brand/mogu-wordmark";
 import { FeedItemCard } from "@/components/home/feed-item-card";
 import { HomeFeedMapView } from "@/components/home/home-feed-map-view";
 import { HomeEmptyState } from "@/components/home/home-empty-state";
@@ -293,10 +292,14 @@ export function HomeView() {
     >
       <div className="flex min-h-0 flex-1 flex-col gap-5 py-mogu-screen-y">
       <header className="flex shrink-0 items-center justify-between px-mogu-screen-x">
-        <div className="flex items-center gap-2">
-          <MoguBrandIcon className="size-5" />
-          <MoguWordmark as="h1" />
-        </div>
+        <Image
+          src="/mogu-logo.png"
+          alt="mogu"
+          width={784}
+          height={264}
+          priority
+          className="h-8 w-auto"
+        />
         <HomeNotificationButton />
       </header>
 

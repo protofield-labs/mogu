@@ -87,7 +87,7 @@ function main() {
   assert(profileHero.includes("shadow-mogu-card"), "hero card uses diffuse elevation");
 
   const homeView = readSource("components/home/home-view.tsx");
-  assert(homeView.includes("MoguWordmark"), "home uses brand wordmark");
+  assert(homeView.includes('src="/mogu-logo.png"'), "home uses supplied PNG logo");
 
   const searchHeader = readSource("components/search/agent-chat-header.tsx");
   assert(searchHeader.includes("MoguBrandIcon"), "search header uses brand icon");
