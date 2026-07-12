@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
+import logging
 from typing import Any
 
 from app.external import format_trace_line
@@ -33,6 +34,8 @@ from app.telemetry import (
     trace_console_url,
 )
 from opentelemetry import trace
+
+logger = logging.getLogger(__name__)
 
 FIXED_SAFETY_ESCALATION = {
     "severity": "high",
@@ -130,11 +133,18 @@ class InvestigationService:
                 return self._save_analysis(ready, result)
         except (SecretScanError, PlaybookError, ToolScopeError):
             return self._save_safety_escalation(ready)
-        except (asyncio.TimeoutError, InvestigationRuntimeError):
+        except (asyncio.TimeoutError, InvestigationRuntimeError) as exc:
+            logger.warning(
+                "investigation execution failed (%s)", type(exc).__name__
+            )
             return self._retry_after_expiring_lease(
                 ready, "investigation execution failed"
             )
-        except Exception:
+        except Exception as exc:
+            logger.warning(
+                "unexpected investigation execution failure (%s)",
+                type(exc).__name__,
+            )
             return self._retry_after_expiring_lease(
                 ready, "investigation execution failed"
             )

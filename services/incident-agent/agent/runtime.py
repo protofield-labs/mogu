@@ -244,8 +244,8 @@ class _SafetyCallbacks:
         self._tools = tools
         self.failed = False
 
-    def before_model(self, ctx, llm_request) -> None:
-        del ctx
+    def before_model(self, callback_context, llm_request) -> None:
+        del callback_context
         for content in llm_request.contents:
             for part in content.parts or []:
                 if part.text:
@@ -256,8 +256,8 @@ class _SafetyCallbacks:
                         raise
         return None
 
-    def after_model(self, ctx, llm_response):
-        del ctx
+    def after_model(self, callback_context, llm_response):
+        del callback_context
         if not llm_response.content:
             return None
         changed = False

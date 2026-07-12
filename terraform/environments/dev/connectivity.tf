@@ -153,6 +153,8 @@ resource "google_pubsub_topic_iam_binding" "incident_alerts_publishers" {
   members = [
     "serviceAccount:${local.monitoring_notification_sa}",
   ]
+
+  depends_on = [google_monitoring_notification_channel.incident_alerts_pubsub]
 }
 
 resource "google_service_account_iam_member" "incident_agent_pubsub_push_token_creator" {

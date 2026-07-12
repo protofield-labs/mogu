@@ -136,6 +136,31 @@ def test_adk_runtime_builds_three_iteration_loop_and_parses_result(
     assert result.confidence == "high"
 
 
+def test_model_callbacks_accept_adk_keyword_arguments() -> None:
+    callbacks = _SafetyCallbacks(SecretScanner(), _bound_tools())
+    request = SimpleNamespace(
+        contents=[
+            SimpleNamespace(parts=[SimpleNamespace(text="safe investigation input")])
+        ]
+    )
+    response = SimpleNamespace(content=None)
+
+    assert (
+        callbacks.before_model(
+            callback_context=SimpleNamespace(),
+            llm_request=request,
+        )
+        is None
+    )
+    assert (
+        callbacks.after_model(
+            callback_context=SimpleNamespace(),
+            llm_response=response,
+        )
+        is None
+    )
+
+
 def test_high_confidence_checker_exits_early() -> None:
     checker = LoopTerminationAgent(name="checker")
     context = SimpleNamespace(

@@ -19,6 +19,7 @@ COPY app ./app
 COPY db ./db
 COPY jobs ./jobs
 COPY playbooks ./playbooks
+COPY scripts ./scripts
 
 USER appuser
 EXPOSE 8080
