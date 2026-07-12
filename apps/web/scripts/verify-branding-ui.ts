@@ -58,8 +58,8 @@ assert(
 );
 
 const homeView = readSource("components/home/home-view.tsx");
-assert(homeView.includes("MoguBrandIcon"), "home header uses brand icon");
-assert(homeView.includes("MoguWordmark"), "home header uses wordmark");
+assert(homeView.includes('src="/mogu-logo.png"'), "home header uses supplied PNG logo");
+assert(homeView.includes('alt="mogu"'), "home PNG logo has accessible alt text");
 
 const searchHeader = readSource("components/search/agent-chat-header.tsx");
 assert(searchHeader.includes("MoguBrandIcon"), "search header uses brand icon");
