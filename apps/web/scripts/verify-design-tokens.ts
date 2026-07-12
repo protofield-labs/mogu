@@ -20,8 +20,12 @@ function main() {
   );
 
   assert(
-    /--primary:\s*oklch\([^)]*0\.1[0-9]/m.test(globalsCss),
-    "primary uses warm accent chroma",
+    globalsCss.includes("--mogu-brand: #F05B43"),
+    "brand color token is defined",
+  );
+  assert(
+    globalsCss.includes("--primary: oklch(from var(--mogu-brand) l c h)"),
+    "primary derives from brand color",
   );
   assert(
     globalsCss.includes("--font-noto-sans-jp"),
