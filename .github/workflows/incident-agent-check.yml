@@ -1,0 +1,93 @@
+name: Incident agent check
+
+# Always trigger so `incident-agent-check` can be a required status check.
+# Path filtering happens in the `incident-agent-changes` job: when nothing
+# relevant changed, `incident-agent-check` is skipped via `if:` and reports
+# Success.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  incident-agent-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      incident_agent: ${{ steps.filter.outputs.incident_agent }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        name: Detect incident-agent-related changes
+        run: |
+          changed="$(git diff --name-only "origin/${GITHUB_BASE_REF}...HEAD")"
+          echo "${changed}"
+          if echo "${changed}" | grep -qE '^(services/incident-agent/|scripts/ci-setup-incident-agent-db\.sh$|\.github/workflows/incident-agent-check\.yml$)'; then
+            echo "incident_agent=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "incident_agent=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+  incident-agent-check:
+    needs: incident-agent-changes
+    if: needs.incident-agent-changes.outputs.incident_agent == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/incident-agent
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mogu_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d mogu_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PGPASSWORD: postgres
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGDATABASE: mogu_test
+      TEST_DB_HOST: localhost
+      TEST_DB_NAME: mogu_test
+      TEST_DB_USER: postgres
+      TEST_DB_PASSWORD: postgres
+      INCIDENT_AGENT_INTEGRATION: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: services/incident-agent/requirements.txt
+
+      - name: Install PostgreSQL client
+        run: |
+          # Pre-installed Microsoft/Azure apt sources on ubuntu-latest can break
+          # apt-get update; disable them before installing postgresql-client.
+          for repo in /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*; do
+            if [ -f "${repo}" ]; then
+              sudo mv "${repo}" "${repo}.disabled"
+            fi
+          done
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Prepare ops schema
+        run: bash ../../scripts/ci-setup-incident-agent-db.sh
+
+      - name: Pytest
+        run: python -m pytest tests/ -q
