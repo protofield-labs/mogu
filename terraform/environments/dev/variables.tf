@@ -311,3 +311,26 @@ variable "incident_agent_slack_thread_rate_limit_per_hour" {
   type        = number
   default     = 10
 }
+
+variable "incident_agent_allowed_resources" {
+  description = "Comma-separated resource allowlist for ingest (§7-9). Use adapter-normalized values such as cloud_run/dev-web or cloud_run_revision/PROJECT/REGION/SERVICE — not //run.googleapis.com URIs."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = !var.enable_incident_agent || length(trimspace(var.incident_agent_allowed_resources)) > 0
+    error_message = "incident_agent_allowed_resources is required when enable_incident_agent is true."
+  }
+}
+
+variable "incident_agent_allowed_alert_policies" {
+  description = "Comma-separated Monitoring alert policy display names for ingest. Empty uses dev-incident-agent-cloud-run-5xx and -latency defaults."
+  type        = string
+  default     = ""
+}
+
+variable "incident_agent_vertex_agent_engine_id" {
+  description = "Vertex AI Reasoning Engine resource ID for I6 Sessions when enable_agent_engine is false. Ignored when orchestrator is enabled."
+  type        = string
+  default     = ""
+}

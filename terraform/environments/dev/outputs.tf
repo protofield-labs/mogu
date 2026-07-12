@@ -108,3 +108,8 @@ output "incident_alerts_pubsub_topic" {
   description = "Pub/Sub topic for Cloud Monitoring alerts to incident-agent ingest."
   value       = try(google_pubsub_topic.incident_alerts[0].name, null)
 }
+
+output "incident_agent_session_backend" {
+  description = "Configured SESSION_BACKEND for worker/retention (vertex when Agent Engine or override is set)."
+  value       = try(local.incident_agent_session_backend, null)
+}

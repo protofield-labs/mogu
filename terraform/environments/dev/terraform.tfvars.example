@@ -46,3 +46,7 @@ billing_account_id = "000000-000000-000000"
 # incident_agent_slack_channel_id = "C01234567"
 # incident_agent_slack_allowed_user_ids = "U01234567,U09876543"
 # incident_agent_github_token = "github_pat_..."
+# Comma-separated resource allowlist (§7-9). Must match adapter normalization (see services/incident-agent/app/adapter.py).
+# incident_agent_allowed_resources = "cloud_run/dev-web"
+# Optional override when enable_agent_engine = false but I6 Vertex Sessions are needed:
+# incident_agent_vertex_agent_engine_id = "projects/PROJECT/locations/REGION/reasoningEngines/ENGINE_ID"
