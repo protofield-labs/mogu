@@ -8,6 +8,7 @@ from app.config import Settings
 from app.main import _to_response, create_app
 from app.noise import IngestResult, InvestigationReady
 from app.self_exclude import is_self_excluded
+from app.worker import WorkerResult
 
 
 def test_self_exclude_incident_agent_resource() -> None:
@@ -110,4 +111,57 @@ def test_pubsub_route_runs_investigation_before_ack(monkeypatch) -> None:
     assert response.status_code == 200
     assert response.json() == {"action": "analyzed"}
     assert investigations.called is True
+    get_settings.cache_clear()
+
+
+def test_worker_route_accepts_only_exact_outbox_id_body(monkeypatch) -> None:
+    class FakeWorker:
+        called_with = None
+
+        def handle(self, outbox_id):
+            self.called_with = outbox_id
+            return WorkerResult(200, {"status": "sent"})
+
+    monkeypatch.setenv("SERVICE_MODE", "worker")
+    monkeypatch.setenv("WORKER_SKIP_AUTH", "true")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    worker = FakeWorker()
+    client = TestClient(create_app(outbox_worker=worker))
+    outbox_id = uuid.uuid4()
+
+    response = client.post("/tasks/outbox", json={"outbox_id": str(outbox_id)})
+    extra = client.post(
+        "/tasks/outbox",
+        json={"outbox_id": str(outbox_id), "destination": "slack"},
+    )
+
+    assert response.status_code == 200
+    assert worker.called_with == outbox_id
+    assert extra.status_code == 400
+    assert client.post("/pubsub/alerts").status_code == 404
+    get_settings.cache_clear()
+
+
+def test_worker_route_rejects_missing_oidc_before_body(monkeypatch) -> None:
+    class UnreachableWorker:
+        def handle(self, outbox_id):
+            raise AssertionError("worker must not run before OIDC verification")
+
+    monkeypatch.setenv("SERVICE_MODE", "worker")
+    monkeypatch.delenv("WORKER_SKIP_AUTH", raising=False)
+    monkeypatch.setenv(
+        "TASK_SERVICE_ACCOUNT_EMAIL",
+        "task@example.iam.gserviceaccount.com",
+    )
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    client = TestClient(create_app(outbox_worker=UnreachableWorker()))
+
+    response = client.post("/tasks/outbox", content=b"not-json")
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "missing bearer token"
     get_settings.cache_clear()

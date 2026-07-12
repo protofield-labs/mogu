@@ -2,7 +2,7 @@
 
 自律インシデント Agent サービス。仕様は `docs/incident-agent.md` を参照。
 
-## I2–I3 スコープ (ingest + investigation)
+## I2–I4 スコープ (ingest + investigation + outbox)
 
 - Pub/Sub push 受信 (`/pubsub/alerts`)
 - OIDC JWT 検証
@@ -15,6 +15,9 @@
 - incident DB 行へ固定した Monitoring / Logging / reviewed類似事例ツール
 - alert policy固定mapによるプレイブック1枚の注入
 - tool/model/Session境界の共通secret scannerとfail-closed escalation
+- 1分scanのoutbox dispatcher（pending/期限切れsending、依存sentのみ、決定論的Cloud Task名）
+- OIDC認証workerによるSlack/GitHub冪等送信、lease+delivery token
+- failed outbox replay / 人間RCAレビューCLI
 
 ## 起動
 
@@ -28,6 +31,40 @@ export EMBEDDING_BACKEND=deterministic # ローカル開発のみ。本番はver
 export GOOGLE_CLOUD_PROJECT=...         # LoopAgent / Monitoring / Logging
 export INCIDENT_AGENT_MODEL=gemini-2.5-flash
 uvicorn app.main:app --host 0.0.0.0 --port 8080
+```
+
+worker:
+
+```bash
+export SERVICE_MODE=worker
+export DB_USER=ops_worker DB_PASSWORD=...
+export WORKER_AUDIENCE=https://worker.example
+export TASK_SERVICE_ACCOUNT_EMAIL=incident-agent-task@project.iam.gserviceaccount.com
+export SLACK_BOT_TOKEN=... SLACK_TEAM_ID=T... SLACK_CHANNEL_ID=C...
+export GITHUB_TOKEN=... GITHUB_REPOSITORY=owner/repository
+uvicorn app.main:app --host 0.0.0.0 --port 8080
+```
+
+dispatcher Job（Cloud Schedulerから1分ごとに起動）:
+
+```bash
+export DB_USER=ops_dispatcher DB_PASSWORD=...
+export OUTBOX_QUEUE_PROJECT=... OUTBOX_QUEUE_LOCATION=asia-northeast1
+export OUTBOX_QUEUE_NAME=incident-agent-outbox
+export WORKER_URL=https://worker.example
+export WORKER_AUDIENCE=https://worker.example
+export TASK_SERVICE_ACCOUNT_EMAIL=incident-agent-task@project.iam.gserviceaccount.com
+python -m jobs.outbox_dispatcher
+```
+
+運用者専用CLI（Agentランタイムとは別のDB資格情報を使用）:
+
+```bash
+export DB_USER=ops_operator DB_PASSWORD=...
+python -m scripts.replay_outbox <outbox-uuid>
+export DB_USER=ops_reviewer DB_PASSWORD=...
+python -m scripts.review_incident <incident-uuid> \
+  --rca "Final reviewed root cause" --reviewer "oncall@example.com"
 ```
 
 ## テスト

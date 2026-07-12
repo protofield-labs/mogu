@@ -19,6 +19,11 @@ locals {
   incident_agent_slack_queue_name  = "${var.environment}-incident-agent-slack"
   incident_agent_outbox_queue_name = "${var.environment}-incident-agent-outbox"
 
+  # Deterministic Cloud Run URL (#209 pattern). The worker cannot reference its
+  # own module output for WORKER_AUDIENCE without a cycle, so both the token
+  # minting side (dispatcher) and the verifying side (worker) pin this value.
+  incident_agent_worker_audience = "https://${local.incident_agent_service_names.worker}-${data.google_project.current.number}.${var.region}.run.app"
+
   incident_agent_common_env = local.incident_agent_enabled ? {
     GOOGLE_CLOUD_PROJECT = var.project_id
     NODE_ENV             = "production"
@@ -144,6 +149,20 @@ resource "random_password" "incident_agent_ops_dispatcher" {
   special = true
 }
 
+resource "random_password" "incident_agent_ops_operator" {
+  count = local.incident_agent_enabled ? 1 : 0
+
+  length  = 24
+  special = true
+}
+
+resource "random_password" "incident_agent_ops_reviewer" {
+  count = local.incident_agent_enabled ? 1 : 0
+
+  length  = 24
+  special = true
+}
+
 resource "google_sql_user" "incident_agent_ops_ingest" {
   count = local.incident_agent_enabled ? 1 : 0
 
@@ -178,6 +197,24 @@ resource "google_sql_user" "incident_agent_ops_dispatcher" {
   project  = var.project_id
   instance = module.cloud_sql.instance_name
   password = random_password.incident_agent_ops_dispatcher[0].result
+}
+
+resource "google_sql_user" "incident_agent_ops_operator" {
+  count = local.incident_agent_enabled ? 1 : 0
+
+  name     = "ops_operator"
+  project  = var.project_id
+  instance = module.cloud_sql.instance_name
+  password = random_password.incident_agent_ops_operator[0].result
+}
+
+resource "google_sql_user" "incident_agent_ops_reviewer" {
+  count = local.incident_agent_enabled ? 1 : 0
+
+  name     = "ops_reviewer"
+  project  = var.project_id
+  instance = module.cloud_sql.instance_name
+  password = random_password.incident_agent_ops_reviewer[0].result
 }
 
 resource "google_secret_manager_secret" "incident_agent_slack_signing" {
@@ -327,6 +364,48 @@ resource "google_secret_manager_secret_version" "incident_agent_ops_dispatcher_p
   secret_data = random_password.incident_agent_ops_dispatcher[0].result
 }
 
+resource "google_secret_manager_secret" "incident_agent_ops_operator_password" {
+  count = local.incident_agent_enabled ? 1 : 0
+
+  project   = var.project_id
+  secret_id = "${var.environment}-incident-agent-ops-operator-password"
+  labels    = local.labels
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.services]
+}
+
+resource "google_secret_manager_secret_version" "incident_agent_ops_operator_password" {
+  count = local.incident_agent_enabled ? 1 : 0
+
+  secret      = google_secret_manager_secret.incident_agent_ops_operator_password[0].id
+  secret_data = random_password.incident_agent_ops_operator[0].result
+}
+
+resource "google_secret_manager_secret" "incident_agent_ops_reviewer_password" {
+  count = local.incident_agent_enabled ? 1 : 0
+
+  project   = var.project_id
+  secret_id = "${var.environment}-incident-agent-ops-reviewer-password"
+  labels    = local.labels
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.services]
+}
+
+resource "google_secret_manager_secret_version" "incident_agent_ops_reviewer_password" {
+  count = local.incident_agent_enabled ? 1 : 0
+
+  secret      = google_secret_manager_secret.incident_agent_ops_reviewer_password[0].id
+  secret_data = random_password.incident_agent_ops_reviewer[0].result
+}
+
 resource "google_pubsub_topic" "incident_alerts" {
   count = local.incident_agent_enabled ? 1 : 0
 
@@ -392,6 +471,8 @@ resource "google_cloud_tasks_queue" "incident_agent_outbox" {
   retry_config {
     max_attempts       = 10
     max_retry_duration = "3600s"
+    min_backoff        = "670s"
+    max_backoff        = "900s"
   }
 
   depends_on = [google_project_service.services]
@@ -465,6 +546,11 @@ module "incident_agent_worker" {
     DB_USER              = google_sql_user.incident_agent_ops_worker[0].name
     CLOUD_TASKS_OIDC_SA  = google_service_account.incident_agent_tasks[0].email
     CLOUD_TASKS_LOCATION = var.region
+    GITHUB_REPOSITORY    = var.github_repository
+    OUTBOX_LEASE_SECONDS = "660"
+    SLACK_CHANNEL_ID     = var.incident_agent_slack_channel_id
+    SLACK_TEAM_ID        = var.incident_agent_slack_team_id
+    WORKER_AUDIENCE      = local.incident_agent_worker_audience
   })
 
   secret_env = merge(
@@ -528,7 +614,7 @@ module "incident_agent_slack" {
     CLOUD_TASKS_LOCATION      = var.region
     CLOUD_TASKS_TARGET_URL    = module.incident_agent_worker[0].uri
     CLOUD_TASKS_OIDC_SA       = google_service_account.incident_agent_tasks[0].email
-    CLOUD_TASKS_OIDC_AUDIENCE = module.incident_agent_worker[0].uri
+    CLOUD_TASKS_OIDC_AUDIENCE = local.incident_agent_worker_audience
   })
 
   secret_env = merge(
@@ -579,7 +665,7 @@ module "incident_agent_outbox_dispatcher" {
     CLOUD_TASKS_LOCATION      = var.region
     CLOUD_TASKS_TARGET_URL    = module.incident_agent_worker[0].uri
     CLOUD_TASKS_OIDC_SA       = google_service_account.incident_agent_tasks[0].email
-    CLOUD_TASKS_OIDC_AUDIENCE = module.incident_agent_worker[0].uri
+    CLOUD_TASKS_OIDC_AUDIENCE = local.incident_agent_worker_audience
   })
 
   secret_env = {

@@ -10,6 +10,7 @@ required_files=(
   migrations/002_budget_primitives.sql
   migrations/003_ops_roles.sql
   migrations/004_incident_review_gate.sql
+  migrations/005_outbox_delivery_token.sql
   seeds/001_sample_incidents.sql
   README.md
 )
@@ -29,6 +30,9 @@ grep -q 'vector(768)' migrations/001_ops_schema.sql
 grep -q 'incidents_open_incident_key' migrations/001_ops_schema.sql
 grep -q 'depends_on      uuid REFERENCES ops.outbox(id)' migrations/001_ops_schema.sql
 grep -q 'dispatch_generation' migrations/001_ops_schema.sql
+grep -q 'delivery_token' migrations/005_outbox_delivery_token.sql
+grep -q 'ops_operator' migrations/005_outbox_delivery_token.sql
+grep -q 'ops_reviewer' migrations/005_outbox_delivery_token.sql
 grep -q "destination NOT IN ('github_comment', 'github_close') OR depends_on IS NOT NULL" migrations/001_ops_schema.sql
 grep -q 'reserve_embedding_budget' migrations/002_budget_primitives.sql
 grep -q 'reserve_investigation_budget' migrations/002_budget_primitives.sql

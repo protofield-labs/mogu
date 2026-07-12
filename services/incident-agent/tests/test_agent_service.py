@@ -76,6 +76,24 @@ def test_safety_save_runtime_error_returns_retry(monkeypatch) -> None:
     assert result.body == {"error": "safety escalation save failed"}
 
 
+def test_safety_escalation_creates_slack_and_github_issue(monkeypatch) -> None:
+    captured = {}
+
+    def save(*args, **kwargs):
+        captured.update(kwargs)
+        return SaveAnalysisResult(success=True, status_code=200)
+
+    monkeypatch.setattr(service_module, "save_owner_analysis", save)
+
+    result = _service()._save_safety_escalation(_ready())
+
+    assert result.status_code == 200
+    assert [entry["destination"] for entry in captured["outbox_entries"]] == [
+        "slack",
+        "github_issue",
+    ]
+
+
 def test_failed_analysis_save_expires_owner_lease(monkeypatch) -> None:
     expired = []
     monkeypatch.setattr(

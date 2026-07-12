@@ -308,18 +308,29 @@ class IngestService:
                 ),
             ).fetchone()
 
-            conn.execute(
-                """
-                INSERT INTO ops.outbox (incident_id, destination, idempotency_key, payload)
-                VALUES (%s, 'slack', %s, %s::jsonb)
-                ON CONFLICT (idempotency_key) DO NOTHING
-                """,
-                (
-                    incident["id"],
-                    f"masking-escalation:{incident['id']}",
-                    json.dumps({"text": "Alert received but sanitization failed. Manual review required."}),
-                ),
-            )
+            for destination in ("slack", "github_issue"):
+                conn.execute(
+                    """
+                    INSERT INTO ops.outbox (
+                        incident_id, destination, idempotency_key, payload
+                    )
+                    VALUES (%s, %s, %s, %s::jsonb)
+                    ON CONFLICT (idempotency_key) DO NOTHING
+                    """,
+                    (
+                        incident["id"],
+                        destination,
+                        f"masking-escalation:{destination}:{incident['id']}",
+                        json.dumps(
+                            {
+                                "text": (
+                                    "Alert received but sanitization failed. "
+                                    "Manual review required."
+                                )
+                            }
+                        ),
+                    ),
+                )
 
             conn.execute(
                 """

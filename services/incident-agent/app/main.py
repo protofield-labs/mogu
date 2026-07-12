@@ -2,23 +2,35 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+from uuid import UUID
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, ConfigDict
 
 from agent.service import InvestigationService
-from app.auth import verify_pubsub_oidc
+from agent.scanner import SecretScanner
+from app.auth import verify_pubsub_oidc, verify_task_oidc
 from app.config import get_settings
 from app.db import Database
 from app.deadline import DeadlineExceeded, RequestDeadline
+from app.external import GitHubApiSender, SlackApiSender
 from app.ingest import IngestService
 from app.noise import IngestResult, InvestigationReady
+from app.worker import OutboxWorker
 
 logger = logging.getLogger(__name__)
 
 
+class OutboxTaskBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    outbox_id: UUID
+
+
 def create_app(
     investigation_service: InvestigationService | None = None,
+    outbox_worker: OutboxWorker | None = None,
 ) -> FastAPI:
     settings = get_settings()
     app = FastAPI(title="incident-agent", version="0.1.0")
@@ -30,7 +42,9 @@ def create_app(
     async def health() -> dict[str, str]:
         return {"status": "ok", "mode": settings.service_mode}
 
+    active_paths: set[str] = set()
     if settings.service_mode == "ingest":
+        active_paths.add("/pubsub/alerts")
 
         @app.post("/pubsub/alerts")
         async def pubsub_alerts(request: Request) -> JSONResponse:
@@ -51,18 +65,50 @@ def create_app(
 
             return _to_response(result)
 
-    else:
+    elif settings.service_mode == "worker":
+        active_paths.add("/tasks/outbox")
+        scanner = SecretScanner()
+        worker = outbox_worker or OutboxWorker(
+            db,
+            slack=SlackApiSender(
+                token=settings.slack_bot_token,
+                channel=settings.slack_channel_id,
+                team=settings.slack_team_id,
+                scanner=scanner,
+            ),
+            github=GitHubApiSender(
+                token=settings.github_token,
+                repository=settings.github_repository,
+                scanner=scanner,
+            ),
+            scanner=scanner,
+            lease_seconds=settings.outbox_lease_seconds,
+        )
+
+        @app.post("/tasks/outbox")
+        async def tasks_outbox(request: Request) -> JSONResponse:
+            verify_task_oidc(request, settings)
+            try:
+                body = OutboxTaskBody.model_validate(await request.json())
+            except Exception as exc:
+                raise HTTPException(status_code=400, detail="invalid task body") from exc
+            result = worker.handle(body.outbox_id)
+            return JSONResponse(status_code=result.status_code, content=result.body)
+
+    if "/pubsub/alerts" not in active_paths:
         @app.api_route("/pubsub/alerts", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
         async def pubsub_stub() -> JSONResponse:
             return JSONResponse(status_code=404, content={"error": "not available in this mode"})
 
-    # Stub 404 for slack/worker routes (I2 scope)
+    # Stub inactive component routes. The shared image exposes only one mode.
     for path in (
         "/slack/events",
         "/tasks/slack",
         "/tasks/outbox",
         "/tasks/investigate",
     ):
+        if path in active_paths:
+            continue
         route = _make_stub_route(path)
         app.add_api_route(path, route, methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 

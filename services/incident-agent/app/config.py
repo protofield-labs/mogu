@@ -38,6 +38,19 @@ class Settings:
     embedding_model: str = "text-embedding-005"
     embedding_backend: str = "vertex"
     agent_model: str = "gemini-2.5-flash"
+    worker_audience: str = ""
+    task_service_account_email: str = ""
+    worker_skip_auth: bool = False
+    outbox_lease_seconds: int = 660
+    slack_bot_token: str = ""
+    slack_channel_id: str = ""
+    slack_team_id: str = ""
+    github_token: str = ""
+    github_repository: str = ""
+    outbox_queue_project: str = ""
+    outbox_queue_location: str = "asia-northeast1"
+    outbox_queue_name: str = "incident-agent-outbox"
+    worker_url: str = ""
 
     @property
     def dsn(self) -> str:
@@ -90,4 +103,35 @@ def get_settings() -> Settings:
         embedding_model=os.environ.get("EMBEDDING_MODEL", "text-embedding-005"),
         embedding_backend=embedding_backend,
         agent_model=os.environ.get("INCIDENT_AGENT_MODEL", "gemini-2.5-flash"),
+        worker_audience=os.environ.get(
+            "WORKER_AUDIENCE",
+            os.environ.get("CLOUD_TASKS_OIDC_AUDIENCE", ""),
+        ),
+        task_service_account_email=os.environ.get(
+            "TASK_SERVICE_ACCOUNT_EMAIL",
+            os.environ.get("CLOUD_TASKS_OIDC_SA", ""),
+        ),
+        worker_skip_auth=os.environ.get("WORKER_SKIP_AUTH", "").lower() == "true"
+        and node_env != "production",
+        outbox_lease_seconds=int(os.environ.get("OUTBOX_LEASE_SECONDS", "660")),
+        slack_bot_token=os.environ.get("SLACK_BOT_TOKEN", ""),
+        slack_channel_id=os.environ.get("SLACK_CHANNEL_ID", ""),
+        slack_team_id=os.environ.get("SLACK_TEAM_ID", ""),
+        github_token=os.environ.get("GITHUB_TOKEN", ""),
+        github_repository=os.environ.get("GITHUB_REPOSITORY", ""),
+        outbox_queue_project=os.environ.get(
+            "OUTBOX_QUEUE_PROJECT", os.environ.get("GOOGLE_CLOUD_PROJECT", "")
+        ),
+        outbox_queue_location=os.environ.get(
+            "OUTBOX_QUEUE_LOCATION",
+            os.environ.get("CLOUD_TASKS_LOCATION", "asia-northeast1"),
+        ),
+        outbox_queue_name=os.environ.get(
+            "OUTBOX_QUEUE_NAME",
+            os.environ.get("CLOUD_TASKS_QUEUE", "incident-agent-outbox"),
+        ),
+        worker_url=os.environ.get(
+            "WORKER_URL",
+            os.environ.get("CLOUD_TASKS_TARGET_URL", ""),
+        ),
     )
