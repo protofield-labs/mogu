@@ -1,9 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import { Eye, EyeOff } from "lucide-react";
 import { useState, type InputHTMLAttributes, type ReactNode } from "react";
 
-import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
 import { Input } from "@/components/ui/input";
 import { FieldHint, Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -107,8 +107,15 @@ export function AuthFormShell({
             submitting && "pointer-events-none opacity-60",
           )}
         >
-          <div className="space-y-4">
-            <MoguBrandIcon className="mx-auto size-16" />
+          <div className="space-y-2">
+            <Image
+              src="/mogu-symbol.png"
+              alt=""
+              width={809}
+              height={644}
+              priority
+              className="mx-auto h-14 w-auto"
+            />
             <div className="space-y-1.5 text-center">
               <h1 className="text-2xl font-semibold tracking-tight text-foreground">
                 {title}

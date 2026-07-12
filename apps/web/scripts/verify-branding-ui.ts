@@ -38,9 +38,10 @@ assert(
 );
 
 const authForm = readSource("components/auth/auth-form.tsx");
-assert(authForm.includes("MoguBrandIcon"), "auth form uses brand icon");
-assert(!authForm.includes("MoguWordmark"), "auth form shows only the centered brand icon");
-assert(authForm.includes("mx-auto size-16"), "auth icon is centered and prominent");
+assert(authForm.includes('src="/mogu-symbol.png"'), "auth form uses supplied symbol PNG");
+assert(!authForm.includes("MoguWordmark"), "auth form shows only the centered brand symbol");
+assert(authForm.includes("space-y-2"), "auth symbol sits close to the heading");
+assert(authForm.includes("mx-auto h-14 w-auto"), "auth symbol is centered and prominent");
 
 const loginPage = readSource("app/login/page.tsx");
 assert(loginPage.includes("今夜の店、もう迷わない。"), "login uses brand message");
