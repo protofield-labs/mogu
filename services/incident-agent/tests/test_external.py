@@ -92,6 +92,7 @@ def test_render_analysis_includes_trace_url() -> None:
         }
     )
     assert "Trace: https://console.cloud.google.com/traces/explorer;traceId=abc" in text
+    assert "仮説: latency regression" in text
 
 
 def test_slack_includes_trace_link_in_plain_text() -> None:
@@ -116,9 +117,108 @@ def test_slack_includes_trace_link_in_plain_text() -> None:
 
     sender.send(record)
 
-    text = session.calls[0][2]["json"]["blocks"][0]["text"]["text"]
+    body = session.calls[0][2]["json"]
+    text = body["blocks"][0]["text"]["text"]
     assert "Trace:" in text
     assert "console.cloud.google.com/traces/explorer" in text
+
+
+def test_slack_primary_investigation_uses_japanese_block_kit() -> None:
+    session = FakeSession()
+    sender = SlackApiSender(
+        token="not-a-secret-fixture",
+        channel="C123",
+        team="T123",
+        scanner=SecretScanner(),
+        session=session,
+    )
+    record = _record(
+        "slack",
+        github_issue="https://github.com/acme/repo/issues/9",
+        payload={
+            "kind": "primary_investigation",
+            "hypothesis": "新しいリビジョンでデータベース待機時間が増加した",
+            "evidence": ["デプロイ直後から latency が上昇した"],
+            "severity": "high",
+            "recommended_actions": ["直前のリビジョンとの差分を確認する"],
+            "confidence": "medium",
+            "loop_count": 2,
+            "token_cost": 1234,
+            "playbook_used": "cloud-run.md",
+            "trace_url": "https://console.cloud.google.com/traces/explorer;traceId=abc",
+        },
+    )
+
+    sender.send(record)
+
+    blocks = session.calls[0][2]["json"]["blocks"]
+    assert blocks[0]["type"] == "header"
+    assert blocks[0]["text"]["text"] == "🟠 インシデント一次切り分け完了"
+    assert blocks[2]["fields"][0]["text"] == "重大度\n🟠 高"
+    rendered = "\n".join(
+        value["text"]
+        for block in blocks
+        for value in ([block["text"]] if "text" in block else [])
+    )
+    assert "仮説\n新しいリビジョン" in rendered
+    assert "根拠\n• デプロイ直後" in rendered
+    assert "推奨アクション\n1. 直前のリビジョン" in rendered
+    github_button = next(
+        element
+        for block in blocks
+        if block["type"] == "actions"
+        for element in block["elements"]
+        if element["action_id"] == "open_github_issue"
+    )
+    assert github_button["url"] == "https://github.com/acme/repo/issues/9"
+    assert any(
+        element["action_id"] == "open_cloud_trace"
+        for block in blocks
+        if block["type"] == "actions"
+        for element in block["elements"]
+    )
+
+
+def test_slack_updates_original_message_after_issue_creation() -> None:
+    session = FakeSession()
+    sender = SlackApiSender(
+        token="not-a-secret-fixture",
+        channel="C123",
+        team="T123",
+        scanner=SecretScanner(),
+        session=session,
+    )
+    record = _record(
+        "slack",
+        dependency_external_ref="C123:1234.5678",
+        github_issue="https://github.com/acme/repo/issues/9",
+        payload={
+            "kind": "primary_investigation",
+            "operation": "update",
+            "hypothesis": "データベース待機時間が増加した",
+            "evidence": ["latency が上昇した"],
+            "severity": "high",
+            "recommended_actions": ["設定差分を確認する"],
+            "confidence": "medium",
+        },
+    )
+
+    result = sender.update(record)
+
+    method, url, kwargs = session.calls[0]
+    assert method == "POST"
+    assert url == "https://slack.com/api/chat.update"
+    assert kwargs["json"]["channel"] == "C123"
+    assert kwargs["json"]["ts"] == "1234.5678"
+    assert kwargs["json"]["parse"] == "none"
+    assert kwargs["json"]["mrkdwn"] is False
+    assert result.external_ref == "C123:1234.5678"
+    assert any(
+        element["action_id"] == "open_github_issue"
+        for block in kwargs["json"]["blocks"]
+        if block["type"] == "actions"
+        for element in block["elements"]
+    )
 
 
 def test_github_issue_body_includes_trace_link() -> None:
@@ -166,6 +266,7 @@ def test_slack_uses_plain_text_and_deterministic_client_message_id() -> None:
     body = session.calls[0][2]["json"]
     assert body["blocks"][0]["text"]["type"] == "plain_text"
     assert body["blocks"][0]["text"]["text"] == "<!here> investigate <@U123> & confirm"
+    assert body["parse"] == "none"
     assert body["client_msg_id"] == "fccb9a78-e902-5839-8adc-d3efc5a68b1f"
     assert result.team == "T123"
     assert result.external_ref == "C123:1234.5678"

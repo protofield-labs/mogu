@@ -14,6 +14,19 @@ from app.outbox import OutboxRecord
 
 _URL = re.compile(r"https?://[^\s<>()]+", re.IGNORECASE)
 _MARKDOWN_SPECIAL = re.compile(r"([\\`*_{}\[\]()#+.!|>~-])")
+_GITHUB_ISSUE_PATH = re.compile(r"^/[^/]+/[^/]+/issues/\d+$")
+
+_SEVERITY_DISPLAY = {
+    "critical": ("🔴", "緊急"),
+    "high": ("🟠", "高"),
+    "medium": ("🟡", "中"),
+    "low": ("🟢", "低"),
+}
+_CONFIDENCE_DISPLAY = {
+    "high": "高",
+    "medium": "中",
+    "low": "低",
+}
 
 
 class ExternalDeliveryError(Exception):
@@ -33,6 +46,9 @@ class SlackReference:
 
 class SlackSender(Protocol):
     def send(self, record: OutboxRecord) -> SlackReference:
+        ...
+
+    def update(self, record: OutboxRecord) -> SlackReference:
         ...
 
 
@@ -75,15 +91,15 @@ def render_analysis(payload: dict[str, Any], *, include_trace: bool = True) -> s
             for field in fields
             if alert.get(field) is not None
         ]
-        return "Related alert:\n" + "\n".join(summary)
+        return "関連アラート:\n" + "\n".join(summary)
     sections: list[str] = []
     labels = (
-        ("hypothesis", "Hypothesis"),
-        ("severity", "Severity"),
-        ("confidence", "Confidence"),
+        ("hypothesis", "仮説"),
+        ("severity", "重大度"),
+        ("confidence", "確信度"),
         ("playbook_used", "Playbook"),
-        ("loop_count", "Loop count"),
-        ("token_cost", "Token cost"),
+        ("loop_count", "調査回数"),
+        ("token_cost", "トークン数"),
     )
     for key, label in labels:
         if key in payload:
@@ -93,13 +109,174 @@ def render_analysis(payload: dict[str, Any], *, include_trace: bool = True) -> s
     )
     if trace_line:
         sections.append(trace_line)
-    for key, label in (("evidence", "Evidence"), ("recommended_actions", "Actions")):
+    for key, label in (("evidence", "根拠"), ("recommended_actions", "推奨アクション")):
         value = payload.get(key)
         if isinstance(value, list):
             sections.append(f"{label}:\n" + "\n".join(f"- {item}" for item in value))
     if not sections:
         sections.append(json.dumps(payload, ensure_ascii=False, sort_keys=True))
     return "\n".join(sections)
+
+
+def _plain_text(text: Any, *, limit: int = 3000) -> dict[str, Any]:
+    return {
+        "type": "plain_text",
+        "text": str(text)[:limit] or "-",
+        "emoji": True,
+    }
+
+
+def _list_text(value: Any, *, numbered: bool = False) -> str | None:
+    if not isinstance(value, list):
+        return None
+    items = [str(item) for item in value if str(item).strip()]
+    if not items:
+        return None
+    if numbered:
+        return "\n".join(f"{index}. {item}" for index, item in enumerate(items, 1))
+    return "\n".join(f"• {item}" for item in items)
+
+
+def _allowed_action_url(value: Any, *, destination: str) -> str | None:
+    if not isinstance(value, str):
+        return None
+    parsed = urlparse(value)
+    if destination == "trace" and format_trace_line(value):
+        return value
+    if (
+        destination == "github"
+        and parsed.scheme == "https"
+        and parsed.netloc == "github.com"
+        and _GITHUB_ISSUE_PATH.fullmatch(parsed.path)
+        and not parsed.params
+        and not parsed.query
+        and not parsed.fragment
+    ):
+        return value
+    return None
+
+
+def _block_texts(value: Any):
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if key == "text" and isinstance(child, str):
+                yield child
+            elif key != "url":
+                yield from _block_texts(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _block_texts(child)
+
+
+def render_slack_blocks(record: OutboxRecord) -> list[dict[str, Any]]:
+    payload = record.payload
+    if payload.get("kind") != "primary_investigation":
+        return [
+            {
+                "type": "section",
+                "text": _plain_text(render_analysis(payload)),
+            }
+        ]
+
+    severity = str(payload.get("severity") or record.severity or "unknown").lower()
+    severity_emoji, severity_label = _SEVERITY_DISPLAY.get(
+        severity, ("⚪", severity)
+    )
+    confidence = str(payload.get("confidence") or "unknown").lower()
+    confidence_label = _CONFIDENCE_DISPLAY.get(confidence, confidence)
+    blocks: list[dict[str, Any]] = [
+        {
+            "type": "header",
+            "text": _plain_text(
+                f"{severity_emoji} インシデント一次切り分け完了",
+                limit=150,
+            ),
+        },
+        {
+            "type": "context",
+            "elements": [
+                _plain_text(
+                    f"対象: {record.resource}  |  アラート: {record.alert_policy}",
+                    limit=2000,
+                )
+            ],
+        },
+        {
+            "type": "section",
+            "fields": [
+                _plain_text(f"重大度\n{severity_emoji} {severity_label}"),
+                _plain_text(f"確信度\n{confidence_label}"),
+                _plain_text(f"調査回数\n{payload.get('loop_count', '-')} 回"),
+                _plain_text(f"Playbook\n{payload.get('playbook_used', '-')}"),
+            ],
+        },
+        {"type": "divider"},
+    ]
+
+    hypothesis = payload.get("hypothesis")
+    if hypothesis:
+        blocks.append(
+            {
+                "type": "section",
+                "text": _plain_text(f"仮説\n{hypothesis}"),
+            }
+        )
+    evidence = _list_text(payload.get("evidence"))
+    if evidence:
+        blocks.append(
+            {
+                "type": "section",
+                "text": _plain_text(f"根拠\n{evidence}"),
+            }
+        )
+    actions_text = _list_text(payload.get("recommended_actions"), numbered=True)
+    if actions_text:
+        blocks.append(
+            {
+                "type": "section",
+                "text": _plain_text(f"推奨アクション\n{actions_text}"),
+            }
+        )
+
+    action_elements: list[dict[str, Any]] = []
+    issue_url = _allowed_action_url(record.github_issue, destination="github")
+    if issue_url:
+        action_elements.append(
+            {
+                "type": "button",
+                "text": _plain_text("GitHub Issue を開く", limit=75),
+                "url": issue_url,
+                "action_id": "open_github_issue",
+            }
+        )
+    trace_url = _allowed_action_url(payload.get("trace_url"), destination="trace")
+    if trace_url:
+        action_elements.append(
+            {
+                "type": "button",
+                "text": _plain_text("Cloud Trace を開く", limit=75),
+                "url": trace_url,
+                "action_id": "open_cloud_trace",
+            }
+        )
+    if action_elements:
+        blocks.append({"type": "actions", "elements": action_elements})
+
+    loop_count = payload.get("loop_count", "-")
+    token_cost = payload.get("token_cost")
+    cost_text = f"  |  {token_cost:g} tokens" if isinstance(token_cost, (int, float)) else ""
+    blocks.append(
+        {
+            "type": "context",
+            "elements": [
+                _plain_text(
+                    f"AI一次調査  |  {loop_count} ループ{cost_text}",
+                    limit=2000,
+                )
+            ],
+        }
+    )
+    return blocks
 
 
 class SlackApiSender:
@@ -120,25 +297,30 @@ class SlackApiSender:
         self._scanner = scanner
         self._session = session or requests.Session()
 
-    def send(self, record: OutboxRecord) -> SlackReference:
+    def _message_content(
+        self, record: OutboxRecord
+    ) -> tuple[str, list[dict[str, Any]]]:
         text = render_analysis(record.payload)
         self._scanner.assert_safe(text)
         text = text[:3000]
         self._scanner.assert_safe(text)
+        blocks = render_slack_blocks(record)
+        for block_text in _block_texts(blocks):
+            self._scanner.assert_safe(block_text)
+        return text, blocks
+
+    def send(self, record: OutboxRecord) -> SlackReference:
+        text, blocks = self._message_content(record)
         body = {
             "channel": self._channel,
             "text": text,
+            "parse": "none",
             "mrkdwn": False,
             "link_names": False,
             "unfurl_links": False,
             "unfurl_media": False,
             "client_msg_id": str(uuid5(NAMESPACE_URL, record.idempotency_key)),
-            "blocks": [
-                {
-                    "type": "section",
-                    "text": {"type": "plain_text", "text": text, "emoji": False},
-                }
-            ],
+            "blocks": blocks,
         }
         response = self._session.post(
             "https://slack.com/api/chat.postMessage",
@@ -157,6 +339,43 @@ class SlackApiSender:
         timestamp = payload.get("ts")
         if not isinstance(channel, str) or not isinstance(timestamp, str):
             raise ExternalDeliveryError("Slack response missing reference")
+        return SlackReference(team=self._team, channel=channel, thread=timestamp)
+
+    def update(self, record: OutboxRecord) -> SlackReference:
+        external_ref = record.dependency_external_ref
+        if not isinstance(external_ref, str):
+            raise ExternalDeliveryError("Slack update dependency missing reference")
+        channel, separator, timestamp = external_ref.partition(":")
+        if (
+            not separator
+            or channel != self._channel
+            or not re.fullmatch(r"\d+\.\d+", timestamp)
+        ):
+            raise ExternalDeliveryError("Slack update dependency reference invalid")
+        text, blocks = self._message_content(record)
+        response = self._session.post(
+            "https://slack.com/api/chat.update",
+            headers={
+                "Authorization": f"Bearer {self._token}",
+                "Content-Type": "application/json; charset=utf-8",
+            },
+            json={
+                "channel": channel,
+                "ts": timestamp,
+                "text": text,
+                "blocks": blocks,
+                "parse": "none",
+                "mrkdwn": False,
+                "link_names": False,
+                "unfurl_links": False,
+                "unfurl_media": False,
+            },
+            timeout=20,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        if not payload.get("ok"):
+            raise ExternalDeliveryError("Slack rejected message update")
         return SlackReference(team=self._team, channel=channel, thread=timestamp)
 
 

@@ -13,9 +13,14 @@ from tests.test_external import _record
 class FakeSlack:
     def __init__(self):
         self.calls = 0
+        self.updates = 0
 
     def send(self, record):
         self.calls += 1
+        return SlackReference(team="T1", channel="C1", thread="1.2")
+
+    def update(self, record):
+        self.updates += 1
         return SlackReference(team="T1", channel="C1", thread="1.2")
 
 
@@ -56,6 +61,33 @@ def test_worker_reads_db_record_and_commits_external_reference(monkeypatch) -> N
     assert slack.calls == 1
     assert saved["external_ref"] == "C1:1.2"
     assert saved["slack_team"] == "T1"
+
+
+def test_worker_updates_existing_slack_message(monkeypatch) -> None:
+    record = _record(
+        "slack",
+        dependency_external_ref="C1:1.2",
+        payload={"text": "更新", "operation": "update"},
+    )
+    monkeypatch.setattr(
+        worker_module, "claim_outbox", lambda *args, **kwargs: ClaimResult("claimed", record)
+    )
+    monkeypatch.setattr(
+        worker_module, "mark_outbox_sent", lambda *args, **kwargs: True
+    )
+    slack = FakeSlack()
+    worker = OutboxWorker(
+        object(),
+        slack=slack,
+        github=FakeGitHub(),
+        scanner=SecretScanner(),
+    )
+
+    result = worker.handle(record.id)
+
+    assert result.status_code == 200
+    assert slack.calls == 0
+    assert slack.updates == 1
 
 
 def test_worker_releases_retryable_external_failure(monkeypatch) -> None:

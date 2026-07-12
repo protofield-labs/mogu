@@ -21,10 +21,10 @@ from agent.tools import BoundInvestigationTools, IncidentToolScope
 
 
 EVALUATION = {
-    "hypothesis": "new revision increased database wait time",
-    "evidence": ["latency rose at the revision change"],
+    "hypothesis": "新しいリビジョンでデータベース待機時間が増加した",
+    "evidence": ["リビジョン変更時点から latency が上昇した"],
     "severity": "high",
-    "recommended_actions": ["compare the previous revision configuration"],
+    "recommended_actions": ["以前のリビジョンとの設定差分を確認する"],
     "confidence": "high",
 }
 
@@ -126,6 +126,7 @@ def test_adk_runtime_builds_three_iteration_loop_and_parses_result(
     ]
     for sub_agent in FakeRunner.last_agent.sub_agents[:2]:
         assert sub_agent.generate_content_config.max_output_tokens == 2048
+        assert "Japanese" in sub_agent.instruction
     # Full UUIDs would be redacted by the 32-char entropy mask; only the
     # short prefix may reach the model.
     message_text = FakeRunner.last_message.parts[0].text

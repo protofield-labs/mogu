@@ -120,6 +120,63 @@ def test_dependency_wait_and_atomic_reference_commit(
 
 @requires_docker_pg
 @skip_no_db
+def test_primary_issue_completion_enqueues_slack_message_update(
+    db_available: bool, clean_ops
+) -> None:
+    if not db_available:
+        pytest.skip("test database unavailable")
+    db = Database(_test_settings().dsn)
+    with db.transaction() as conn:
+        incident = _incident(conn)
+        slack = conn.execute(
+            """
+            INSERT INTO ops.outbox (
+                incident_id, destination, idempotency_key, payload
+            ) VALUES (
+                %s, 'slack', %s,
+                '{"kind":"primary_investigation","hypothesis":"仮説"}'::jsonb
+            )
+            RETURNING id
+            """,
+            (incident["id"], f"primary-slack:{incident['id']}"),
+        ).fetchone()
+        issue = conn.execute(
+            """
+            INSERT INTO ops.outbox (
+                incident_id, destination, idempotency_key, payload
+            ) VALUES (
+                %s, 'github_issue', %s,
+                '{"kind":"primary_investigation","hypothesis":"仮説"}'::jsonb
+            )
+            RETURNING id
+            """,
+            (incident["id"], f"primary-github-issue:{incident['id']}"),
+        ).fetchone()
+
+    issue_claim = claim_outbox(db, outbox_id=issue["id"], lease_seconds=300)
+    assert issue_claim.state == "claimed"
+    assert mark_outbox_sent(
+        db,
+        record=issue_claim.record,
+        external_ref="https://github.com/acme/repo/issues/7",
+    )
+
+    with db.connection() as conn:
+        update = conn.execute(
+            """
+            SELECT destination, payload, depends_on
+              FROM ops.outbox
+             WHERE idempotency_key = %s
+            """,
+            (f"primary-slack-issue-update:{incident['id']}",),
+        ).fetchone()
+    assert update["destination"] == "slack"
+    assert update["depends_on"] == slack["id"]
+    assert update["payload"]["operation"] == "update"
+
+
+@requires_docker_pg
+@skip_no_db
 def test_replay_changes_only_delivery_state_and_generation(
     db_available: bool, clean_ops
 ) -> None:
