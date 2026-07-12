@@ -1,0 +1,8 @@
+tests/
+.pytest_cache/
+scripts/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+README.md
+requirements.txt

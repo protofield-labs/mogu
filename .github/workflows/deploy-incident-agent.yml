@@ -1,0 +1,108 @@
+name: Deploy incident-agent
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/incident-agent/**"
+      - ".github/workflows/deploy-incident-agent.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: mogu-501309
+  REGION: asia-northeast1
+  IMAGE: asia-northeast1-docker.pkg.dev/mogu-501309/incident-agent/incident-agent
+  SERVICES: >-
+    dev-incident-agent-ingest
+    dev-incident-agent-slack
+    dev-incident-agent-worker
+  JOB: dev-incident-agent-outbox-dispatcher
+  WORKLOAD_IDENTITY_PROVIDER: projects/391728250072/locations/global/workloadIdentityPools/dev-github/providers/github
+  SERVICE_ACCOUNT: dev-github-actions@mogu-501309.iam.gserviceaccount.com
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+          token_format: access_token
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGION }}-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: services/incident-agent
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+          platforms: linux/amd64
+
+      - name: Update Cloud Run services and job
+        run: |
+          set -euo pipefail
+          image="${IMAGE}:${GITHUB_SHA}"
+          updated=0
+
+          service_exists() {
+            gcloud run services list \
+              --project="${PROJECT_ID}" \
+              --region="${REGION}" \
+              --filter="metadata.name=${1}" \
+              --format="value(metadata.name)" \
+              | grep -qx "${1}"
+          }
+
+          job_exists() {
+            gcloud run jobs list \
+              --project="${PROJECT_ID}" \
+              --region="${REGION}" \
+              --filter="metadata.name=${1}" \
+              --format="value(metadata.name)" \
+              | grep -qx "${1}"
+          }
+
+          for service in ${SERVICES}; do
+            if service_exists "${service}"; then
+              echo "Updating service ${service}"
+              gcloud run services update "${service}" \
+                --project="${PROJECT_ID}" \
+                --region="${REGION}" \
+                --image="${image}"
+              updated=1
+            else
+              echo "Skipping ${service}: not deployed yet (enable_incident_agent in Terraform first)"
+            fi
+          done
+
+          if job_exists "${JOB}"; then
+            echo "Updating job ${JOB}"
+            gcloud run jobs update "${JOB}" \
+              --project="${PROJECT_ID}" \
+              --region="${REGION}" \
+              --image="${image}"
+            updated=1
+          else
+            echo "Skipping ${JOB}: not deployed yet"
+          fi
+
+          if [ "${updated}" -eq 0 ]; then
+            echo "Image pushed only. No Cloud Run resources exist yet."
+          fi
