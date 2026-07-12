@@ -16,7 +16,7 @@ flowchart LR
         CR["Cloud Run<br/>Next.js (App Router)"]
         SQL[("Cloud SQL<br/>PostgreSQL 18<br/>private IP + RLS")]
         GCS["Cloud Storage<br/>ユーザー画像"]
-        VAI["Vertex AI Agent Engine<br/>ADK + Gemini"]
+        VAI["Agent Runtime<br/>ADK + Gemini"]
         SM["Secret Manager"]
         FB["Firebase Auth<br/>Email / Google"]
         AR["Artifact Registry"]
@@ -57,7 +57,7 @@ flowchart LR
 | レイヤー | 技術 |
 |----------|------|
 | フロントエンド / API | Next.js 16 (App Router) / TypeScript |
-| AI | Vertex AI Agent Engine (ADK) / Gemini 2.5 Flash |
+| AI | Agent Runtime (ADK) / Gemini 2.5 Flash |
 | 認証 | Firebase Authentication |
 | データベース | Cloud SQL for PostgreSQL 18 (Prisma + RLS) |
 | オブジェクトストレージ | Cloud Storage |
@@ -68,7 +68,7 @@ flowchart LR
 
 ```
 apps/web/                 Next.js アプリケーション
-agents/                   Vertex AI Agent Engine ソース
+agents/                   Agent Runtime ソース
 services/incident-agent/ 自律インシデント Agent
 terraform/                Terraform (modules + environments/dev)
 scripts/                  ローカル / CI 共用スクリプト
@@ -95,14 +95,14 @@ http://localhost:3000 を開くと `/login` にリダイレクトされます。
 PostgreSQL とマイグレーション済みスキーマが必要です。Cloud SQL Auth Proxy
 またはローカル PostgreSQL を用意し、`DATABASE_URL` を設定して
 `pnpm db:migrate` を実行してください。検索タブの AI 相談、Maps / Places まで
-動かすための環境変数と Agent Engine の手順は
+動かすための環境変数と Agent Runtime の手順は
 [セットアップ & 運用ガイド](docs/SETUP.md) を参照してください。
 
 ## データモデル
 
 Cloud SQL はスポット / コレクション / 友達 / フラグに加え、相談履歴の
 スナップショットと SSE 再接続用イベントを RLS 配下で保持します。進行中の
-エージェント会話の短期文脈は Vertex AI Agent Engine Sessions が保持します。
+エージェント会話の短期文脈は Agent Platform Sessions が保持します。
 
 ```mermaid
 erDiagram

@@ -28,7 +28,7 @@ export function GoogleSignInButton({
       ) : (
         <GoogleIcon />
       )}
-      {loading ? "ログイン中…" : "Googleで続ける"}
+      {loading ? "ログイン中…" : "Googleでログイン"}
     </Button>
   );
 }
