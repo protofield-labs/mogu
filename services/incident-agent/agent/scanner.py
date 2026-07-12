@@ -22,10 +22,12 @@ _RESIDUAL_PATTERNS = (
     re.compile(r"\b[A-Za-z0-9_-]{32,}\b"),
 )
 
+# Must match trace_console_url() output exactly: fixed path, 32-hex trace ID,
+# and a GCP project ID (lowercase letters, digits, hyphens). Anything looser
+# would let attacker-crafted URLs smuggle secrets past the masking boundary.
 _ALLOWLISTED_TRACE_URL = re.compile(
-    r"https://console\.cloud\.google\.com/traces/[^?\s]+;traceId=[0-9a-f]{32}"
-    r"(?:\?project=[A-Za-z0-9_-]+)?",
-    re.IGNORECASE,
+    r"https://console\.cloud\.google\.com/traces/explorer"
+    r";traceId=[0-9a-f]{32}\?project=[a-z][a-z0-9-]{4,29}"
 )
 
 
@@ -41,7 +43,10 @@ class SecretScanner:
         preserved: list[str] = []
 
         def stash(match: re.Match[str]) -> str:
-            preserved.append(match.group(0))
+            url = match.group(0)
+            if self._has_known_prefix(url):
+                return url
+            preserved.append(url)
             return f"\x00TRACE_{len(preserved) - 1}\x00"
 
         stashed = _ALLOWLISTED_TRACE_URL.sub(stash, text)
@@ -136,8 +141,17 @@ class SecretScanner:
 
 
 def _is_allowlisted_trace_url(value: str) -> bool:
-    return _ALLOWLISTED_TRACE_URL.fullmatch(value.strip()) is not None
+    candidate = value.strip()
+    if _ALLOWLISTED_TRACE_URL.fullmatch(candidate) is None:
+        return False
+    return not SecretScanner._has_known_prefix(candidate)
 
 
 def _scrub_allowlisted_trace_urls(text: str) -> str:
-    return _ALLOWLISTED_TRACE_URL.sub("[TRACE_LINK]", text)
+    def replace(match: re.Match[str]) -> str:
+        url = match.group(0)
+        if SecretScanner._has_known_prefix(url):
+            return url
+        return "[TRACE_LINK]"
+
+    return _ALLOWLISTED_TRACE_URL.sub(replace, text)

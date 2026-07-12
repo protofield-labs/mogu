@@ -67,6 +67,28 @@ def test_scanner_allows_allowlisted_trace_url_in_rendered_text() -> None:
     scanner.assert_safe(text)
 
 
+@pytest.mark.parametrize(
+    "forged_url",
+    [
+        # secret smuggled into a variable path segment
+        "https://console.cloud.google.com/traces/"
+        "ghp_abcdefghijklmnopqrstuvwxyz123456/explorer"
+        ";traceId=0af7651916cd43dd8448eb211c80319c?project=mogu-501309",
+        # high-entropy token in a path segment
+        "https://console.cloud.google.com/traces/"
+        "abcdefghijklmnopqrstuvwxyzABCDEF1234567890"
+        ";traceId=0af7651916cd43dd8448eb211c80319c?project=mogu-501309",
+        # missing project suffix (not server-generated shape)
+        "https://console.cloud.google.com/traces/explorer"
+        ";traceId=0af7651916cd43dd8448eb211c80319c",
+    ],
+)
+def test_scanner_does_not_allowlist_forged_trace_urls(forged_url: str) -> None:
+    scanner = SecretScanner()
+    with pytest.raises(SecretScanError):
+        scanner.assert_safe({"hypothesis": f"see {forged_url}"})
+
+
 def test_scanner_fails_closed_when_detector_raises() -> None:
     def broken_scanner(value: str) -> str:
         raise RuntimeError("detector unavailable")
