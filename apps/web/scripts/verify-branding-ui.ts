@@ -39,13 +39,23 @@ assert(
 
 const authForm = readSource("components/auth/auth-form.tsx");
 assert(authForm.includes("MoguBrandIcon"), "auth form uses brand icon");
-assert(authForm.includes("MoguWordmark"), "auth form uses SVG wordmark");
-assert(authForm.includes("justify-center"), "auth logo is centered");
-assert(authForm.includes("whitespace-pre-line"), "auth copy supports intentional line breaks");
+assert(!authForm.includes("MoguWordmark"), "auth form shows only the centered brand icon");
+assert(authForm.includes("mx-auto size-16"), "auth icon is centered and prominent");
 
 const loginPage = readSource("app/login/page.tsx");
 assert(loginPage.includes("今夜の店、もう迷わない。"), "login uses brand message");
 assert(loginPage.includes("決め手は、友達の「すき」。"), "login uses friend-based value copy");
+assert(loginPage.includes("whitespace-nowrap"), "login brand message stays on one line");
+
+const feedActions = readSource("components/home/feed-item-actions.tsx");
+assert(
+  feedActions.includes('again: "bg-primary/10 text-primary"'),
+  "positive rating badge uses brand color",
+);
+assert(
+  feedActions.includes('no: "bg-blue-500/10 text-blue-700 dark:text-blue-400"'),
+  "negative rating badge uses blue",
+);
 
 const homeView = readSource("components/home/home-view.tsx");
 assert(homeView.includes("MoguBrandIcon"), "home header uses brand icon");

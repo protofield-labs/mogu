@@ -34,9 +34,9 @@ type FeedItemActionsProps = {
 };
 
 const RATING_BADGE_CLASS: Record<Spot["rating"], string> = {
-  again: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+  again: "bg-primary/10 text-primary",
   either: "bg-muted text-muted-foreground",
-  no: "bg-destructive/10 text-destructive",
+  no: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
 };
 
 /** Instagram-style icon row: heart / share / bookmark + rating (#205, #212, #256, #286). */
