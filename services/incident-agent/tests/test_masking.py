@@ -36,6 +36,17 @@ def test_mask_lowercase_high_entropy() -> None:
     assert REDACTED in mask_string(secret)
 
 
+def test_mask_preserves_long_kebab_case_alert_policy() -> None:
+    policy = "dev-incident-agent-cloud-run-latency"
+    text = f"対象: cloud_run/dev-web  |  アラート: {policy}"
+    assert mask_string(text) == text
+
+
+def test_mask_redacts_kebab_case_secret_like_token() -> None:
+    secret_like = "api-key-abcdefghijklmnopqrstuvwxyz1234567890"
+    assert REDACTED in mask_string(f"bearer {secret_like}")
+
+
 def test_mask_alert_preserves_safe_fields() -> None:
     alert = {
         "v": 1,
