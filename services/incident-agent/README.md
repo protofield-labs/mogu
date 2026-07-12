@@ -194,7 +194,12 @@ docker build -t incident-agent:local .
 `asia-northeast1-docker.pkg.dev/mogu-501309/incident-agent/incident-agent`
 へ push します。Terraform で `enable_incident_agent = true` かつ
 `incident_agent_image` を設定済みの場合、既存の Cloud Run 3サービスと
-outbox dispatcher Job も同じタグへ更新されます（未作成時は push のみ）。
+outbox / ops-migrate / slack-retention Job も同じタグへ更新されます
+（未作成時は push のみ）。
+
+`services/incident-agent/db/migrations/` に変更があると、デプロイ前に
+`dev-incident-agent-ops-migrate` Job が実行されます（Job 未作成時は skip）。
 
 初回は `terraform/environments/dev/terraform.tfvars.example` の手順どおり、
-イメージ公開後に `enable_incident_agent = true` を apply してください。
+イメージ公開後に `enable_incident_agent = true` を apply し、続けて
+ops migrate Job を手動または CI で実行してください。

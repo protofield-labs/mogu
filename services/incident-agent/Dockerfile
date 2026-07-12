@@ -16,6 +16,7 @@ RUN pip install --no-cache-dir -r requirements-prod.txt
 
 COPY agent ./agent
 COPY app ./app
+COPY db ./db
 COPY jobs ./jobs
 COPY playbooks ./playbooks
 

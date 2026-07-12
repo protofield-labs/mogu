@@ -288,3 +288,26 @@ variable "incident_agent_github_token" {
     error_message = "incident_agent_github_token is required when enable_incident_agent is true."
   }
 }
+
+variable "incident_agent_slack_allowed_user_ids" {
+  description = "Comma-separated Slack user IDs allowed for I6 follow-up (§7-8)."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = !var.enable_incident_agent || length(trimspace(var.incident_agent_slack_allowed_user_ids)) > 0
+    error_message = "incident_agent_slack_allowed_user_ids is required when enable_incident_agent is true."
+  }
+}
+
+variable "incident_agent_slack_user_rate_limit_per_minute" {
+  description = "I6 per-user Slack event rate limit per minute (§7-8). Unset/invalid values default-deny at runtime."
+  type        = number
+  default     = 5
+}
+
+variable "incident_agent_slack_thread_rate_limit_per_hour" {
+  description = "I6 per-user per-thread follow-up rate limit per hour (§7-8)."
+  type        = number
+  default     = 10
+}

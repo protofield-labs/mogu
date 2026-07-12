@@ -7,6 +7,11 @@ on:
       - "services/incident-agent/**"
       - ".github/workflows/deploy-incident-agent.yml"
   workflow_dispatch:
+    inputs:
+      run_ops_migrations:
+        description: Run ops schema migrations before rollout
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -20,12 +25,50 @@ env:
     dev-incident-agent-ingest
     dev-incident-agent-slack
     dev-incident-agent-worker
-  JOB: dev-incident-agent-outbox-dispatcher
+  JOBS: >-
+    dev-incident-agent-outbox-dispatcher
+    dev-incident-agent-ops-migrate
+    dev-incident-agent-slack-retention
+  OPS_MIGRATE_JOB: dev-incident-agent-ops-migrate
   WORKLOAD_IDENTITY_PROVIDER: projects/391728250072/locations/global/workloadIdentityPools/dev-github/providers/github
   SERVICE_ACCOUNT: dev-github-actions@mogu-501309.iam.gserviceaccount.com
 
 jobs:
-  deploy:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      migrations: ${{ steps.filter.outputs.migrations }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        name: Detect ops migration changes
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ "${{ inputs.run_ops_migrations }}" = "true" ]; then
+              echo "migrations=true" >> "${GITHUB_OUTPUT}"
+            else
+              echo "migrations=false" >> "${GITHUB_OUTPUT}"
+            fi
+            exit 0
+          fi
+
+          before="${{ github.event.before }}"
+          if [ -z "${before}" ] || [ "${before}" = "0000000000000000000000000000000000000000" ]; then
+            changed="$(git diff-tree --no-commit-id --name-only -r "${{ github.sha }}")"
+          else
+            changed="$(git diff --name-only "${before}" "${{ github.sha }}")"
+          fi
+          echo "${changed}"
+          if echo "${changed}" | grep -q '^services/incident-agent/db/migrations/'; then
+            echo "migrations=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "migrations=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -55,7 +98,61 @@ jobs:
             ${{ env.IMAGE }}:latest
           platforms: linux/amd64
 
-      - name: Update Cloud Run services and job
+  migrate:
+    needs: [detect, build]
+    if: needs.detect.outputs.migrations == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+          token_format: access_token
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Apply ops schema migrations
+        run: |
+          set -euo pipefail
+          image="${IMAGE}:${GITHUB_SHA}"
+          if ! gcloud run jobs list \
+            --project="${PROJECT_ID}" \
+            --region="${REGION}" \
+            --filter="metadata.name=${OPS_MIGRATE_JOB}" \
+            --format="value(metadata.name)" \
+            | grep -qx "${OPS_MIGRATE_JOB}"; then
+            echo "Skipping migrations: ${OPS_MIGRATE_JOB} not deployed yet"
+            exit 0
+          fi
+          gcloud run jobs update "${OPS_MIGRATE_JOB}" \
+            --project="${PROJECT_ID}" \
+            --region="${REGION}" \
+            --image="${image}"
+          gcloud run jobs execute "${OPS_MIGRATE_JOB}" \
+            --project="${PROJECT_ID}" \
+            --region="${REGION}" \
+            --wait
+
+  rollout:
+    needs: [detect, build, migrate]
+    if: |
+      always() &&
+      needs.detect.result == 'success' &&
+      needs.build.result == 'success' &&
+      (needs.migrate.result == 'success' || needs.migrate.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+          token_format: access_token
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Update Cloud Run services and jobs
         run: |
           set -euo pipefail
           image="${IMAGE}:${GITHUB_SHA}"
@@ -92,16 +189,18 @@ jobs:
             fi
           done
 
-          if job_exists "${JOB}"; then
-            echo "Updating job ${JOB}"
-            gcloud run jobs update "${JOB}" \
-              --project="${PROJECT_ID}" \
-              --region="${REGION}" \
-              --image="${image}"
-            updated=1
-          else
-            echo "Skipping ${JOB}: not deployed yet"
-          fi
+          for job in ${JOBS}; do
+            if job_exists "${job}"; then
+              echo "Updating job ${job}"
+              gcloud run jobs update "${job}" \
+                --project="${PROJECT_ID}" \
+                --region="${REGION}" \
+                --image="${image}"
+              updated=1
+            else
+              echo "Skipping ${job}: not deployed yet"
+            fi
+          done
 
           if [ "${updated}" -eq 0 ]; then
             echo "Image pushed only. No Cloud Run resources exist yet."

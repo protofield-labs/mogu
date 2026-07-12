@@ -193,6 +193,16 @@ resource "google_cloud_run_v2_job_iam_member" "incident_agent_scheduler_dispatch
   member   = "serviceAccount:${google_service_account.incident_agent_scheduler[0].email}"
 }
 
+resource "google_cloud_run_v2_job_iam_member" "incident_agent_scheduler_retention_invoker" {
+  count = local.incident_agent_enabled ? 1 : 0
+
+  project  = var.project_id
+  location = var.region
+  name     = module.incident_agent_slack_retention_job[0].name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.incident_agent_scheduler[0].email}"
+}
+
 resource "google_cloud_tasks_queue_iam_member" "incident_agent_slack_enqueuer" {
   count = local.incident_agent_enabled ? 1 : 0
 

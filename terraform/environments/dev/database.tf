@@ -20,6 +20,7 @@ module "cloud_sql" {
   db_name               = var.db_name
   db_user               = var.db_user
   db_password           = random_password.db.result
+  enable_pgvector       = var.enable_db_connection && var.enable_incident_agent
   labels                = local.labels
 
   # The private IP requires the peering connection to exist first.
