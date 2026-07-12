@@ -29,6 +29,12 @@ const CJK_CHAR = /[\u3040-\u30ff\u3400-\u9fff\uff66-\uff9d]/;
  * 「焼き鳥ケン」 are not treated as the Ken persona.
  */
 const PERSONA_NAME = "(?:アオイ|あおい|Aoi|AOI|ケン|けん|Ken|KEN)";
+const PERSONA_PUBLIC_NAME =
+  /(?:サク飲み担当|大人デート担当)?[ \t]*(?:(?<![一-龯ぁ-んァ-ヶー])(?:アオイ|あおい|ケン|けん)|\b(?:Aoi|AOI|Ken|KEN))(?:さん)?(?=が|の|から|へ|に|を|、|,)/g;
+const PERSONA_RECOMMENDATION_ATTRIBUTION =
+  /(?:サク飲み担当|大人デート担当)?[ \t]*(?:(?<![一-龯ぁ-んァ-ヶー])(?:アオイ|あおい|ケン|けん)|\b(?:Aoi|AOI|Ken|KEN))(?:さん)?のおすすめ/g;
+const PERSONA_RATING_EVIDENCE =
+  /(?:アオイ|あおい|Aoi|AOI|ケン|けん|Ken|KEN)(?:さん)?が[『「][^』」]+[』」]/g;
 const DELEGATION_NARRATION_LINE = new RegExp(
   [
     `^\\s*${PERSONA_NAME}(?:さん)?(?:に相談|に聞|に頼|へ相談|へ聞|から提案|からの提案|に任せ|に確認)`,
@@ -184,6 +190,35 @@ export function sanitizeAgentReplyText(text: string): string {
   return stripPersonaReferenceLines(
     stripDelegationNarration(stripLeakedThinkingText(text)),
   );
+}
+
+/**
+ * Hide internal persona identities at every user-facing boundary (#330).
+ * Keep this separate from sanitizeAgentReplyText so persona inference can
+ * still inspect internal collection/name signals before display.
+ */
+export function sanitizeAgentPublicText(text: string): string {
+  let sanitized = sanitizeAgentReplyText(text);
+  for (const persona of AGENT_PERSONAS) {
+    sanitized = sanitized.replaceAll(persona.collectionName, "好みの傾向");
+  }
+  return sanitized
+    .replace(PERSONA_RECOMMENDATION_ATTRIBUTION, "この店がおすすめ")
+    .replace(PERSONA_PUBLIC_NAME, "mogu")
+    .replace(/moguの[『「]好みの傾向[』」](?:寄り|の雰囲気)?/g, "好みの傾向")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+/** Convert persona-backed recommendation evidence to neutral mogu wording (#330). */
+export function sanitizeAgentPublicEvidence(evidence: string): string {
+  const withoutPersonaRating = evidence.replace(
+    PERSONA_RATING_EVIDENCE,
+    "好みの傾向に一致",
+  );
+  return sanitizeAgentPublicText(withoutPersonaRating)
+    .replace(/(?:好みの傾向に一致・){2,}/g, "好みの傾向に一致・")
+    .trim();
 }
 
 /**

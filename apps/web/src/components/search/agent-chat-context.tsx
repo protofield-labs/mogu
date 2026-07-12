@@ -11,7 +11,6 @@ import {
   type ConsultationViewMode,
   type SessionStatus,
 } from "@/lib/agent/use-agent-chat";
-import { usePersonaIntro } from "@/lib/agent/use-persona-intro";
 
 interface AgentChatState {
   sessionStatus: SessionStatus;
@@ -29,7 +28,6 @@ interface AgentChatState {
   inputDisabled: boolean;
   showInitialSkeleton: boolean;
   showStructuredChips: boolean;
-  showPersonaIntro: boolean;
 }
 
 interface AgentChatActions {
@@ -43,9 +41,7 @@ interface AgentChatActions {
   /** 候補カードタップ → 同一 place_id 固定のフォローアップを送る (#287)。 */
   sendCandidateFollowUp: (spot: Spot) => void;
   handleSubmit: (event: FormEvent) => void;
-  handleChipSelect: (chip: string) => void;
-  dismissPersonaIntro: () => void;
-  showPersonaIntroAgain: () => void;
+  handleChipSelect: (chip: string, displayText?: string) => void;
 }
 
 interface AgentChatMeta {
@@ -61,11 +57,10 @@ interface AgentChatContextValue {
 
 const AgentChatContext = createContext<AgentChatContextValue | null>(null);
 
-/** useAgentChat / usePersonaIntro をここで束ね、子は use(AgentChatContext) で読む (#294)。 */
+/** useAgentChat をここで束ね、子は use(AgentChatContext) で読む (#294)。 */
 export function AgentChatProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const chat = useAgentChat(user?.uid ?? null, authLoading);
-  const personaIntro = usePersonaIntro();
 
   const value: AgentChatContextValue = {
     state: {
@@ -84,7 +79,6 @@ export function AgentChatProvider({ children }: { children: ReactNode }) {
       inputDisabled: chat.inputDisabled,
       showInitialSkeleton: chat.showInitialSkeleton,
       showStructuredChips: chat.showStructuredChips,
-      showPersonaIntro: personaIntro.showPersonaIntro,
     },
     actions: {
       setInput: chat.setInput,
@@ -109,8 +103,6 @@ export function AgentChatProvider({ children }: { children: ReactNode }) {
       },
       handleSubmit: chat.handleSubmit,
       handleChipSelect: chat.handleChipSelect,
-      dismissPersonaIntro: personaIntro.dismissPersonaIntro,
-      showPersonaIntroAgain: personaIntro.showPersonaIntroAgain,
     },
     meta: {
       sessionId: chat.sessionId,

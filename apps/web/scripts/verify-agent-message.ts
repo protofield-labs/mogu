@@ -10,6 +10,8 @@ import {
   parseAgentStreamResponse,
   PERSONA_COLLECTION_HINTS,
   PERSONA_THINKING,
+  sanitizeAgentPublicEvidence,
+  sanitizeAgentPublicText,
   stripDelegationNarration,
   stripLeakedThinkingText,
   stripPersonaReferenceLines,
@@ -141,7 +143,17 @@ function main() {
   assert(
     stripPersonaReferenceLines("Kenの『中目黒サク飲み』寄りだとこの店。") ===
       "Kenの『中目黒サク飲み』寄りだとこの店。",
-    "keep natural taste prose without 参照 label",
+    "keep taste prose internally for persona inference",
+  );
+  assert(
+    sanitizeAgentPublicText("Kenの『中目黒サク飲み』寄りだとこの店。") ===
+      "好みの傾向だとこの店。",
+    "hide persona taste prose at public boundary",
+  );
+  assert(
+    sanitizeAgentPublicEvidence("Kenが『すき』・グループで4人が保存") ===
+      "好みの傾向に一致・グループで4人が保存",
+    "hide persona identity in recommendation evidence",
   );
 
   assert(

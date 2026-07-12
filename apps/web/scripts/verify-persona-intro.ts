@@ -1,125 +1,83 @@
 /**
- * Persona intro onboarding (#291).
+ * Single-agent presentation verification (#330).
  * Run via: pnpm exec tsx scripts/verify-persona-intro.ts
  */
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { assert } from "./test-helpers/assert";
+import { toPublicChatEntry } from "../src/lib/agent/chat-helpers";
 import {
-  PERSONA_INTRO_LEAD,
-  PERSONA_INTRO_PROFILES,
-  PERSONA_INTRO_SEEN_KEY,
-  personaImageForPersonaKey,
-  personaImageForThinkingMessage,
-} from "../src/lib/agent/persona-intro";
-import { PERSONA_THINKING } from "../src/lib/agent/stream-parser";
+  sanitizeAgentPublicEvidence,
+  sanitizeAgentPublicText,
+} from "../src/lib/agent/reply-sanitizer";
 
 const root = join(process.cwd(), "src");
-const publicRoot = join(process.cwd(), "public");
 
 function readSource(relativePath: string): string {
   return readFileSync(join(root, relativePath), "utf8");
 }
 
-assert(PERSONA_INTRO_SEEN_KEY === "mogu:persona-intro-seen:v1", "storage key versioned");
-assert(PERSONA_INTRO_PROFILES.length === 2, "two persona profiles");
 assert(
-  PERSONA_INTRO_PROFILES[0]?.role === "サク飲み担当",
-  "ken role matches #288",
+  sanitizeAgentPublicText("Kenの『中目黒サク飲み』寄りだとこの店。") ===
+    "好みの傾向だとこの店。",
+  "persona taste prose becomes neutral",
 );
 assert(
-  PERSONA_INTRO_PROFILES[1]?.role === "大人デート担当",
-  "aoi role matches #288",
-);
-assert(PERSONA_INTRO_LEAD.includes("2人の味覚"), "lead explains dual advisors");
-assert(
-  personaImageForThinkingMessage(PERSONA_THINKING.ken!) === "/personas/ken.png",
-  "thinking maps ken image",
+  sanitizeAgentPublicText("焼き鳥ケン、おすすめです。") ===
+    "焼き鳥ケン、おすすめです。",
+  "shop name containing persona name remains",
 );
 assert(
-  personaImageForThinkingMessage(PERSONA_THINKING.aoi!) === "/personas/aoi.png",
-  "thinking maps aoi image",
+  sanitizeAgentPublicText("Kenのおすすめ") === "この店がおすすめ",
+  "persona attribution becomes natural neutral copy",
 );
 assert(
-  personaImageForPersonaKey("ken") === "/personas/ken.png",
-  "persona key maps ken avatar (#312)",
+  sanitizeAgentPublicText("一段落目です。\n\nAoiの『静かな二人時間』寄りです。") ===
+    "一段落目です。\n\n好みの傾向です。",
+  "public sanitizer preserves paragraph breaks",
 );
 assert(
-  personaImageForPersonaKey("aoi") === "/personas/aoi.png",
-  "persona key maps aoi avatar (#312)",
+  sanitizeAgentPublicEvidence("Aoiが『すき』・グループで2人が保存") ===
+    "好みの傾向に一致・グループで2人が保存",
+  "persona recommendation evidence becomes neutral",
+);
+
+const historicalEntry = toPublicChatEntry({
+  id: "agent-history",
+  kind: "agent",
+  personaKey: "ken",
+  text: "Kenの『中目黒サク飲み』寄りです。",
+  quickReplies: ["Kenの好みで探す"],
+});
+assert(!historicalEntry.text.includes("Ken"), "history text hides persona");
+assert(
+  !historicalEntry.quickReplies?.some((reply) => reply.includes("Ken")),
+  "history quick replies hide persona",
 );
 
 const bubbles = readSource("components/search/agent-chat-bubbles.tsx");
+assert(bubbles.includes("<MoguBrandIcon"), "agent avatar uses mogu icon");
+assert(!bubbles.includes("personaImageForPersonaKey"), "agent avatar hides persona image");
+assert(!bubbles.includes("personaKey={entry.personaKey}"), "persona key is not rendered");
 assert(
-  bubbles.includes("personaImageForPersonaKey"),
-  "agent avatar uses persona images (#312)",
-);
-assert(
-  bubbles.includes("personaKey={entry.personaKey}"),
-  "agent bubble passes persona key to avatar (#312)",
-);
-
-assert(
-  existsSync(join(publicRoot, "personas/ken.png")),
-  "ken persona image exists",
-);
-assert(
-  existsSync(join(publicRoot, "personas/aoi.png")),
-  "aoi persona image exists",
-);
-
-const introCard = readSource("components/search/persona-intro-card.tsx");
-assert(introCard.includes("PersonaIntroCard"), "intro card component");
-assert(introCard.includes("わかった"), "intro card dismiss control");
-
-const agentChatContext = readSource("components/search/agent-chat-context.tsx");
-assert(
-  agentChatContext.includes("usePersonaIntro"),
-  "agent chat context uses persona intro hook",
-);
-assert(
-  agentChatContext.includes("showPersonaIntroAgain"),
-  "context exposes re-show intro action",
-);
-
-const personaIntroHook = readSource("lib/agent/use-persona-intro.ts");
-assert(
-  personaIntroHook.includes("useSyncExternalStore"),
-  "intro hook uses sync external store",
-);
-assert(
-  personaIntroHook.includes("hasSeenPersonaIntro"),
-  "intro hook gates on storage",
-);
-
-const autoScroll = readSource("components/search/agent-chat-auto-scroll.tsx");
-assert(
-  autoScroll.includes("preferStart = state.showPersonaIntro"),
-  "auto-scroll keeps intro in view",
-);
-assert(autoScroll.includes("preferStart"), "auto-scroll accepts preferStart");
-assert(autoScroll.includes("scrollToStart"), "auto-scroll can scroll to start");
-assert(
-  autoScroll.includes("entryCount <= 1"),
-  "intro preferStart yields to chat after first message",
+  bubbles.includes("onChipSelect(entry.quickReplies?.[index] ?? chip, chip)"),
+  "quick replies display neutral labels but send original values",
 );
 
 const transcript = readSource("components/search/agent-chat-transcript.tsx");
-assert(transcript.includes("PersonaIntroCard"), "transcript renders intro");
+assert(!transcript.includes("PersonaIntroCard"), "transcript hides persona intro");
 assert(
-  transcript.includes("personaImageForThinkingMessage"),
-  "thinking markers use persona images",
+  !transcript.includes("personaImageForThinkingMessage"),
+  "thinking marker hides persona image",
+);
+assert(
+  transcript.includes("moguがお店を探しています…"),
+  "thinking marker uses neutral mogu copy",
 );
 
 const header = readSource("components/search/agent-chat-header.tsx");
-assert(
-  header.includes("味覚アドバイザーの紹介"),
-  "header exposes re-show control",
-);
-assert(
-  header.includes("actions.showPersonaIntroAgain"),
-  "header re-show wired to context action",
-);
+assert(!header.includes("味覚アドバイザーの紹介"), "header hides persona intro control");
+assert(!header.includes("showPersonaIntroAgain"), "header has no persona intro action");
 
-console.log("PASS: persona intro verified");
+console.log("PASS: single-agent presentation verified");

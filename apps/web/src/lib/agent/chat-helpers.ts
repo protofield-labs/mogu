@@ -1,4 +1,8 @@
 import type { AgentEvent, Recommendation, Spot } from "./types";
+import {
+  sanitizeAgentPublicEvidence,
+  sanitizeAgentPublicText,
+} from "./reply-sanitizer";
 import type { PersonaIntroKey } from "@/lib/agent/persona-intro";
 
 /** Agent opening copy (features 2-1, wireframe search-2b). */
@@ -91,6 +95,32 @@ export function createAgentEntry(message: {
       ? { quickReplies: message.quickReplies }
       : {}),
     ...(message.personaKey ? { personaKey: message.personaKey } : {}),
+  };
+}
+
+/** Presentation-only projection for live, stored, and historical agent entries (#330). */
+export function toPublicChatEntry(
+  entry: Extract<ChatEntry, { kind: "agent" }>,
+): Extract<ChatEntry, { kind: "agent" }> {
+  const recommendation = entry.recommendation
+    ? {
+        ...entry.recommendation,
+        assertion: sanitizeAgentPublicText(entry.recommendation.assertion),
+        evidence: sanitizeAgentPublicEvidence(entry.recommendation.evidence),
+      }
+    : undefined;
+
+  return {
+    ...entry,
+    text: sanitizeAgentPublicText(entry.text),
+    ...(entry.quickReplies
+      ? {
+          quickReplies: entry.quickReplies.map((reply) =>
+            sanitizeAgentPublicText(reply),
+          ),
+        }
+      : {}),
+    ...(recommendation ? { recommendation } : {}),
   };
 }
 
