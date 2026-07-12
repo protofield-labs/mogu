@@ -179,3 +179,22 @@ python -m pytest tests/ -q
 
 統合テストは、migration 適用済みの Docker PostgreSQL を起動したうえで
 `INCIDENT_AGENT_INTEGRATION=1` を設定した場合に実行されます。
+
+## デプロイ
+
+本番イメージは `services/incident-agent/Dockerfile` でビルドします（開発用の
+`requirements.txt` / `pytest` は含みません）。
+
+```bash
+cd services/incident-agent
+docker build -t incident-agent:local .
+```
+
+`main` へマージされると `.github/workflows/deploy-incident-agent.yml` が
+`asia-northeast1-docker.pkg.dev/mogu-501309/incident-agent/incident-agent`
+へ push します。Terraform で `enable_incident_agent = true` かつ
+`incident_agent_image` を設定済みの場合、既存の Cloud Run 3サービスと
+outbox dispatcher Job も同じタグへ更新されます（未作成時は push のみ）。
+
+初回は `terraform/environments/dev/terraform.tfvars.example` の手順どおり、
+イメージ公開後に `enable_incident_agent = true` を apply してください。
