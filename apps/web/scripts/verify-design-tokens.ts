@@ -24,8 +24,8 @@ function main() {
     "brand color token is defined",
   );
   assert(
-    globalsCss.includes("--primary: oklch(from var(--mogu-brand) l c h)"),
-    "primary derives from brand color",
+    globalsCss.includes("--primary: var(--mogu-brand)"),
+    "primary directly uses the exact brand color",
   );
   assert(
     globalsCss.includes("--font-noto-sans-jp"),

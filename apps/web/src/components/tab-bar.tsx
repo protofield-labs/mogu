@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, User } from "lucide-react";
 
-import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
+import { MoguTabIcon } from "@/components/brand/mogu-brand-icon";
 import { useMeBadges } from "@/lib/mypage/use-me-badges";
 import { touchIconClass } from "@/lib/ui/touch-feedback";
 import { cn } from "@/lib/utils";
@@ -24,7 +24,7 @@ function TabIcon({ tab, active }: { tab: TabItem; active: boolean }) {
   );
 
   if (tab.icon === "mogu") {
-    return <MoguBrandIcon className={className} />;
+    return <MoguTabIcon className={className} />;
   }
 
   const Icon = tab.icon;

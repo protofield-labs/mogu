@@ -108,7 +108,7 @@ export function AuthFormShell({
           )}
         >
           <div className="space-y-4">
-            <MoguBrandIcon className="size-9 text-primary" />
+            <MoguBrandIcon className="size-9" />
             <div className="space-y-1.5">
               <h1 className="text-2xl font-semibold tracking-tight text-foreground">
                 {title}
