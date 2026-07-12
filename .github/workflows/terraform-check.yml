@@ -71,6 +71,14 @@ jobs:
       TF_VAR_enable_db_connection: "true"
       TF_VAR_enable_external_apis: "true"
       TF_VAR_enable_agent_engine: "true"
+      TF_VAR_enable_incident_agent: ${{ secrets.TF_VAR_ENABLE_INCIDENT_AGENT }}
+      TF_VAR_incident_agent_image: ${{ secrets.TF_VAR_INCIDENT_AGENT_IMAGE }}
+      TF_VAR_incident_agent_slack_team_id: ${{ secrets.TF_VAR_INCIDENT_AGENT_SLACK_TEAM_ID }}
+      TF_VAR_incident_agent_slack_channel_id: ${{ secrets.TF_VAR_INCIDENT_AGENT_SLACK_CHANNEL_ID }}
+      TF_VAR_incident_agent_slack_allowed_user_ids: ${{ secrets.TF_VAR_INCIDENT_AGENT_SLACK_ALLOWED_USER_IDS }}
+      TF_VAR_incident_agent_github_token: ${{ secrets.TF_VAR_INCIDENT_AGENT_GITHUB_TOKEN }}
+      TF_VAR_incident_agent_allowed_resources: ${{ secrets.TF_VAR_INCIDENT_AGENT_ALLOWED_RESOURCES }}
+      TF_VAR_incident_agent_slack_bot_token: ${{ secrets.TF_VAR_INCIDENT_AGENT_SLACK_BOT_TOKEN }}
       TF_VAR_terraform_firebase_impersonators: '["user:micci184@gmail.com"]'
       TF_VAR_github_repository: protofield-labs/mogu
       TF_VAR_app_image: asia-northeast1-docker.pkg.dev/mogu-501309/web/web:latest

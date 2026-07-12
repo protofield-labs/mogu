@@ -1,6 +1,9 @@
 tests/
 .pytest_cache/
-scripts/
+scripts/*
+!scripts/__init__.py
+!scripts/replay_outbox.py
+!scripts/review_incident.py
 **/__pycache__/
 **/*.pyc
 **/*.pyo

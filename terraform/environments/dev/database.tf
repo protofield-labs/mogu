@@ -20,8 +20,10 @@ module "cloud_sql" {
   db_name               = var.db_name
   db_user               = var.db_user
   db_password           = random_password.db.result
-  enable_pgvector       = var.enable_db_connection && var.enable_incident_agent
-  labels                = local.labels
+  # pgvector is enabled via CREATE EXTENSION in ops migrations; Cloud SQL has no
+  # cloudsql.enable_pgvector database flag (invalidFlagName on POSTGRES_18).
+  enable_pgvector = false
+  labels          = local.labels
 
   # The private IP requires the peering connection to exist first.
   depends_on = [google_service_networking_connection.private_service_access]
