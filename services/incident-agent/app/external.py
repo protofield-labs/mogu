@@ -63,7 +63,9 @@ def format_trace_line(trace_url: Any) -> str | None:
 
 
 def render_analysis(payload: dict[str, Any], *, include_trace: bool = True) -> str:
-    if set(payload) == {"text"}:
+    # Plain-text payloads ({"text": ...} with an optional discriminator "kind",
+    # e.g. slack_followup) render as-is instead of falling through to JSON.
+    if "text" in payload and not set(payload) - {"text", "kind"}:
         return str(payload["text"])
     alert = payload.get("alert")
     if isinstance(alert, dict):
@@ -156,6 +158,137 @@ class SlackApiSender:
         if not isinstance(channel, str) or not isinstance(timestamp, str):
             raise ExternalDeliveryError("Slack response missing reference")
         return SlackReference(team=self._team, channel=channel, thread=timestamp)
+
+
+@dataclass(frozen=True)
+class ThreadMessage:
+    """One conversations.replies entry, before allowlist filtering."""
+
+    user_id: str | None
+    is_self_bot: bool
+    text: str
+    ts: str
+
+
+class SlackThreadApiClient:
+    """conversations.replies + threaded chat.postMessage for I6 (§11)."""
+
+    def __init__(
+        self,
+        *,
+        token: str,
+        scanner: SecretScanner,
+        session: requests.Session | None = None,
+        history_limit: int = 50,
+    ):
+        if not token:
+            raise ValueError("Slack bot token is required")
+        self._token = token
+        self._scanner = scanner
+        self._session = session or requests.Session()
+        self._history_limit = history_limit
+        self._bot_user_id: str | None = None
+
+    def _headers(self) -> dict[str, str]:
+        return {
+            "Authorization": f"Bearer {self._token}",
+            "Content-Type": "application/json; charset=utf-8",
+        }
+
+    def _self_bot_user_id(self) -> str:
+        if self._bot_user_id is None:
+            response = self._session.post(
+                "https://slack.com/api/auth.test",
+                headers=self._headers(),
+                timeout=20,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            if not payload.get("ok") or not isinstance(payload.get("user_id"), str):
+                raise ExternalDeliveryError("Slack auth.test failed")
+            self._bot_user_id = payload["user_id"]
+        return self._bot_user_id
+
+    def fetch_replies(self, *, channel: str, thread_ts: str) -> list[ThreadMessage]:
+        bot_user = self._self_bot_user_id()
+        response = self._session.get(
+            "https://slack.com/api/conversations.replies",
+            headers={"Authorization": f"Bearer {self._token}"},
+            params={
+                "channel": channel,
+                "ts": thread_ts,
+                "limit": self._history_limit,
+            },
+            timeout=20,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        if not payload.get("ok"):
+            raise ExternalDeliveryError("Slack conversations.replies failed")
+        messages = payload.get("messages")
+        if not isinstance(messages, list):
+            raise ExternalDeliveryError("invalid Slack replies response")
+        result: list[ThreadMessage] = []
+        for message in messages[: self._history_limit]:
+            if not isinstance(message, dict):
+                continue
+            text = message.get("text")
+            ts = message.get("ts")
+            if not isinstance(text, str) or not isinstance(ts, str):
+                continue
+            user = message.get("user")
+            user_id = user if isinstance(user, str) else None
+            result.append(
+                ThreadMessage(
+                    user_id=user_id,
+                    is_self_bot=user_id == bot_user,
+                    text=text,
+                    ts=ts,
+                )
+            )
+        return result
+
+    def post_reply(
+        self,
+        *,
+        channel: str,
+        thread_ts: str,
+        text: str,
+        client_msg_id: str,
+    ) -> str:
+        self._scanner.assert_safe(text)
+        text = text[:3000]
+        self._scanner.assert_safe(text)
+        body = {
+            "channel": channel,
+            "thread_ts": thread_ts,
+            "text": text,
+            "mrkdwn": False,
+            "link_names": False,
+            "unfurl_links": False,
+            "unfurl_media": False,
+            "client_msg_id": str(uuid5(NAMESPACE_URL, client_msg_id)),
+            "blocks": [
+                {
+                    "type": "section",
+                    "text": {"type": "plain_text", "text": text, "emoji": False},
+                }
+            ],
+        }
+        response = self._session.post(
+            "https://slack.com/api/chat.postMessage",
+            headers=self._headers(),
+            json=body,
+            timeout=20,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        if not payload.get("ok"):
+            raise ExternalDeliveryError("Slack rejected thread reply")
+        timestamp = payload.get("ts")
+        if not isinstance(timestamp, str):
+            raise ExternalDeliveryError("Slack reply response missing ts")
+        return timestamp
 
 
 class GitHubApiSender:

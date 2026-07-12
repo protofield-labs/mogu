@@ -76,6 +76,14 @@ def _record(destination: str, **overrides) -> OutboxRecord:
     return OutboxRecord(**values)
 
 
+def test_render_analysis_renders_kinded_text_payload_as_plain_text() -> None:
+    text = render_analysis(
+        {"kind": "slack_followup", "text": "Slack follow-up finding:\nanswer"}
+    )
+    assert text == "Slack follow-up finding:\nanswer"
+    assert "{" not in text
+
+
 def test_render_analysis_includes_trace_url() -> None:
     text = render_analysis(
         {

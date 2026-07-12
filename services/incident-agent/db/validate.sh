@@ -50,6 +50,7 @@ SQL
 run_sql "$ROOT/migrations/003_ops_roles.sql"
 run_sql "$ROOT/migrations/004_incident_review_gate.sql"
 run_sql "$ROOT/migrations/005_outbox_delivery_token.sql"
+run_sql "$ROOT/migrations/006_slack_retention_grants.sql"
 run_sql "$ROOT/seeds/001_sample_incidents.sql"
 
 echo "==> Structural checks"
