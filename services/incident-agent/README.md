@@ -198,6 +198,8 @@ python -m pytest tests/ -q
 
 統合テストは、migration 適用済みの Docker PostgreSQL を起動したうえで
 `INCIDENT_AGENT_INTEGRATION=1` を設定した場合に実行されます。
+PR では `.github/workflows/incident-agent-check.yml` が変更パスを判定し、
+pgvector PostgreSQL の bootstrap と pytest を実行します。
 
 ## デプロイ
 
@@ -210,7 +212,8 @@ docker build -t incident-agent:local .
 ```
 
 `main` へマージされると `.github/workflows/deploy-incident-agent.yml` が
-`asia-northeast1-docker.pkg.dev/mogu-501309/incident-agent/incident-agent`
+`asia-northeast1-docker.pkg.dev/<PROJECT>/incident-agent/incident-agent`
+（dev: `mogu-501309`）
 へ push します。Terraform で `enable_incident_agent = true` かつ
 `incident_agent_image` を設定済みの場合、既存の Cloud Run 3サービスと
 outbox / ops-migrate / slack-retention Job も同じタグへ更新されます
@@ -219,6 +222,8 @@ outbox / ops-migrate / slack-retention Job も同じタグへ更新されます
 `services/incident-agent/db/migrations/` に変更があると、デプロイ前に
 `dev-incident-agent-ops-migrate` Job が実行されます（Job 未作成時は skip）。
 
-初回は `terraform/environments/dev/terraform.tfvars.example` の手順どおり、
-イメージ公開後に `enable_incident_agent = true` を apply し、続けて
-ops migrate Job を手動または CI で実行してください。
+初回は `docs/incident-agent-dev-runbook.md` の順序どおり、まず
+`enable_incident_agent = false` で Artifact Registry を bootstrap し、
+イメージを push します。その後 `incident_agent_image` を設定して
+`enable_incident_agent = true` を apply し、ops migrate Job を手動または CI
+で実行してください。

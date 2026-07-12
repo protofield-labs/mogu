@@ -11,15 +11,22 @@ Cloud SQL 上の `ops` スキーマ定義。仕様の正本は `docs/incident-ag
 | `migrations/003_ops_roles.sql` | 4 component 用 DB ロールと最小権限 GRANT |
 | `migrations/004_incident_review_gate.sql` | ingest/worker による RCA レビュー列の DB ゲート |
 | `migrations/005_outbox_delivery_token.sql` | delivery token + `ops_operator` replay / `ops_reviewer` RCA権限 |
+| `migrations/006_slack_retention_grants.sql` | Slack retention DELETE 権限 + 予算予約済みフラグ |
 | `seeds/001_sample_incidents.sql` | pgvector 類似検索テスト用の解決済み事例 |
 | `validate.sh` | Docker + pgvector でマイグレーション適用と構造検証 |
+
+PostgreSQL の `vector` 拡張が必要です。ローカル検証と CI は
+`pgvector/pgvector:pg16` を使用し、dev は Cloud SQL for PostgreSQL 上の
+`ops` スキーマへ適用します。
 
 ## 適用順
 
 先に I0 Terraform を apply し、パスワード付き LOGIN ユーザー
-`ops_ingest` / `ops_slack_ingress` / `ops_worker` / `ops_dispatcher` を作成する。
+`ops_ingest` / `ops_slack_ingress` / `ops_worker` / `ops_dispatcher` /
+`ops_operator` / `ops_reviewer` を作成する。
 `003_ops_roles.sql` は Terraform と所有権が競合しないようロールを作成せず、
-必要なruntime 4ユーザーに加え、I4の`ops_operator` / `ops_reviewer`をTerraformで作成する。
+runtime 4ユーザーへ最小権限を付与する。`005` が operator / reviewer の権限を
+付与し、`006` が worker の retention 用 DELETE 権限を追加する。
 
 ```bash
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/001_ops_schema.sql
@@ -27,6 +34,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/002_budget_primitives.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/003_ops_roles.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/004_incident_review_gate.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/005_outbox_delivery_token.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/006_slack_retention_grants.sql
 # 開発・検証のみ
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f seeds/001_sample_incidents.sql
 ```
@@ -37,9 +45,9 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f seeds/001_sample_incidents.sql
 
 | ロール | 用途 | 権限概要 |
 | --- | --- | --- |
-| `ops_ingest` | Pub/Sub ingest | incidents / alert_deliveries / outbox / budget_usage の DML（最小） |
+| `ops_ingest` | Pub/Sub ingest | incidents / alert_deliveries / outbox の DML + budget予約関数 |
 | `ops_slack_ingress` | Slack Events ingress | `slack_events` のみ |
-| `ops_worker` | Cloud Tasks worker | incidents / outbox / slack_events / budget_usage の更新系 |
+| `ops_worker` | Cloud Tasks worker | incidents / outbox / slack_events の更新系 + retention DELETE + budget予約関数 |
 | `ops_dispatcher` | outbox dispatcher Job | eligible 判定用の `outbox` SELECT のみ |
 | `ops_operator` | operator専用outbox replay CLI | outboxのreplay列のみ |
 | `ops_reviewer` | operator専用RCAレビューCLI | incidentsのレビュー・解決列のみ |
