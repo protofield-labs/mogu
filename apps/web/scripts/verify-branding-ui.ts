@@ -27,6 +27,7 @@ assert(wordmark.includes("sr-only"), "wordmark keeps accessible brand text");
 
 const tabBar = readSource("components/tab-bar.tsx");
 assert(tabBar.includes("MoguTabIcon"), "search tab uses monochrome-friendly brand icon");
+assert(tabBar.includes("scrollHomeToTop"), "home tab scrolls to top when already active");
 assert(!tabBar.includes("Sparkles"), "search tab no longer uses Sparkles");
 
 const agentBubbles = readSource("components/search/agent-chat-bubbles.tsx");
@@ -64,9 +65,12 @@ assert(
 
 const homeView = readSource("components/home/home-view.tsx");
 assert(homeView.includes("MoguHeaderLogo"), "home header uses shared PNG logo component");
+assert(homeView.includes("pt-4"), "home header aligns with mypage top padding");
+assert(homeView.includes('scrollRootId="home"'), "home view exposes scroll root for tab bar");
 
 const searchHeader = readSource("components/search/agent-chat-header.tsx");
 assert(searchHeader.includes("MoguHeaderLogo"), "search header uses shared PNG logo component");
+assert(searchHeader.includes("pt-4"), "search header aligns with mypage top padding");
 assert(!searchHeader.includes("PageTitle"), "search header no longer uses PageTitle");
 
 const mypageView = readSource("components/mypage/mypage-view.tsx");

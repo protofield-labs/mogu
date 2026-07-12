@@ -288,10 +288,11 @@ export function HomeView() {
     <PullToRefresh
       onRefresh={handlePullRefresh}
       disabled={loading || refreshing}
+      scrollRootId="home"
       className="flex min-h-0 flex-1 flex-col"
     >
-      <div className="flex min-h-0 flex-1 flex-col gap-5 py-mogu-screen-y">
-      <header className="flex shrink-0 items-center justify-between px-mogu-screen-x">
+      <div className="flex min-h-0 flex-1 flex-col gap-5 pb-mogu-screen-y">
+      <header className="flex shrink-0 items-center justify-between px-mogu-screen-x pt-4">
         <MoguHeaderLogo priority />
         <HomeNotificationButton />
       </header>

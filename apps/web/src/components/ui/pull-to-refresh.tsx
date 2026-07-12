@@ -19,6 +19,8 @@ type PullToRefreshProps = {
   children: ReactNode;
   className?: string;
   disabled?: boolean;
+  /** Tab bar scroll-to-top targets this root via `[data-mogu-scroll-root]`. */
+  scrollRootId?: string;
 };
 
 export function PullToRefresh({
@@ -26,6 +28,7 @@ export function PullToRefresh({
   children,
   className,
   disabled = false,
+  scrollRootId,
 }: PullToRefreshProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [pullDistance, setPullDistance] = useState(0);
@@ -120,6 +123,7 @@ export function PullToRefresh({
   return (
     <div
       ref={scrollRef}
+      data-mogu-scroll-root={scrollRootId}
       className={cn("relative min-h-0 flex-1 overflow-y-auto", className)}
     >
       <div
