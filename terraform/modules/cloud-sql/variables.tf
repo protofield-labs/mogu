@@ -81,3 +81,9 @@ variable "labels" {
   type        = map(string)
   default     = {}
 }
+
+variable "enable_pgvector" {
+  description = "Enable the pgvector extension flag on Cloud SQL for PostgreSQL."
+  type        = bool
+  default     = false
+}

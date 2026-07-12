@@ -28,6 +28,15 @@ resource "google_sql_database_instance" "this" {
       point_in_time_recovery_enabled = true
     }
 
+    dynamic "database_flags" {
+      for_each = var.enable_pgvector ? [1] : []
+
+      content {
+        name  = "cloudsql.enable_pgvector"
+        value = "on"
+      }
+    }
+
     user_labels = var.labels
   }
 }

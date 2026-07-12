@@ -32,6 +32,17 @@ locals {
     MAX_BODY_BYTES       = "262144"
   } : {}
 
+  incident_agent_i6_guard_env = local.incident_agent_enabled ? {
+    ALLOWED_SLACK_TEAM_IDS           = var.incident_agent_slack_team_id
+    ALLOWED_SLACK_CHANNEL_IDS        = var.incident_agent_slack_channel_id
+    ALLOWED_SLACK_USER_IDS           = var.incident_agent_slack_allowed_user_ids
+    SLACK_USER_RATE_LIMIT_PER_MINUTE = tostring(var.incident_agent_slack_user_rate_limit_per_minute)
+    SLACK_THREAD_RATE_LIMIT_PER_HOUR = tostring(var.incident_agent_slack_thread_rate_limit_per_hour)
+  } : {}
+
+  incident_agent_ops_migrate_job_name     = "${var.environment}-incident-agent-ops-migrate"
+  incident_agent_slack_retention_job_name = "${var.environment}-incident-agent-slack-retention"
+
   monitoring_notification_sa = "service-${data.google_project.current.number}@gcp-sa-monitoring-notification.iam.gserviceaccount.com"
 }
 
@@ -541,7 +552,7 @@ module "incident_agent_worker" {
 
   command = ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
 
-  env = merge(local.incident_agent_common_env, {
+  env = merge(local.incident_agent_common_env, local.incident_agent_i6_guard_env, {
     SERVICE_MODE         = "worker"
     DB_USER              = google_sql_user.incident_agent_ops_worker[0].name
     CLOUD_TASKS_OIDC_SA  = google_service_account.incident_agent_tasks[0].email
@@ -607,7 +618,7 @@ module "incident_agent_slack" {
 
   command = ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
 
-  env = merge(local.incident_agent_common_env, {
+  env = merge(local.incident_agent_common_env, local.incident_agent_i6_guard_env, {
     SERVICE_MODE              = "slack"
     DB_USER                   = google_sql_user.incident_agent_ops_slack_ingress[0].name
     CLOUD_TASKS_QUEUE         = local.incident_agent_slack_queue_name
@@ -714,5 +725,109 @@ resource "google_cloud_scheduler_job" "incident_agent_outbox_dispatcher" {
   depends_on = [
     google_project_service.services,
     google_cloud_run_v2_job_iam_member.incident_agent_scheduler_dispatcher_invoker,
+  ]
+}
+
+module "incident_agent_ops_migrate_job" {
+  count = local.incident_agent_enabled ? 1 : 0
+
+  source = "../../modules/cloud-run-job"
+
+  project_id            = var.project_id
+  region                = var.region
+  name                  = local.incident_agent_ops_migrate_job_name
+  image                 = local.incident_agent_image
+  service_account_email = google_service_account.web.email
+  labels                = local.labels
+
+  command = ["python", "-m", "jobs.ops_migrate"]
+
+  env = merge(local.incident_agent_common_env, {
+    DB_USER    = var.db_user
+    DB_SSLMODE = "require"
+  })
+
+  secret_env = local.db_secret_env
+
+  vpc_access_enabled = true
+  vpc_network        = google_compute_network.main.id
+  vpc_subnetwork     = google_compute_subnetwork.main.id
+
+  task_timeout = "600s"
+  max_retries  = 0
+
+  depends_on = [
+    google_project_service.services,
+    google_secret_manager_secret_version.db_password,
+    google_secret_manager_secret_iam_member.web_db_password,
+    module.cloud_sql,
+  ]
+}
+
+module "incident_agent_slack_retention_job" {
+  count = local.incident_agent_enabled ? 1 : 0
+
+  source = "../../modules/cloud-run-job"
+
+  project_id            = var.project_id
+  region                = var.region
+  name                  = local.incident_agent_slack_retention_job_name
+  image                 = local.incident_agent_image
+  service_account_email = google_service_account.incident_agent_worker[0].email
+  labels                = local.labels
+
+  command = ["python", "-m", "jobs.slack_retention"]
+
+  env = merge(local.incident_agent_common_env, {
+    DB_USER                     = google_sql_user.incident_agent_ops_worker[0].name
+    SLACK_EVENTS_RETENTION_DAYS = "7"
+    SESSION_RETENTION_DAYS      = "30"
+  })
+
+  secret_env = {
+    DB_PASSWORD = {
+      secret  = google_secret_manager_secret.incident_agent_ops_worker_password[0].secret_id
+      version = "latest"
+    }
+  }
+
+  vpc_access_enabled = true
+  vpc_network        = google_compute_network.main.id
+  vpc_subnetwork     = google_compute_subnetwork.main.id
+
+  task_timeout = "600s"
+  max_retries  = 0
+
+  depends_on = [
+    google_project_service.services,
+    google_secret_manager_secret_version.incident_agent_ops_worker_password,
+    google_secret_manager_secret_iam_member.incident_agent_worker_ops_password,
+  ]
+}
+
+resource "google_cloud_scheduler_job" "incident_agent_slack_retention" {
+  count = local.incident_agent_enabled ? 1 : 0
+
+  project     = var.project_id
+  region      = var.region
+  name        = "${var.environment}-incident-agent-slack-retention"
+  description = "Purge completed slack_events and expired Vertex sessions daily (#369)"
+  schedule    = "0 3 * * *"
+  time_zone   = "Asia/Tokyo"
+
+  attempt_deadline = "600s"
+
+  http_target {
+    http_method = "POST"
+    uri         = "https://${var.region}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${var.project_id}/jobs/${module.incident_agent_slack_retention_job[0].name}:run"
+
+    oauth_token {
+      service_account_email = google_service_account.incident_agent_scheduler[0].email
+    }
+  }
+
+  depends_on = [
+    google_project_service.services,
+    google_cloud_run_v2_job_iam_member.incident_agent_scheduler_retention_invoker,
   ]
 }
