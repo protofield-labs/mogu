@@ -60,10 +60,15 @@ function main() {
     "dark block defines badge token",
   );
   assert(
-    /--primary:\s*oklch\([^)]*0\.1[0-9]/m.test(
-      globalsCss.slice(globalsCss.indexOf(".dark")),
+    globalsCss.includes("--mogu-brand: #F05B43"),
+    "brand color token is defined",
+  );
+  const darkTokens = globalsCss.slice(globalsCss.indexOf(".dark"));
+  assert(
+    darkTokens.includes(
+      "--primary: oklch(from var(--mogu-brand) calc(l + 0.05) c h)",
     ),
-    "dark primary keeps warm accent chroma",
+    "dark primary derives from brand color with higher lightness",
   );
   assert(globalsCss.includes("color-scheme: dark"), "dark sets native color-scheme");
 
