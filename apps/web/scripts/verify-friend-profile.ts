@@ -51,6 +51,18 @@ assert(
   friendsApprovedSection.includes("friendProfilePath"),
   "friends list links to friend profile",
 );
+assert(
+  !friendsApprovedSection.includes(">承認済み<"),
+  "friends list avoids internal approval-status wording",
+);
+assert(
+  friendsApprovedSection.includes("友達を解除"),
+  "unfriend action uses an explicit label",
+);
+assert(
+  friendsApprovedSection.includes("MoreHorizontal"),
+  "infrequent unfriend action is hidden behind a row action menu",
+);
 
 const feedItemCard = readSource("components/home/feed-item-card.tsx");
 assert(feedItemCard.includes("actorProfilePath"), "feed item links actor profile");
