@@ -75,7 +75,6 @@ export default function SignupPage() {
           disabled={submitting}
           value={displayName}
           onChange={(event) => setDisplayName(event.target.value)}
-          placeholder="例: まえはら"
         />
         <AuthFormField
           label="メールアドレス"

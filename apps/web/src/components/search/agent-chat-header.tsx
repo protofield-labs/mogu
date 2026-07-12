@@ -16,7 +16,7 @@ export function AgentChatHeader() {
   const { sessionStatus, loadingConsultation, sending, resettingConsultation } =
     state;
   return (
-    <header className="flex shrink-0 items-center justify-between px-mogu-screen-x py-3">
+    <header className="flex shrink-0 items-center justify-between px-mogu-screen-x pt-4">
       <MoguHeaderLogo />
       {sessionStatus === "ready" ? (
         <div className="flex items-center gap-1">

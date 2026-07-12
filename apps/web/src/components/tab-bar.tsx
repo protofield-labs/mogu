@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { type MouseEvent } from "react";
 import { Home, User } from "lucide-react";
 
 import { MoguTabIcon } from "@/components/brand/mogu-brand-icon";
@@ -16,6 +17,28 @@ type TabItem = {
   isActive: (pathname: string) => boolean;
   showBadge?: boolean;
 };
+
+function scrollHomeToTop() {
+  const scrollRoot = document.querySelector('[data-mogu-scroll-root="home"]');
+  if (scrollRoot) {
+    scrollRoot.scrollTo({ top: 0, behavior: "smooth" });
+    return;
+  }
+
+  // HomeViewSkeleton 表示中は PullToRefresh が未マウントのため main をスクロールする。
+  document.querySelector("main")?.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function handleHomeTabClick(
+  event: MouseEvent<HTMLAnchorElement>,
+  active: boolean,
+) {
+  if (!active) {
+    return;
+  }
+  event.preventDefault();
+  scrollHomeToTop();
+}
 
 function TabIcon({ tab, active }: { tab: TabItem; active: boolean }) {
   const className = cn(
@@ -71,6 +94,11 @@ export function TabBar() {
               key={tab.href}
               href={tab.href}
               aria-current={active ? "page" : undefined}
+              onClick={
+                tab.href === "/"
+                  ? (event) => handleHomeTabClick(event, active)
+                  : undefined
+              }
               className="relative flex flex-1 flex-col items-center justify-center gap-0.5"
             >
               <span

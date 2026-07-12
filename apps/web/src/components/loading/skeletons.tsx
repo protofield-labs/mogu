@@ -105,8 +105,8 @@ export function OnboardingFormSkeleton({
 
 export function HomeViewSkeleton({ embedded = false }: { embedded?: boolean }) {
   const content = (
-    <LoadingShell label="ホームを読み込んでいます" className="gap-5 py-mogu-screen-y">
-      <header className="flex items-center justify-between px-mogu-screen-x">
+    <LoadingShell label="ホームを読み込んでいます" className="gap-5 pb-mogu-screen-y">
+      <header className="flex items-center justify-between px-mogu-screen-x pt-4">
         <Skeleton className="h-5 w-12 rounded-lg" />
         <Skeleton className="size-9 rounded-full" />
       </header>
