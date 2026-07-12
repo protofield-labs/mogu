@@ -170,6 +170,25 @@ python -m scripts.review_incident <incident-uuid> \
   --rca "Final reviewed root cause" --reviewer "oncall@example.com"
 ```
 
+## ローカル E2E デモ
+
+Slack / GitHub / Vertex なしで ingest → 一次調査 → outbox → I6 追調査までを
+stdout に段階表示するデモスクリプトです（fake LLM runtime 使用）。
+
+```bash
+cd services/incident-agent
+python -m scripts.trigger_test_incident
+```
+
+- 既定で Docker + `pgvector/pgvector:pg16` を `127.0.0.1:54329` に起動し、
+  CI と同じ migration（001〜006）を `docker exec psql` で適用
+- 既存 DB を使う場合: `python -m scripts.trigger_test_incident --no-bootstrap`
+- 環境変数: `TEST_DB_HOST` / `TEST_DB_PORT`（既定 54329）/ `TEST_DB_NAME` /
+  `TEST_DB_USER` / `TEST_DB_PASSWORD`
+- bootstrap を無効化: `TRIGGER_TEST_BOOTSTRAP_DB=0`
+
+本番/dev の有効化手順は `docs/incident-agent-dev-runbook.md` を参照。
+
 ## テスト
 
 ```bash
