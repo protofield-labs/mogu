@@ -136,7 +136,7 @@ export function MypageView() {
       {me.counts.spots === 0 ? (
         <section className="px-mogu-screen-x">
           <NavRow
-            iconSlot={<MoguBrandIcon className="size-5 text-foreground" />}
+            iconSlot={<MoguBrandIcon className="size-5" />}
             label="最初のお店を記録しよう"
             description="記録が増えるほど、断言が鋭くなります"
             href="/search"

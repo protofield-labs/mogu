@@ -14,14 +14,18 @@ function readSource(relativePath: string): string {
 }
 
 const brandIcon = readSource("components/brand/mogu-brand-icon.tsx");
-assert(brandIcon.includes("Beef"), "brand icon uses Beef mark");
+assert(brandIcon.includes('viewBox="0 0 64 64"'), "brand icon uses custom SVG symbol");
+assert(!brandIcon.includes("Beef"), "brand icon no longer uses Lucide Beef");
+assert(brandIcon.includes("text-mogu-brand"), "brand icon uses brand color token");
+assert(brandIcon.includes("MoguTabIcon"), "brand icon exports tab-specific variant");
 assert(brandIcon.includes("aria-hidden"), "brand icon is decorative");
 
 const wordmark = readSource("components/brand/mogu-wordmark.tsx");
-assert(wordmark.includes("text-lg font-semibold"), "wordmark uses larger header typography");
+assert(wordmark.includes("text-mogu-wordmark"), "wordmark uses brand color token");
+assert(wordmark.includes("text-xl font-bold"), "wordmark uses prominent header typography");
 
 const tabBar = readSource("components/tab-bar.tsx");
-assert(tabBar.includes("MoguBrandIcon"), "search tab uses brand icon");
+assert(tabBar.includes("MoguTabIcon"), "search tab uses monochrome-friendly brand icon");
 assert(!tabBar.includes("Sparkles"), "search tab no longer uses Sparkles");
 
 const agentBubbles = readSource("components/search/agent-chat-bubbles.tsx");

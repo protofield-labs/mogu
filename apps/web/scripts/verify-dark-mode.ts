@@ -65,10 +65,8 @@ function main() {
   );
   const darkTokens = globalsCss.slice(globalsCss.indexOf(".dark"));
   assert(
-    darkTokens.includes(
-      "--primary: oklch(from var(--mogu-brand) calc(l + 0.05) c h)",
-    ),
-    "dark primary derives from brand color with higher lightness",
+    darkTokens.includes("--primary: var(--mogu-brand)"),
+    "dark primary directly uses the exact brand color",
   );
   assert(globalsCss.includes("color-scheme: dark"), "dark sets native color-scheme");
 

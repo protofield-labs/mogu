@@ -39,6 +39,7 @@
     --color-foreground: var(--foreground);
     --color-background: var(--background);
     --color-mogu-brand: var(--mogu-brand);
+    --color-mogu-wordmark: var(--mogu-wordmark);
     --color-mogu-surface: var(--mogu-surface);
     --color-mogu-surface-elevated: var(--mogu-surface-elevated);
     --color-mogu-avatar-default: var(--mogu-avatar-default);
@@ -66,6 +67,7 @@
 :root {
     /* Brand accent — components use derived --primary tokens, not this hex directly */
     --mogu-brand: #F05B43;
+    --mogu-wordmark: #6A2D1A;
 
     /* shadcn neutral base, tuned to mogu warm surface */
     --background: oklch(0.965 0.006 95);
@@ -74,7 +76,7 @@
     --card-foreground: oklch(0.205 0.012 95);
     --popover: oklch(0.995 0.004 95);
     --popover-foreground: oklch(0.205 0.012 95);
-    --primary: oklch(from var(--mogu-brand) l c h);
+    --primary: var(--mogu-brand);
     --primary-foreground: oklch(0.985 0.002 95);
     --secondary: oklch(0.955 0.008 95);
     --secondary-foreground: oklch(0.205 0.012 95);
@@ -85,7 +87,7 @@
     --destructive: oklch(0.577 0.245 27.325);
     --border: oklch(0.905 0.008 95);
     --input: oklch(0.905 0.008 95);
-    --ring: oklch(from var(--mogu-brand) l c h / 0.35);
+    --ring: rgb(240 91 67 / 0.35);
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
     --chart-3: oklch(0.439 0 0);
@@ -120,13 +122,14 @@
 }
 
 .dark {
+    --mogu-wordmark: #F4D8D1;
     --background: oklch(0.17 0.012 95);
     --foreground: oklch(0.94 0.006 95);
     --card: oklch(0.21 0.012 95);
     --card-foreground: oklch(0.94 0.006 95);
     --popover: oklch(0.21 0.012 95);
     --popover-foreground: oklch(0.94 0.006 95);
-    --primary: oklch(from var(--mogu-brand) calc(l + 0.05) c h);
+    --primary: var(--mogu-brand);
     --primary-foreground: oklch(0.985 0.002 95);
     --secondary: oklch(0.24 0.01 95);
     --secondary-foreground: oklch(0.94 0.006 95);
@@ -137,7 +140,7 @@
     --destructive: oklch(0.65 0.18 25);
     --border: oklch(0.94 0.006 95 / 12%);
     --input: oklch(0.94 0.006 95 / 16%);
-    --ring: oklch(from var(--mogu-brand) calc(l + 0.05) c h / 0.4);
+    --ring: rgb(240 91 67 / 0.4);
     --chart-1: var(--primary);
     --chart-2: oklch(0.58 0.08 95);
     --chart-3: oklch(0.48 0.06 95);
