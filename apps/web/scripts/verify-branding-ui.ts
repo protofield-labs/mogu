@@ -48,6 +48,10 @@ assert(loginPage.includes("今夜の店、もう迷わない。"), "login uses b
 assert(loginPage.includes("決め手は、友達の「すき」。"), "login uses friend-based value copy");
 assert(loginPage.includes("whitespace-nowrap"), "login brand message stays on one line");
 
+const headerLogo = readSource("components/brand/mogu-header-logo.tsx");
+assert(headerLogo.includes('src="/mogu-logo.png"'), "header logo uses supplied PNG");
+assert(headerLogo.includes("h-8 w-auto"), "header logo matches home sizing");
+
 const feedActions = readSource("components/home/feed-item-actions.tsx");
 assert(
   feedActions.includes('again: "bg-primary/10 text-primary"'),
@@ -59,12 +63,10 @@ assert(
 );
 
 const homeView = readSource("components/home/home-view.tsx");
-assert(homeView.includes('src="/mogu-logo.png"'), "home header uses supplied PNG logo");
-assert(homeView.includes('alt="mogu"'), "home PNG logo has accessible alt text");
+assert(homeView.includes("MoguHeaderLogo"), "home header uses shared PNG logo component");
 
 const searchHeader = readSource("components/search/agent-chat-header.tsx");
-assert(searchHeader.includes("MoguBrandIcon"), "search header uses brand icon");
-assert(searchHeader.includes("MoguWordmark"), "search header uses wordmark");
+assert(searchHeader.includes("MoguHeaderLogo"), "search header uses shared PNG logo component");
 assert(!searchHeader.includes("PageTitle"), "search header no longer uses PageTitle");
 
 const mypageView = readSource("components/mypage/mypage-view.tsx");
@@ -74,7 +76,7 @@ const profileHero = readSource("components/mypage/profile-hero-card.tsx");
 assert(profileHero.includes("flex-col items-center"), "profile name sits below avatar");
 
 const mypageTopBar = readSource("components/mypage/mypage-top-bar.tsx");
-assert(mypageTopBar.includes("MoguWordmark"), "mypage header uses wordmark");
+assert(mypageTopBar.includes("MoguHeaderLogo"), "mypage header uses shared PNG logo component");
 assert(mypageTopBar.includes("logout"), "mypage header wires logout");
 assert(!mypageView.includes("Sparkles"), "mypage no longer uses Sparkles");
 
