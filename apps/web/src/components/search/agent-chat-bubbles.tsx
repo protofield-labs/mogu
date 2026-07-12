@@ -48,10 +48,10 @@ export function AgentAvatar({ personaKey }: { personaKey?: PersonaIntroKey }) {
 
   return (
     <MessageAvatar
-      className="size-8 bg-mogu-surface-elevated text-foreground"
+      className="size-8 overflow-visible bg-transparent text-foreground"
       aria-label="mogu"
     >
-      <MoguBrandIcon className="size-4" />
+      <MoguBrandIcon className="size-8" />
     </MessageAvatar>
   );
 }

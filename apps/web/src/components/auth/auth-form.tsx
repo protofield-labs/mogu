@@ -4,6 +4,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { useState, type InputHTMLAttributes, type ReactNode } from "react";
 
 import { MoguBrandIcon } from "@/components/brand/mogu-brand-icon";
+import { MoguWordmark } from "@/components/brand/mogu-wordmark";
 import { Input } from "@/components/ui/input";
 import { FieldHint, Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -108,13 +109,16 @@ export function AuthFormShell({
           )}
         >
           <div className="space-y-4">
-            <MoguBrandIcon className="size-9" />
-            <div className="space-y-1.5">
+            <div className="flex items-center justify-center gap-3">
+              <MoguBrandIcon className="size-12" />
+              <MoguWordmark className="[&_svg]:h-8 [&_svg]:w-[5.75rem]" />
+            </div>
+            <div className="space-y-1.5 text-center">
               <h1 className="text-2xl font-semibold tracking-tight text-foreground">
                 {title}
               </h1>
               {description ? (
-                <p className="text-sm leading-6 text-muted-foreground">
+                <p className="whitespace-pre-line text-sm leading-6 text-muted-foreground">
                   {description}
                 </p>
               ) : null}

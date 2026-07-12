@@ -71,7 +71,7 @@ export default function LoginPage() {
   return (
     <AuthFormShell
       title="mogu へようこそ"
-      description="ログインして、友達の食の記録と AI のお店探しをはじめましょう。"
+      description={"今夜の店、もう迷わない。\n決め手は、友達の「すき」。"}
       submitting={busy}
       footer={
         <p className="text-center text-sm text-muted-foreground">

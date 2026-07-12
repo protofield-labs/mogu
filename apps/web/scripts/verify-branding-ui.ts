@@ -22,7 +22,8 @@ assert(brandIcon.includes("aria-hidden"), "brand icon is decorative");
 
 const wordmark = readSource("components/brand/mogu-wordmark.tsx");
 assert(wordmark.includes("text-mogu-wordmark"), "wordmark uses brand color token");
-assert(wordmark.includes("text-xl font-bold"), "wordmark uses prominent header typography");
+assert(wordmark.includes('viewBox="0 0 242 84"'), "wordmark uses custom SVG paths");
+assert(wordmark.includes("sr-only"), "wordmark keeps accessible brand text");
 
 const tabBar = readSource("components/tab-bar.tsx");
 assert(tabBar.includes("MoguTabIcon"), "search tab uses monochrome-friendly brand icon");
@@ -30,6 +31,21 @@ assert(!tabBar.includes("Sparkles"), "search tab no longer uses Sparkles");
 
 const agentBubbles = readSource("components/search/agent-chat-bubbles.tsx");
 assert(agentBubbles.includes("MoguBrandIcon"), "agent chat uses brand icon for avatar");
+assert(agentBubbles.includes("bg-transparent"), "agent avatar has no white container");
+assert(
+  agentBubbles.includes('<MoguBrandIcon className="size-8"'),
+  "agent avatar fills its slot with the brand icon",
+);
+
+const authForm = readSource("components/auth/auth-form.tsx");
+assert(authForm.includes("MoguBrandIcon"), "auth form uses brand icon");
+assert(authForm.includes("MoguWordmark"), "auth form uses SVG wordmark");
+assert(authForm.includes("justify-center"), "auth logo is centered");
+assert(authForm.includes("whitespace-pre-line"), "auth copy supports intentional line breaks");
+
+const loginPage = readSource("app/login/page.tsx");
+assert(loginPage.includes("今夜の店、もう迷わない。"), "login uses brand message");
+assert(loginPage.includes("決め手は、友達の「すき」。"), "login uses friend-based value copy");
 
 const homeView = readSource("components/home/home-view.tsx");
 assert(homeView.includes("MoguBrandIcon"), "home header uses brand icon");
@@ -42,6 +58,9 @@ assert(!searchHeader.includes("PageTitle"), "search header no longer uses PageTi
 
 const mypageView = readSource("components/mypage/mypage-view.tsx");
 assert(mypageView.includes("MoguBrandIcon"), "mypage agent promo uses brand icon");
+
+const profileHero = readSource("components/mypage/profile-hero-card.tsx");
+assert(profileHero.includes("flex-col items-center"), "profile name sits below avatar");
 
 const mypageTopBar = readSource("components/mypage/mypage-top-bar.tsx");
 assert(mypageTopBar.includes("MoguWordmark"), "mypage header uses wordmark");

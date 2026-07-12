@@ -14,7 +14,7 @@ type ProfileHeroCardProps = {
   pendingFriendRequests: number;
 };
 
-/** Hero card: left avatar + name, right vertical stats (#101). */
+/** Hero card: centered avatar/name stack + right vertical stats (#101). */
 export function ProfileHeroCard({
   me,
   pendingFriendRequests,
@@ -25,7 +25,7 @@ export function ProfileHeroCard({
   return (
     <section className="px-mogu-screen-x">
       <div className="flex items-stretch gap-5 rounded-mogu-card bg-mogu-surface-elevated p-5 shadow-mogu-card">
-        <div className="flex min-w-0 flex-1 items-center gap-4">
+        <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-2 text-center">
           <Avatar
             displayName={me.displayName}
             avatarColor={me.avatarColor}
@@ -33,7 +33,7 @@ export function ProfileHeroCard({
             size="hero"
           />
           <div className="min-w-0">
-            <h2 className="truncate text-xl font-semibold text-foreground">
+            <h2 className="max-w-40 truncate text-xl font-semibold text-foreground">
               {me.displayName}
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">{stats.spotsLabel}</p>
